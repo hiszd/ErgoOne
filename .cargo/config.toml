@@ -5,8 +5,8 @@
 # - "probe-rs-cli run" is similar to probe-run but it uses the latest probe-rs lib crate
 # runner = "sudo probe-run --chip RP2040"
 # runner = "elf2uf2-rs -d"
-# runner = "sudo probe-rs-cli run --chip RP2040 --protocol swd"
-runner = "./flash.sh"
+runner = "sudo probe-rs-cli run --chip RP2040 --protocol swd"
+# runner = "./flash.sh"
 
 rustflags = [
   # "-C", "linker=flip-link",
