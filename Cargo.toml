@@ -22,6 +22,10 @@ panic-probe = { version = "0.3", features = ["print-defmt"] }
 rp2040-hal = { version="0.8", features=["rt", "critical-section-impl"] }
 rp2040-boot2 = "0.2"
 heapless = { version = "0.7.16", features = ["defmt", "defmt-impl"] }
+ws2812-pio = "0.6.0"
+smart-leds = "0.3.0"
+usb-device = { version = "0.2.9", features = ["defmt"] }
+usbd-hid = { version = "0.6.1", features = ["defmt"] }
 
 # cargo build/run
 [profile.dev]

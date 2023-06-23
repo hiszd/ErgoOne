@@ -1,47 +1,61 @@
-use crate::key::Key;
-use crate::{key::KeyBase, key_codes::KeyCode};
+use crate::keyscanning::StateType;
+use crate::{key::Key, key_codes::KeyCode};
 
 pub trait ModTap {
-    fn new_ModTap(KC1: KeyCode, KC2: KeyCode) -> Self;
-    fn tap(&self) -> ([KeyCode; 2], u8);
-    fn hold(&self) -> ([KeyCode; 2], u8);
-    fn idle(&self) -> ([KeyCode; 2], u8);
+    fn new(KC1: KeyCode, KC2: Option<KeyCode>) -> Self
+    where
+        Self: Sized;
 }
 
 impl ModTap for Key {
-    fn new_ModTap(KC1: KeyCode, KC2: KeyCode) -> Self {
+    fn new(KC1: KeyCode, KC2: Option<KeyCode>) -> Self {
         Key {
-            keystate: KeyBase::new(KC1, KC2),
-        }
-    }
-    fn tap(&self) -> ([KeyCode; 2], u8) {
-        let curcode = self.keystate.keycode[0];
-        let mut modi: u8 = 0;
-        if let Some(bitmask) = curcode.modifier_bitmask() {
-            modi |= bitmask;
-            ([KeyCode::________, KeyCode::________], modi)
-        } else {
-            ([self.keystate.keycode[0], KeyCode::________], modi)
-        }
-    }
-    fn hold(&self) -> ([KeyCode; 2], u8) {
-        let curcode = self.keystate.keycode[0];
-        let mut modi: u8 = 0;
-        if let Some(bitmask) = curcode.modifier_bitmask() {
-            modi |= bitmask;
-            ([KeyCode::________, KeyCode::________], modi)
-        } else {
-            ([self.keystate.keycode[0], KeyCode::________], modi)
-        }
-    }
-    fn idle(&self) -> ([KeyCode; 2], u8) {
-        let curcode = self.keystate.keycode[0];
-        let mut modi: u8 = 0;
-        if let Some(bitmask) = curcode.modifier_bitmask() {
-            modi |= bitmask;
-            ([KeyCode::________, KeyCode::________], modi)
-        } else {
-            ([self.keystate.keycode[0], KeyCode::________], modi)
+            cycles: 0,
+            raw_state: false,
+            cycles_off: 0,
+            state: StateType::Off,
+            prevstate: StateType::Off,
+            keycode: [KC1, KC2.unwrap_or(KeyCode::________)],
+            tap: |keycodes: [KeyCode; 2]| {
+                let curcode = keycodes[0];
+                let mut modi: u8 = 0;
+                if let Some(bitmask) = curcode.modifier_bitmask() {
+                    modi |= bitmask;
+                    ([KeyCode::________, KeyCode::________], modi)
+                } else {
+                    ([keycodes[0], KeyCode::________], modi)
+                }
+            },
+            hold: |keycodes: [KeyCode; 2]| {
+                let curcode = keycodes[0];
+                let mut modi: u8 = 0;
+                if let Some(bitmask) = curcode.modifier_bitmask() {
+                    modi |= bitmask;
+                    ([KeyCode::________, KeyCode::________], modi)
+                } else {
+                    ([keycodes[0], KeyCode::________], modi)
+                }
+            },
+            idle: |keycodes: [KeyCode; 2]| {
+                let curcode = keycodes[0];
+                let mut modi: u8 = 0;
+                if let Some(bitmask) = curcode.modifier_bitmask() {
+                    modi |= bitmask;
+                    ([KeyCode::________, KeyCode::________], modi)
+                } else {
+                    ([keycodes[0], KeyCode::________], modi)
+                }
+            },
+            off: |keycodes: [KeyCode; 2]| {
+                let curcode = keycodes[0];
+                let mut modi: u8 = 0;
+                if let Some(bitmask) = curcode.modifier_bitmask() {
+                    modi |= bitmask;
+                    ([KeyCode::________, KeyCode::________], modi)
+                } else {
+                    ([keycodes[0], KeyCode::________], modi)
+                }
+            },
         }
     }
 }

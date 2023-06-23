@@ -1,18 +1,21 @@
 #![allow(dead_code)]
+#![allow(unused_imports)]
 
 // use rp2040_hal::gpio::PinMode::{Input, Output}
 
-use defmt::{info, println};
+use defmt::{info, println, Format};
 use embedded_hal::digital::v2::{InputPin, OutputPin};
 use rp2040_hal::gpio::DynPin;
+use usbd_hid::descriptor::KeyboardReport;
 
+use crate::key::Default;
 use crate::{
-    key::{Default, Key},
+    key::Key,
     key_codes::KeyCode,
     // mods::mod_tap::ModTap,
 };
 
-#[derive(Copy, Clone, PartialEq, PartialOrd)]
+#[derive(Copy, Clone, PartialEq, PartialOrd, Debug, Format)]
 pub enum StateType {
     Tap = 0,
     Hold = 1,
@@ -93,7 +96,8 @@ impl<const RSIZE: usize, const CSIZE: usize> Matrix<RSIZE, CSIZE> {
         let mut new = Matrix {
             rows,
             cols,
-            state: KeyMatrix::new([[Key::new(KeyCode::________); CSIZE]; RSIZE]),
+            state: KeyMatrix::new([[Key::new(KeyCode::________, None); CSIZE]; RSIZE]),
+            // state: keymap,
             callback,
             wait_cycles: 2,
             cycles: 0,
@@ -137,26 +141,61 @@ impl<const RSIZE: usize, const CSIZE: usize> Matrix<RSIZE, CSIZE> {
         // self.execute_info(&str)
     }
     pub fn poll(&mut self) {
+        // if self.cur_strobe == 0 {
+        //     println!("poll");
+        // }
         self.next_strobe();
         let c = self.cur_strobe;
         for r in 0..RSIZE {
-            let st = self.state.matrix[r][c]
-                .keystate
-                .scan(self.rows[r].is_high());
-            if st {
-                // println!("{}: {}, {}", st, r, c);
-            }
-            if self.state.matrix[r][c].keystate.state != self.state.matrix[r][c].keystate.prevstate
-            {
+            self.state.matrix[r][c].scan(self.rows[r].is_high());
+            let rprt = self.to_report();
+            (self.push_input)(rprt.keycodes, rprt.modifier);
+            if self.state.matrix[r][c].state != self.state.matrix[r][c].prevstate {
                 self.execute_callback(
                     r + 1,
                     c + 1,
-                    self.state.matrix[r][c].keystate.state,
-                    self.state.matrix[r][c].keystate.prevstate,
+                    self.state.matrix[r][c].state,
+                    self.state.matrix[r][c].prevstate,
                 );
             }
         }
         // TODO it doesn't make sense to return this at the end of every poll...
         // Some(self.state)
+    }
+    fn to_report(&self) -> KeyboardReport {
+        let mut keycodes = [0u8; 6];
+        let mut keycode_index = 0;
+        let mut modifier = 0;
+
+        let mut push_keycode = |key| {
+            if keycode_index < keycodes.len() {
+                keycodes[keycode_index] = key;
+                keycode_index += 1;
+            }
+        };
+
+        for r in 0..RSIZE {
+            for c in 0..CSIZE {
+                let keys = self.state.matrix[r][c].get_keys();
+                let st = self.state.matrix[r][c].state;
+                if st != StateType::Off && st != StateType::Idle {
+                    // info!("{}, {}: {}", r, c, st);
+                    for key in keys.0.iter() {
+                        if let Some(bitmask) = key.modifier_bitmask() {
+                            modifier |= bitmask;
+                        } else {
+                            push_keycode(*key as u8);
+                        }
+                    }
+                }
+            }
+        }
+
+        KeyboardReport {
+            modifier,
+            reserved: 0,
+            leds: 0,
+            keycodes,
+        }
     }
 }

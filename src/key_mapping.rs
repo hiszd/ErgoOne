@@ -1,13 +1,13 @@
 use crate::key_codes::KeyCode::*;
 use crate::{
-    key::{Default, Key},
+    key::Default,
     keyscanning::KeyMatrix,
 };
 
 #[allow(unused_macros)]
 macro_rules! kc {
     ($code:expr) => {
-        Key::new($code)
+        Default::new($code,None)
     };
 }
 
