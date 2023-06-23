@@ -1,3 +1,5 @@
+use defmt::{info, println};
+
 use crate::{key_codes::KeyCode, keyscanning::StateType};
 
 const DEBOUNCE_CYCLES: u8 = 3;
@@ -80,9 +82,10 @@ impl KeyBase {
     }
     /// Perform state change as a result of the scan
     pub fn scan(&mut self, is_high: bool) -> bool {
+        // println!("{}", is_high);
         // if they KeyCode is empty then don't bother processing
         if self.keycode == [KeyCode::________, KeyCode::________] {
-            return false;
+            // return false;
         }
         //     ____________________________
         //    |                            |
@@ -91,7 +94,6 @@ impl KeyBase {
         //    |____________________________|
 
         // set the raw state to the state of the pin
-        self.raw_state = is_high;
         if is_high {
             // increment cycles while pin is high
             if self.cycles < u16::MAX {
@@ -106,6 +108,7 @@ impl KeyBase {
             // reset cycles since pin is low
             self.cycles = 0;
         }
+        self.raw_state = is_high;
 
         //     ____________________________
         //    |                            |
@@ -116,15 +119,18 @@ impl KeyBase {
         // if we have gotten more cycles in than the debounce_cycles
         if self.cycles >= DEBOUNCE_CYCLES.into() {
             // if the current state is Tap  and we have more cycles than hold_cycles
-            if self.state == StateType::Tap && self.cycles >= HOLD_CYCLES.into() {
+            if (self.state == StateType::Tap || self.state == StateType::Hold) && self.cycles >= HOLD_CYCLES.into() {
                 self.prevstate = self.state;
                 self.state = StateType::Hold;
-            } else if self.state == StateType::Off {
+            } else if self.state == StateType::Off || self.state == StateType::Tap {
                 // if the current state is Off
                 self.prevstate = self.state;
                 self.state = StateType::Tap;
             }
             return true;
+        } else if self.cycles_off >= DEBOUNCE_CYCLES.into() {
+            self.prevstate = self.state;
+            self.state = StateType::Off;
         }
         false
     }

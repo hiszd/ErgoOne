@@ -1,7 +1,9 @@
+use defmt::Format;
+
 #[allow(unused)]
 #[repr(u8)]
 #[allow(non_camel_case_types)]
-#[derive(Copy, Clone, PartialEq, PartialOrd)]
+#[derive(Copy, Clone, PartialEq, PartialOrd, Debug, Format)]
 pub enum KeyCode {
     /// Empty
     ________,

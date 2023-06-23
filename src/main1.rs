@@ -28,12 +28,12 @@ pub static BOOT_LOADER: [u8; 256] = rp2040_boot2::BOOT_LOADER_W25Q080;
 fn main() -> ! {
     info!("Program start");
     let mut pac = pac::Peripherals::take().unwrap();
-    let core = pac::CorePeripherals::take().unwrap();
+    let _core = pac::CorePeripherals::take().unwrap();
     let mut watchdog = Watchdog::new(pac.WATCHDOG);
     let sio = Sio::new(pac.SIO);
 
     let external_xtal_freq_hz = 12_000_000u32;
-    let clocks = init_clocks_and_plls(
+    let _clocks = init_clocks_and_plls(
         external_xtal_freq_hz,
         pac.XOSC,
         pac.CLOCKS,
@@ -45,7 +45,7 @@ fn main() -> ! {
     .ok()
     .unwrap();
 
-    let mut delay = cortex_m::delay::Delay::new(core.SYST, clocks.system_clock.freq().to_Hz());
+    // let mut delay = cortex_m::delay::Delay::new(core.SYST, clocks.system_clock.freq().to_Hz());
 
     let pins = bsp::gpio::Pins::new(
         pac.IO_BANK0,
@@ -54,8 +54,8 @@ fn main() -> ! {
         &mut pac.RESETS,
     );
 
-    pins.gpio15.into_push_pull_output_in_state(PinState::High);
-    let col0 = pins.gpio29.into_floating_input();
+    // pins.gpio15.into_push_pull_output_in_state(PinState::High);
+    // let col0 = pins.gpio29.into_floating_input();
     let mut leds = pins.gpio7.into_push_pull_output();
 
     // let mut oldstate = false;
