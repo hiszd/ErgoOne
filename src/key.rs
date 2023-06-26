@@ -4,8 +4,8 @@ use defmt::{info, println};
 
 use crate::{key_codes::KeyCode, keyscanning::StateType};
 
-const DEBOUNCE_CYCLES: u8 = 3;
-const HOLD_CYCLES: u8 = 20;
+const DEBOUNCE_CYCLES: u16 = 5;
+const HOLD_CYCLES: u16 = 1000;
 // TODO impl idle tracking
 // const IDLE_CYCLES: u8 = 100;
 
@@ -18,14 +18,16 @@ pub struct Key {
     pub state: StateType,
     pub prevstate: StateType,
     pub keycode: [KeyCode; 2],
-    pub tap: fn([KeyCode; 2]) -> ([KeyCode; 2], u8),
-    pub hold: fn([KeyCode; 2]) -> ([KeyCode; 2], u8),
-    pub idle: fn([KeyCode; 2]) -> ([KeyCode; 2], u8),
-    pub off: fn([KeyCode; 2]) -> ([KeyCode; 2], u8),
+    pub tap: fn([KeyCode; 2]) -> [KeyCode; 2],
+    pub hold: fn([KeyCode; 2]) -> [KeyCode; 2],
+    pub idle: fn([KeyCode; 2]) -> [KeyCode; 2],
+    pub off: fn([KeyCode; 2]) -> [KeyCode; 2],
 }
 
 pub trait Default {
-    fn new(KC1: KeyCode, KC2: Option<KeyCode>) -> Self where Self: Sized;
+    fn new(KC1: KeyCode, KC2: Option<KeyCode>) -> Self
+    where
+        Self: Sized;
 }
 
 impl Default for Key {
@@ -37,46 +39,10 @@ impl Default for Key {
             state: StateType::Off,
             prevstate: StateType::Off,
             keycode: [KC1, KC2.unwrap_or(KeyCode::________)],
-            tap: |keycodes: [KeyCode; 2]| {
-                let curcode = keycodes[0];
-                let mut modi: u8 = 0;
-                if let Some(bitmask) = curcode.modifier_bitmask() {
-                    modi |= bitmask;
-                    ([KeyCode::________, KeyCode::________], modi)
-                } else {
-                    ([keycodes[0], KeyCode::________], modi)
-                }
-            },
-            hold: |keycodes: [KeyCode; 2]| {
-                let curcode = keycodes[0];
-                let mut modi: u8 = 0;
-                if let Some(bitmask) = curcode.modifier_bitmask() {
-                    modi |= bitmask;
-                    ([KeyCode::________, KeyCode::________], modi)
-                } else {
-                    ([keycodes[0], KeyCode::________], modi)
-                }
-            },
-            idle: |keycodes: [KeyCode; 2]| {
-                let curcode = keycodes[0];
-                let mut modi: u8 = 0;
-                if let Some(bitmask) = curcode.modifier_bitmask() {
-                    modi |= bitmask;
-                    ([KeyCode::________, KeyCode::________], modi)
-                } else {
-                    ([keycodes[0], KeyCode::________], modi)
-                }
-            },
-            off: |keycodes: [KeyCode; 2]| {
-                let curcode = keycodes[0];
-                let mut modi: u8 = 0;
-                if let Some(bitmask) = curcode.modifier_bitmask() {
-                    modi |= bitmask;
-                    ([KeyCode::________, KeyCode::________], modi)
-                } else {
-                    ([keycodes[0], KeyCode::________], modi)
-                }
-            },
+            tap: |keycodes: [KeyCode; 2]| keycodes,
+            hold: |_keycodes: [KeyCode; 2]| [KeyCode::Ltr_Dzzz, KeyCode::________],
+            idle: |_keycodes: [KeyCode; 2]| [KeyCode::________, KeyCode::________],
+            off: |_keycodes: [KeyCode; 2]| [KeyCode::________, KeyCode::________],
         }
     }
 }
@@ -84,11 +50,12 @@ impl Default for Key {
 #[allow(dead_code)]
 impl Key {
     /// Perform state change as a result of the scan
-    pub fn scan(&mut self, is_high: bool) -> bool {
+    pub fn scan(&mut self, is_high: bool) -> [KeyCode; 2] {
         // println!("{}", is_high);
+        const DEFCODE: [KeyCode; 2] = [KeyCode::________, KeyCode::________];
         // if they KeyCode is empty then don't bother processing
         if self.keycode == [KeyCode::________, KeyCode::________] {
-            // return false;
+            return DEFCODE;
         }
         //     ____________________________
         //    |                            |
@@ -132,17 +99,14 @@ impl Key {
                 self.prevstate = self.state;
                 self.state = StateType::Tap;
             }
-            return true;
+            return self.get_keys();
         } else if self.cycles_off >= DEBOUNCE_CYCLES.into() {
             self.prevstate = self.state;
             self.state = StateType::Off;
         }
-        false
+        return self.get_keys();
     }
-    fn keyfunc(&mut self) -> KeyCode {
-        self.keycode[0]
-    }
-    pub fn get_keys(&self) -> ([KeyCode; 2], u8) {
+    pub fn get_keys(&self) -> [KeyCode; 2] {
         // info!("{:?}", self.state);
         // Match all types of self.state
         match self.state {

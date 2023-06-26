@@ -17,44 +17,16 @@ impl ModTap for Key {
             prevstate: StateType::Off,
             keycode: [KC1, KC2.unwrap_or(KeyCode::________)],
             tap: |keycodes: [KeyCode; 2]| {
-                let curcode = keycodes[0];
-                let mut modi: u8 = 0;
-                if let Some(bitmask) = curcode.modifier_bitmask() {
-                    modi |= bitmask;
-                    ([KeyCode::________, KeyCode::________], modi)
-                } else {
-                    ([keycodes[0], KeyCode::________], modi)
-                }
+                keycodes
             },
             hold: |keycodes: [KeyCode; 2]| {
-                let curcode = keycodes[0];
-                let mut modi: u8 = 0;
-                if let Some(bitmask) = curcode.modifier_bitmask() {
-                    modi |= bitmask;
-                    ([KeyCode::________, KeyCode::________], modi)
-                } else {
-                    ([keycodes[0], KeyCode::________], modi)
-                }
+                keycodes
             },
             idle: |keycodes: [KeyCode; 2]| {
-                let curcode = keycodes[0];
-                let mut modi: u8 = 0;
-                if let Some(bitmask) = curcode.modifier_bitmask() {
-                    modi |= bitmask;
-                    ([KeyCode::________, KeyCode::________], modi)
-                } else {
-                    ([keycodes[0], KeyCode::________], modi)
-                }
+                keycodes
             },
             off: |keycodes: [KeyCode; 2]| {
-                let curcode = keycodes[0];
-                let mut modi: u8 = 0;
-                if let Some(bitmask) = curcode.modifier_bitmask() {
-                    modi |= bitmask;
-                    ([KeyCode::________, KeyCode::________], modi)
-                } else {
-                    ([keycodes[0], KeyCode::________], modi)
-                }
+                keycodes
             },
         }
     }

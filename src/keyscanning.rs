@@ -3,7 +3,7 @@
 
 // use rp2040_hal::gpio::PinMode::{Input, Output}
 
-use defmt::{info, println, Format};
+use defmt::{debug, info, println, Format};
 use embedded_hal::digital::v2::{InputPin, OutputPin};
 use rp2040_hal::gpio::DynPin;
 use usbd_hid::descriptor::KeyboardReport;
@@ -78,8 +78,9 @@ pub struct Matrix<const RSIZE: usize, const CSIZE: usize> {
     rows: [Row; RSIZE],
     cols: [Col; CSIZE],
     state: KeyMatrix<RSIZE, CSIZE>,
-    callback: fn(row: usize, col: usize, state: StateType, prevstate: StateType),
-    push_input: fn(codes: [u8; 6], modifier: u8),
+    callback:
+        fn(row: usize, col: usize, state: StateType, prevstate: StateType, keycodes: [KeyCode; 2]),
+    push_input: fn(codes: [KeyCode; 6]),
     wait_cycles: u16,
     cycles: u16,
     cur_strobe: usize,
@@ -89,15 +90,21 @@ impl<const RSIZE: usize, const CSIZE: usize> Matrix<RSIZE, CSIZE> {
     pub fn new(
         rows: [Row; RSIZE],
         cols: [Col; CSIZE],
-        callback: fn(row: usize, col: usize, state: StateType, prevstate: StateType),
-        push_input: fn(codes: [u8; 6], modifier: u8),
+        callback: fn(
+            row: usize,
+            col: usize,
+            state: StateType,
+            prevstate: StateType,
+            keycodes: [KeyCode; 2],
+        ),
+        push_input: fn(codes: [KeyCode; 6]),
         keymap: KeyMatrix<RSIZE, CSIZE>,
     ) -> Self {
         let mut new = Matrix {
             rows,
             cols,
-            state: KeyMatrix::new([[Key::new(KeyCode::________, None); CSIZE]; RSIZE]),
-            // state: keymap,
+            // state: KeyMatrix::new([[Key::new(KeyCode::________, None); CSIZE]; RSIZE]),
+            state: keymap,
             callback,
             wait_cycles: 2,
             cycles: 0,
@@ -108,8 +115,15 @@ impl<const RSIZE: usize, const CSIZE: usize> Matrix<RSIZE, CSIZE> {
         new.clear();
         new
     }
-    fn execute_callback(&self, row: usize, col: usize, state: StateType, prevstate: StateType) {
-        (self.callback)(row, col, state, prevstate);
+    fn execute_callback(
+        &self,
+        row: usize,
+        col: usize,
+        state: StateType,
+        prevstate: StateType,
+        keycodes: [KeyCode; 2],
+    ) {
+        (self.callback)(row, col, state, prevstate, keycodes);
     }
     fn clear(&mut self) {
         for r in self.cols.iter_mut() {
@@ -143,56 +157,44 @@ impl<const RSIZE: usize, const CSIZE: usize> Matrix<RSIZE, CSIZE> {
     pub fn poll(&mut self) {
         self.next_strobe();
         let c = self.cur_strobe;
+
+        let mut keycodes = [KeyCode::________; 6];
+        let mut keycode_index = 0;
+
+        let mut push_codes = |keys: [KeyCode; 2]| {
+            keys.iter().for_each(|key| {
+                if key != &KeyCode::________ {
+                    if keycode_index < keycodes.len() {
+                        keycodes[keycode_index] = *key;
+                        keycode_index += 1;
+                    } else {
+                        info!("overload push");
+                        (self.push_input)(keycodes);
+                        keycode_index = 0;
+                        keycodes[keycode_index] = *key;
+                        keycode_index += 1;
+                    }
+                }
+            })
+        };
+
         for r in 0..RSIZE {
-            self.state.matrix[r][c].scan(self.rows[r].is_high());
-            let rprt = self.to_report();
-            (self.push_input)(rprt.keycodes, rprt.modifier);
+            let codes = self.state.matrix[r][c].scan(self.rows[r].is_high());
             if self.state.matrix[r][c].state != self.state.matrix[r][c].prevstate {
+                push_codes(codes);
                 self.execute_callback(
                     r + 1,
                     c + 1,
                     self.state.matrix[r][c].state,
                     self.state.matrix[r][c].prevstate,
+                    codes,
                 );
-            }
-        }
-        // TODO it doesn't make sense to return this at the end of every poll...
-        // Some(self.state)
-    }
-    fn to_report(&self) -> KeyboardReport {
-        let mut keycodes = [0u8; 6];
-        let mut keycode_index = 0;
-        let mut modifier = 0;
-
-        let mut push_keycode = |key| {
-            if keycode_index < keycodes.len() {
-                keycodes[keycode_index] = key;
-                keycode_index += 1;
-            }
-        };
-
-        for r in 0..RSIZE {
-            for c in 0..CSIZE {
-                let keys = self.state.matrix[r][c].get_keys();
-                let st = self.state.matrix[r][c].state;
-                if st != StateType::Off && st != StateType::Idle {
-                    // info!("{}, {}: {}", r, c, st);
-                    for key in keys.0.iter() {
-                        if let Some(bitmask) = key.modifier_bitmask() {
-                            modifier |= bitmask;
-                        } else {
-                            push_keycode(*key as u8);
-                        }
-                    }
-                }
+            } else if self.state.matrix[r][c].state == StateType::Hold {
+                push_codes(codes);
             }
         }
 
-        KeyboardReport {
-            modifier,
-            reserved: 0,
-            leds: 0,
-            keycodes,
-        }
+        // info!("end push {:?}", keycodes);
+        (self.push_input)(keycodes);
     }
 }

@@ -8,8 +8,12 @@ mod key_mapping;
 mod keyscanning;
 mod mods;
 
-use crate::pac::interrupt;
-use cortex_m::interrupt::Mutex;
+use core::{
+    cell::RefCell,
+    sync::atomic::{AtomicU8, Ordering},
+};
+
+use crate::{key_codes::KeyCode, pac::interrupt};
 use cortex_m_rt::entry;
 use defmt::*;
 use defmt_rtt as _;
@@ -17,11 +21,11 @@ use heapless::String;
 use keyscanning::{Col, Row};
 use panic_probe as _;
 
-const XOSC_CRYSTAL_FREQ: u32 = 12_000_000;
-
+use critical_section::Mutex;
 use usb_device::{
     class_prelude::{UsbBusAllocator, UsbClass},
-    prelude::{UsbDevice, UsbDeviceBuilder, UsbVidPid},
+    prelude::{UsbDevice, UsbDeviceBuilder, UsbVidPid, UsbDeviceState},
+    UsbError,
 };
 use usbd_hid::{
     descriptor::KeyboardReport,
@@ -73,7 +77,8 @@ fn main() -> ! {
     .ok()
     .unwrap();
 
-    let _delay = cortex_m::delay::Delay::new(core.SYST, clocks.system_clock.freq().to_Hz());
+    let mut delay = cortex_m::delay::Delay::new(core.SYST, clocks.system_clock.freq().to_Hz());
+    let timer = Timer::new(pac.TIMER, &mut pac.RESETS);
 
     let pins = rp2040_hal::gpio::Pins::new(
         pac.IO_BANK0,
@@ -148,7 +153,13 @@ fn main() -> ! {
         Col::new(pins.gpio0.into()),
     ];
 
-    fn callback(row: usize, col: usize, state: StateType, prevstate: StateType) {
+    fn callback(
+        row: usize,
+        col: usize,
+        state: StateType,
+        prevstate: StateType,
+        keycodes: [KeyCode; 2],
+    ) {
         let rowstr: String<2> = String::from(row as u32);
         let colstr: String<2> = String::from(col as u32);
         let mut str: String<35> = String::from("row: ");
@@ -169,34 +180,53 @@ fn main() -> ! {
             StateType::Idle => " c: Idle",
         })
         .unwrap();
-        str.push_str("\n").unwrap();
-        info!("{}", str);
+        info!("{}, c1: {}, c2: {}", str, keycodes[0], keycodes[1]);
+
+        for code in keycodes {
+            if code == KeyCode::Led_Col1 {
+                RCOL.store(255, Ordering::Relaxed);
+                GCOL.store(0, Ordering::Relaxed);
+                BCOL.store(0, Ordering::Relaxed);
+            } else if code == KeyCode::Led_Col2 {
+                RCOL.store(0, Ordering::Relaxed);
+                GCOL.store(0, Ordering::Relaxed);
+                BCOL.store(255, Ordering::Relaxed);
+            }
+        }
     }
 
-    // TOTO create way to handle more than 6 codes per poll
-    fn push_input(codes: [u8; 6], modifier: u8) {
-        // println!("{}, {}", codes, modifier);
-        let key_report = KeyboardReport {
-            modifier,
-            reserved: 0,
-            leds: 0,
-            keycodes: codes,
+    // TODO create way to handle more than 6 codes per poll
+    fn push_input(codes: [KeyCode; 6]) {
+        let mut keycodes = [0u8; 6];
+        let mut keycode_index = 0;
+        let mut modifier = 0;
+
+        let mut push_keycode = |key| {
+            if keycode_index < keycodes.len() {
+                keycodes[keycode_index] = key;
+                keycode_index += 1;
+            }
         };
-        unsafe {
-            let usb_hid = USB_HID.as_ref().unwrap_unchecked();
-            usb_hid.push_input(&key_report).unwrap_unchecked();
-            // macOS doesn't like it when you don't pull this, apparently.
-            // TODO: maybe even parse something here
-            usb_hid.pull_raw_output(&mut [0; 64]).ok();
-            // Wake the host if a key is pressed and the device supports
-            // remote wakeup.
-            // if !report_is_empty(&key_report)
-            //     && keyboard_usb_device.state() == UsbDeviceState::Suspend
-            //     && keyboard_usb_device.remote_wakeup_enabled()
-            // {
-            // usb_hid.
-            // }
-        }
+
+        codes.iter().for_each(|k| {
+            if k != &KeyCode::________ {
+                println!("{:?}", k);
+                if let Some(bitmask) = k.modifier_bitmask() {
+                    modifier |= bitmask;
+                } else {
+                    push_keycode(k.into());
+                }
+            }
+        });
+
+        critical_section::with(|cs| {
+            KEYBOARD_REPORT.replace(cs, KeyboardReport {
+                modifier,
+                reserved: 0,
+                leds: 0,
+                keycodes,
+            })
+        });
     }
 
     let mut matrix: Matrix<5, 16> = Matrix::new(
@@ -208,16 +238,14 @@ fn main() -> ! {
     );
     // TODO reboot into bootloader if started while escape is pressed.
     // ISSUE there doesn't appear to be any way of doing this in the HAL currently
-    // let scan = matrix.poll().unwrap();
-    // if scan[0][0] >= 4 {}
 
     let mut mc = Multicore::new(&mut pac.PSM, &mut pac.PPB, &mut sio.fifo);
 
     let cores = mc.cores();
     let core1 = &mut cores[1];
+
     let _ledcore = core1.spawn(unsafe { &mut CORE1_STACK.mem }, move || {
         use smart_leds::{SmartLedsWrite, RGB8};
-        let timer = Timer::new(pac.TIMER, &mut pac.RESETS);
         let (mut pio, sm0, _, _, _) = pac.PIO0.split(&mut pac.RESETS);
         let mut ws = Ws2812::new(
             pins.gpio7.into_mode(),
@@ -228,15 +256,22 @@ fn main() -> ! {
         );
         let mut color: RGB8 = RGB8::new(0, 0, 0);
         loop {
-            cortex_m::interrupt::free(|cs| unsafe {
-                let curcol = RGB_COLOR.borrow(cs).clone().into();
-                let basecol = RGB8::new(0, 0, 0);
-                if curcol != color {
-                    ws.write([basecol, basecol, basecol, basecol, basecol, basecol, basecol, basecol].iter().copied()).unwrap();
-                    color = curcol;
-                }
-            });
-
+            let R = RCOL.load(Ordering::Relaxed);
+            let G = GCOL.load(Ordering::Relaxed);
+            let B = BCOL.load(Ordering::Relaxed);
+            let curcol = RGB8::new(R, G, B);
+            let basecol = RGB8::new(0, 0, 0);
+            if curcol != color {
+                ws.write(
+                    [
+                        basecol, basecol, basecol, basecol, basecol, basecol, basecol, basecol,
+                    ]
+                    .iter()
+                    .copied(),
+                )
+                .unwrap();
+                color = curcol;
+            }
             ws.write(
                 [color, color, color, color, color, color, color, color]
                     .iter()
@@ -248,7 +283,62 @@ fn main() -> ! {
 
     info!("Loop starting!");
     loop {
+        delay.delay_us(1000u32);
         matrix.poll();
+    }
+}
+
+static RCOL: AtomicU8 = AtomicU8::new(0);
+static GCOL: AtomicU8 = AtomicU8::new(0);
+static BCOL: AtomicU8 = AtomicU8::new(0);
+
+static mut USB_ALLOCATOR: Option<UsbBusAllocator<UsbBus>> = None;
+static mut HID_BUS: Option<UsbDevice<UsbBus>> = None;
+static mut USB_HID: Option<HIDClass<UsbBus>> = None;
+static KEYBOARD_REPORT: Mutex<RefCell<KeyboardReport>> = Mutex::new(RefCell::new(KeyboardReport {
+    modifier: 0,
+    reserved: 0,
+    leds: 0,
+    keycodes: [0u8; 6],
+}));
+
+/// Handle USB interrupts, used by the host to "poll" the keyboard for new inputs.
+#[allow(non_snake_case)]
+#[interrupt]
+unsafe fn USBCTRL_IRQ() {
+    let usb_dev = HID_BUS.as_mut().unwrap();
+    let usb_hid = USB_HID.as_mut().unwrap();
+
+    if usb_dev.poll(&mut [usb_hid]) {
+        usb_hid.poll();
+    }
+
+    let report = critical_section::with(|cs| *KEYBOARD_REPORT.borrow_ref(cs));
+    if let Err(err) = usb_hid.push_input(&report) {
+        match err {
+            // UsbError::WouldBlock => warn!("UsbError::WouldBlock"),
+            UsbError::WouldBlock => {},
+            UsbError::ParseError => error!("UsbError::ParseError"),
+            UsbError::BufferOverflow => error!("UsbError::BufferOverflow"),
+            UsbError::EndpointOverflow => error!("UsbError::EndpointOverflow"),
+            UsbError::EndpointMemoryOverflow => error!("UsbError::EndpointMemoryOverflow"),
+            UsbError::InvalidEndpoint => error!("UsbError::InvalidEndpoint"),
+            UsbError::Unsupported => error!("UsbError::Unsupported"),
+            UsbError::InvalidState => error!("UsbError::InvalidState"),
+        }
+    }
+
+    // macOS doesn't like it when you don't pull this, apparently.
+    // TODO: maybe even parse something here
+    usb_hid.pull_raw_output(&mut [0; 64]).ok();
+
+    // Wake the host if a key is pressed and the device supports
+    // remote wakeup.
+    if !report_is_empty(&report)
+        && usb_dev.state() == UsbDeviceState::Suspend
+        && usb_dev.remote_wakeup_enabled()
+    {
+        usb_dev.bus().remote_wakeup();
     }
 }
 
@@ -258,25 +348,4 @@ fn report_is_empty(report: &KeyboardReport) -> bool {
             .keycodes
             .iter()
             .any(|key| *key != key_codes::KeyCode::________ as u8)
-}
-
-static mut RGB_COLOR: Mutex<(u8, u8, u8)> = Mutex::new((0, 0, 0));
-
-static mut USB_ALLOCATOR: Option<UsbBusAllocator<UsbBus>> = None;
-static mut HID_BUS: Option<UsbDevice<UsbBus>> = None;
-static mut USB_HID: Option<HIDClass<UsbBus>> = None;
-
-/// This function is called whenever the USB Hardware generates an Interrupt
-/// Request.
-///
-/// We do all our USB work under interrupt, so the main thread can continue on
-/// knowing nothing about USB.
-#[allow(non_snake_case)]
-#[interrupt]
-unsafe fn USBCTRL_IRQ() {
-    if let (Some(usb_dev), Some(hid)) = (HID_BUS.as_mut(), USB_HID.as_mut()) {
-        if usb_dev.poll(&mut [hid]) {
-            hid.poll();
-        }
-    }
 }
