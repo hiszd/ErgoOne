@@ -9,6 +9,7 @@ mod keyscanning;
 mod mods;
 
 use crate::pac::interrupt;
+use cortex_m::interrupt::Mutex;
 use cortex_m_rt::entry;
 use defmt::*;
 use defmt_rtt as _;
@@ -17,6 +18,7 @@ use keyscanning::{Col, Row};
 use panic_probe as _;
 
 const XOSC_CRYSTAL_FREQ: u32 = 12_000_000;
+
 use usb_device::{
     class_prelude::{UsbBusAllocator, UsbClass},
     prelude::{UsbDevice, UsbDeviceBuilder, UsbVidPid},
@@ -29,6 +31,7 @@ use usbd_hid::{descriptor::SerializedDescriptor, hid_class::HIDClass};
 
 use rp2040_hal::{
     clocks::{init_clocks_and_plls, Clock},
+    multicore::{Multicore, Stack},
     pac,
     prelude::_rphal_pio_PIOExt,
     sio::Sio,
@@ -40,6 +43,8 @@ use ws2812_pio::Ws2812;
 
 use crate::keyscanning::Matrix;
 use crate::keyscanning::StateType;
+
+static mut CORE1_STACK: Stack<4096> = Stack::new();
 
 /// The linker will place this boot block at the start of our program image. We
 /// need this to help the ROM bootloader get our code up and running.
@@ -53,7 +58,7 @@ fn main() -> ! {
     let mut pac = pac::Peripherals::take().unwrap();
     let core = pac::CorePeripherals::take().unwrap();
     let mut watchdog = Watchdog::new(pac.WATCHDOG);
-    let sio = Sio::new(pac.SIO);
+    let mut sio = Sio::new(pac.SIO);
 
     let external_xtal_freq_hz = 12_000_000u32;
     let clocks = init_clocks_and_plls(
@@ -206,39 +211,44 @@ fn main() -> ! {
     // let scan = matrix.poll().unwrap();
     // if scan[0][0] >= 4 {}
 
-    let mut polldly: usize = 0;
+    let mut mc = Multicore::new(&mut pac.PSM, &mut pac.PPB, &mut sio.fifo);
 
-    let timer = Timer::new(pac.TIMER, &mut pac.RESETS);
-    let (mut pio, sm0, _, _, _) = pac.PIO0.split(&mut pac.RESETS);
-    let mut ws = Ws2812::new(
-        pins.gpio7.into_mode(),
-        &mut pio,
-        sm0,
-        clocks.peripheral_clock.freq(),
-        timer.count_down(),
-    );
-    let mut ledfn = || {
+    let cores = mc.cores();
+    let core1 = &mut cores[1];
+    let _ledcore = core1.spawn(unsafe { &mut CORE1_STACK.mem }, move || {
         use smart_leds::{SmartLedsWrite, RGB8};
-        let color: RGB8 = (255, 0, 0).into();
+        let timer = Timer::new(pac.TIMER, &mut pac.RESETS);
+        let (mut pio, sm0, _, _, _) = pac.PIO0.split(&mut pac.RESETS);
+        let mut ws = Ws2812::new(
+            pins.gpio7.into_mode(),
+            &mut pio,
+            sm0,
+            clocks.peripheral_clock.freq(),
+            timer.count_down(),
+        );
+        let mut color: RGB8 = RGB8::new(0, 0, 0);
+        loop {
+            cortex_m::interrupt::free(|cs| unsafe {
+                let curcol = RGB_COLOR.borrow(cs).clone().into();
+                let basecol = RGB8::new(0, 0, 0);
+                if curcol != color {
+                    ws.write([basecol, basecol, basecol, basecol, basecol, basecol, basecol, basecol].iter().copied()).unwrap();
+                    color = curcol;
+                }
+            });
 
-        ws.write(
-            [color, color, color, color, color, color, color, color]
-                .iter()
-                .copied(),
-        )
-        .unwrap();
-    };
+            ws.write(
+                [color, color, color, color, color, color, color, color]
+                    .iter()
+                    .copied(),
+            )
+            .unwrap();
+        }
+    });
 
     info!("Loop starting!");
     loop {
-        ledfn();
-
-        if polldly < 1 {
-            polldly += 1;
-        } else {
-            matrix.poll();
-            polldly = 0;
-        }
+        matrix.poll();
     }
 }
 
@@ -249,6 +259,8 @@ fn report_is_empty(report: &KeyboardReport) -> bool {
             .iter()
             .any(|key| *key != key_codes::KeyCode::________ as u8)
 }
+
+static mut RGB_COLOR: Mutex<(u8, u8, u8)> = Mutex::new((0, 0, 0));
 
 static mut USB_ALLOCATOR: Option<UsbBusAllocator<UsbBus>> = None;
 static mut HID_BUS: Option<UsbDevice<UsbBus>> = None;

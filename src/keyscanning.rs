@@ -141,9 +141,6 @@ impl<const RSIZE: usize, const CSIZE: usize> Matrix<RSIZE, CSIZE> {
         // self.execute_info(&str)
     }
     pub fn poll(&mut self) {
-        // if self.cur_strobe == 0 {
-        //     println!("poll");
-        // }
         self.next_strobe();
         let c = self.cur_strobe;
         for r in 0..RSIZE {
