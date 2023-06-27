@@ -24,7 +24,7 @@ use panic_probe as _;
 use critical_section::Mutex;
 use usb_device::{
     class_prelude::{UsbBusAllocator, UsbClass},
-    prelude::{UsbDevice, UsbDeviceBuilder, UsbVidPid, UsbDeviceState},
+    prelude::{UsbDevice, UsbDeviceBuilder, UsbDeviceState, UsbVidPid},
     UsbError,
 };
 use usbd_hid::{
@@ -220,12 +220,15 @@ fn main() -> ! {
         });
 
         critical_section::with(|cs| {
-            KEYBOARD_REPORT.replace(cs, KeyboardReport {
-                modifier,
-                reserved: 0,
-                leds: 0,
-                keycodes,
-            })
+            KEYBOARD_REPORT.replace(
+                cs,
+                KeyboardReport {
+                    modifier,
+                    reserved: 0,
+                    leds: 0,
+                    keycodes,
+                },
+            )
         });
     }
 
@@ -237,7 +240,6 @@ fn main() -> ! {
         key_mapping::FancyAlice66(),
     );
     // TODO reboot into bootloader if started while escape is pressed.
-    // ISSUE there doesn't appear to be any way of doing this in the HAL currently
 
     let mut mc = Multicore::new(&mut pac.PSM, &mut pac.PPB, &mut sio.fifo);
 
@@ -317,7 +319,7 @@ unsafe fn USBCTRL_IRQ() {
     if let Err(err) = usb_hid.push_input(&report) {
         match err {
             // UsbError::WouldBlock => warn!("UsbError::WouldBlock"),
-            UsbError::WouldBlock => {},
+            UsbError::WouldBlock => {}
             UsbError::ParseError => error!("UsbError::ParseError"),
             UsbError::BufferOverflow => error!("UsbError::BufferOverflow"),
             UsbError::EndpointOverflow => error!("UsbError::EndpointOverflow"),
@@ -330,7 +332,11 @@ unsafe fn USBCTRL_IRQ() {
 
     // macOS doesn't like it when you don't pull this, apparently.
     // TODO: maybe even parse something here
-    usb_hid.pull_raw_output(&mut [0; 64]).ok();
+    let mut out: [u8; 64] = [0; 64];
+    let siz = usb_hid.pull_raw_output(&mut out).unwrap_unchecked();
+    if siz > 0 {
+        println!("outty: {:?}", out);
+    }
 
     // Wake the host if a key is pressed and the device supports
     // remote wakeup.
