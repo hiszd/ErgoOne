@@ -4,7 +4,7 @@ use defmt::{info, println};
 
 use crate::{key_codes::KeyCode, keyscanning::StateType};
 
-const DEBOUNCE_CYCLES: u16 = 5;
+const DEBOUNCE_CYCLES: u16 = 3;
 const HOLD_CYCLES: u16 = 1000;
 // TODO impl idle tracking
 // const IDLE_CYCLES: u8 = 100;
@@ -89,19 +89,18 @@ impl Key {
         // if we have gotten more cycles in than the debounce_cycles
         if self.cycles >= DEBOUNCE_CYCLES.into() {
             // if the current state is Tap  and we have more cycles than hold_cycles
-            if (self.state == StateType::Tap || self.state == StateType::Hold)
-                && self.cycles >= HOLD_CYCLES.into()
-            {
-                self.prevstate = self.state;
+            if self.state == StateType::Tap && self.cycles >= HOLD_CYCLES.into() {
+                self.prevstate = self.state.clone();
                 self.state = StateType::Hold;
             } else if self.state == StateType::Off || self.state == StateType::Tap {
                 // if the current state is Off
-                self.prevstate = self.state;
+                self.prevstate = self.state.clone();
                 self.state = StateType::Tap;
             }
             return self.get_keys();
-        } else if self.cycles_off >= DEBOUNCE_CYCLES.into() {
-            self.prevstate = self.state;
+        // } else if self.cycles_off >= DEBOUNCE_CYCLES.into() {
+        } else if self.cycles_off >= 1 {
+            self.prevstate = self.state.clone();
             self.state = StateType::Off;
         }
         return self.get_keys();

@@ -80,7 +80,7 @@ pub struct Matrix<const RSIZE: usize, const CSIZE: usize> {
     state: KeyMatrix<RSIZE, CSIZE>,
     callback:
         fn(row: usize, col: usize, state: StateType, prevstate: StateType, keycodes: [KeyCode; 2]),
-    push_input: fn(codes: [KeyCode; 6]),
+    push_input: fn(codes: KeyCode),
     wait_cycles: u16,
     cycles: u16,
     cur_strobe: usize,
@@ -97,7 +97,7 @@ impl<const RSIZE: usize, const CSIZE: usize> Matrix<RSIZE, CSIZE> {
             prevstate: StateType,
             keycodes: [KeyCode; 2],
         ),
-        push_input: fn(codes: [KeyCode; 6]),
+        push_input: fn(codes: KeyCode),
         keymap: KeyMatrix<RSIZE, CSIZE>,
     ) -> Self {
         let mut new = Matrix {
@@ -158,23 +158,9 @@ impl<const RSIZE: usize, const CSIZE: usize> Matrix<RSIZE, CSIZE> {
         self.next_strobe();
         let c = self.cur_strobe;
 
-        let mut keycodes = [KeyCode::________; 6];
-        let mut keycode_index = 0;
-
-        let mut push_codes = |keys: [KeyCode; 2]| {
+        let push_codes = |keys: [KeyCode; 2]| {
             keys.iter().for_each(|key| {
-                if key != &KeyCode::________ {
-                    if keycode_index < keycodes.len() {
-                        keycodes[keycode_index] = *key;
-                        keycode_index += 1;
-                    } else {
-                        info!("overload push");
-                        (self.push_input)(keycodes);
-                        keycode_index = 0;
-                        keycodes[keycode_index] = *key;
-                        keycode_index += 1;
-                    }
-                }
+                (self.push_input)(*key);
             })
         };
 
@@ -193,8 +179,5 @@ impl<const RSIZE: usize, const CSIZE: usize> Matrix<RSIZE, CSIZE> {
                 push_codes(codes);
             }
         }
-
-        // info!("end push {:?}", keycodes);
-        (self.push_input)(keycodes);
     }
 }

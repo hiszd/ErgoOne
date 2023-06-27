@@ -8,10 +8,12 @@ mod key_mapping;
 mod keyscanning;
 mod mods;
 
+use core::sync::atomic::AtomicBool;
 use core::{
     cell::RefCell,
     sync::atomic::{AtomicU8, Ordering},
 };
+use heapless::spsc::Queue;
 
 use crate::{key_codes::KeyCode, pac::interrupt};
 use cortex_m_rt::entry;
@@ -196,40 +198,15 @@ fn main() -> ! {
     }
 
     // TODO create way to handle more than 6 codes per poll
-    fn push_input(codes: [KeyCode; 6]) {
-        let mut keycodes = [0u8; 6];
-        let mut keycode_index = 0;
-        let mut modifier = 0;
-
-        let mut push_keycode = |key| {
-            if keycode_index < keycodes.len() {
-                keycodes[keycode_index] = key;
-                keycode_index += 1;
+    fn push_input(c: KeyCode) {
+        unsafe {
+            if c != KeyCode::________ {
+                match KEY_QUEUE.enqueue(c) {
+                    Ok(_) => {}
+                    Err(e) => error!("{}: {:?}", c, e),
+                };
             }
-        };
-
-        codes.iter().for_each(|k| {
-            if k != &KeyCode::________ {
-                println!("{:?}", k);
-                if let Some(bitmask) = k.modifier_bitmask() {
-                    modifier |= bitmask;
-                } else {
-                    push_keycode(k.into());
-                }
-            }
-        });
-
-        critical_section::with(|cs| {
-            KEYBOARD_REPORT.replace(
-                cs,
-                KeyboardReport {
-                    modifier,
-                    reserved: 0,
-                    leds: 0,
-                    keycodes,
-                },
-            )
-        });
+        }
     }
 
     let mut matrix: Matrix<5, 16> = Matrix::new(
@@ -297,12 +274,78 @@ static BCOL: AtomicU8 = AtomicU8::new(0);
 static mut USB_ALLOCATOR: Option<UsbBusAllocator<UsbBus>> = None;
 static mut HID_BUS: Option<UsbDevice<UsbBus>> = None;
 static mut USB_HID: Option<HIDClass<UsbBus>> = None;
+static mut REPORTSENT: AtomicBool = AtomicBool::new(false);
+static mut READYTOSEND: AtomicBool = AtomicBool::new(false);
+static mut KEY_QUEUE: Queue<KeyCode, 16> = Queue::new();
+// TODO create way to handle more than 6 codes per poll
+fn prepare_report() {
+    let mut keycodes = [0u8; 6];
+    let mut keycode_index = 0;
+    let mut modifier = 0;
+
+    let mut push_keycode = |key| {
+        if keycode_index < keycodes.len() {
+            keycodes[keycode_index] = key;
+            keycode_index += 1;
+        }
+    };
+
+    let mut codes: [KeyCode; 6] = [
+        KeyCode::________,
+        KeyCode::________,
+        KeyCode::________,
+        KeyCode::________,
+        KeyCode::________,
+        KeyCode::________,
+    ];
+    for i in 0..6 {
+        match unsafe { KEY_QUEUE.dequeue() } {
+            Some(code) => {
+                codes[i] = code;
+            }
+            None => {
+                break;
+            }
+        };
+    }
+
+    codes.iter().for_each(|k| {
+        if k != &KeyCode::________ {
+            if let Some(bitmask) = k.modifier_bitmask() {
+                modifier |= bitmask;
+            } else {
+                push_keycode(k.into());
+            }
+        }
+    });
+    // println!("{=[u8]:#x}", keycodes);
+
+    critical_section::with(|cs| {
+        KEYBOARD_REPORT.replace(
+            cs,
+            KeyboardReport {
+                modifier,
+                reserved: 0,
+                leds: 0,
+                keycodes,
+            },
+        )
+    });
+}
+
 static KEYBOARD_REPORT: Mutex<RefCell<KeyboardReport>> = Mutex::new(RefCell::new(KeyboardReport {
     modifier: 0,
     reserved: 0,
     leds: 0,
     keycodes: [0u8; 6],
 }));
+
+const BLANK_REPORT: KeyboardReport = KeyboardReport {
+    modifier: 0,
+    reserved: 0,
+    leds: 0,
+    keycodes: [0u8; 6],
+};
 
 /// Handle USB interrupts, used by the host to "poll" the keyboard for new inputs.
 #[allow(non_snake_case)]
@@ -315,28 +358,35 @@ unsafe fn USBCTRL_IRQ() {
         usb_hid.poll();
     }
 
+    prepare_report();
+
     let report = critical_section::with(|cs| *KEYBOARD_REPORT.borrow_ref(cs));
-    if let Err(err) = usb_hid.push_input(&report) {
-        match err {
-            // UsbError::WouldBlock => warn!("UsbError::WouldBlock"),
-            UsbError::WouldBlock => {}
-            UsbError::ParseError => error!("UsbError::ParseError"),
-            UsbError::BufferOverflow => error!("UsbError::BufferOverflow"),
-            UsbError::EndpointOverflow => error!("UsbError::EndpointOverflow"),
-            UsbError::EndpointMemoryOverflow => error!("UsbError::EndpointMemoryOverflow"),
-            UsbError::InvalidEndpoint => error!("UsbError::InvalidEndpoint"),
-            UsbError::Unsupported => error!("UsbError::Unsupported"),
-            UsbError::InvalidState => error!("UsbError::InvalidState"),
+    match usb_hid.push_input(&report) {
+        Ok(_) => {
+            critical_section::with(|cs| KEYBOARD_REPORT.replace(cs, BLANK_REPORT));
+            REPORTSENT.store(true, Ordering::Relaxed);
+            READYTOSEND.store(true, Ordering::Relaxed);
         }
+        Err(UsbError::WouldBlock) => {
+            REPORTSENT.store(false, Ordering::Relaxed);
+            READYTOSEND.store(false, Ordering::Relaxed);
+        }
+        Err(UsbError::ParseError) => error!("UsbError::ParseError"),
+        Err(UsbError::BufferOverflow) => error!("UsbError::BufferOverflow"),
+        Err(UsbError::EndpointOverflow) => error!("UsbError::EndpointOverflow"),
+        Err(UsbError::EndpointMemoryOverflow) => error!("UsbError::EndpointMemoryOverflow"),
+        Err(UsbError::InvalidEndpoint) => error!("UsbError::InvalidEndpoint"),
+        Err(UsbError::Unsupported) => error!("UsbError::Unsupported"),
+        Err(UsbError::InvalidState) => error!("UsbError::InvalidState"),
     }
 
     // macOS doesn't like it when you don't pull this, apparently.
     // TODO: maybe even parse something here
     let mut out: [u8; 64] = [0; 64];
     let siz = usb_hid.pull_raw_output(&mut out).unwrap_unchecked();
-    if siz > 0 {
-        println!("outty: {:?}", out);
-    }
+    // if siz > 8 {
+    //     println!("outty: {:a}, {:?}", out, siz);
+    // }
 
     // Wake the host if a key is pressed and the device supports
     // remote wakeup.
