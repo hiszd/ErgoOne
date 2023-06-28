@@ -8,17 +8,18 @@ mod key_mapping;
 mod keyscanning;
 mod mods;
 
+use core::borrow::BorrowMut;
 use core::sync::atomic::AtomicBool;
 use core::{
     cell::RefCell,
     sync::atomic::{AtomicU8, Ordering},
 };
-use heapless::spsc::Queue;
 
 use crate::{key_codes::KeyCode, pac::interrupt};
 use cortex_m_rt::entry;
 use defmt::*;
 use defmt_rtt as _;
+use heapless::pool::Box;
 use heapless::String;
 use keyscanning::{Col, Row};
 use panic_probe as _;
@@ -49,6 +50,8 @@ use ws2812_pio::Ws2812;
 
 use crate::keyscanning::Matrix;
 use crate::keyscanning::StateType;
+
+use self::keyscanning::KeyQueue;
 
 static mut CORE1_STACK: Stack<4096> = Stack::new();
 
@@ -198,21 +201,29 @@ fn main() -> ! {
     }
 
     // TODO create way to handle more than 6 codes per poll
-    unsafe fn push_input(c: (KeyCode, StateType)) {
-        if c != KeyCode::________ && !KEY_QUEUE.is_full() {
-            match KEY_QUEUE.enqueue(c) {
-                Ok(_) => {}
-                Err(e) => error!("{}: {:?}", c, e),
-            };
+    fn push_input(c: (KeyCode, StateType)) {
+        if c.0 != KeyCode::________ {
+            unsafe {
+                if c.1 == StateType::Idle || c.1 == StateType::Off {
+                    println!("{:?} = {}", KEY_QUEUE.keys, KEY_QUEUE.len());
+                    KEY_QUEUE.dequeue(c.0);
+                } else {
+                    KEY_QUEUE.enqueue(c.0);
+                }
+            }
         }
     }
 
     // update MODIFIERS with a new value based on what is presed, or released
-    unsafe fn mod_update(c: KeyCode) {
-        let mods = MODIFIERS.load(Ordering::Relaxed);
-        MODIFIERS.
-        mods |= c.modifier_bitmask();
-
+    fn mod_update(c: (KeyCode, StateType)) {
+        println!("{:?}", c);
+        unsafe {
+            if c.1 == StateType::Idle || c.1 == StateType::Off {
+                MODIFIERS.dequeue(c.0);
+            } else {
+                MODIFIERS.enqueue(c.0);
+            }
+        }
     }
 
     let mut matrix: Matrix<5, 16> = Matrix::new(
@@ -283,13 +294,13 @@ static mut HID_BUS: Option<UsbDevice<UsbBus>> = None;
 static mut USB_HID: Option<HIDClass<UsbBus>> = None;
 static mut REPORTSENT: AtomicBool = AtomicBool::new(false);
 static mut READYTOSEND: AtomicBool = AtomicBool::new(false);
-static mut KEY_QUEUE: Queue<KeyCode, 16> = Queue::new();
-static mut MODIFIERS: AtomicU8 = AtomicU8::new(0);
+static mut KEY_QUEUE: KeyQueue<6> = KeyQueue::new();
+static mut MODIFIERS: KeyQueue<6> = KeyQueue::new();
 // TODO create way to handle more than 6 codes per poll
 fn prepare_report() {
     let mut keycodes = [0u8; 6];
     let mut keycode_index = 0;
-    let mut modifier = 0;
+    let mut modifier: u8 = 0;
 
     let mut push_keycode = |key| {
         if keycode_index < keycodes.len() {
@@ -298,42 +309,26 @@ fn prepare_report() {
         }
     };
 
-    let mut codes: [KeyCode; 6] = [
-        KeyCode::________,
-        KeyCode::________,
-        KeyCode::________,
-        KeyCode::________,
-        KeyCode::________,
-        KeyCode::________,
-    ];
-    for i in 0..6 {
-        match unsafe { KEY_QUEUE.dequeue() } {
-            Some(code) => {
-                codes[i] = code;
-            }
-            None => {
-                break;
-            }
-        };
-    }
-
-    codes.iter().for_each(|k| {
-        if k != &KeyCode::________ {
-            if let Some(bitmask) = k.modifier_bitmask() {
-                // modifier |= bitmask;
-                // info!("modifier: {=u8:#x}", modifier);
-            } else {
-                push_keycode(k.into());
-            }
-        }
+    critical_section::with(|_| unsafe {
+        KEY_QUEUE.get_hidcodes().iter().for_each(|k| {
+            let kr = *k;
+            push_keycode(kr);
+        });
     });
-    // println!("{=[u8]:#x}", keycodes);
+    critical_section::with(|_| unsafe {
+        MODIFIERS.get_keys().iter().for_each(|k| {
+            let kr = *k;
+            if kr.is_some() {
+                modifier |= kr.unwrap().modifier_bitmask().unwrap();
+            }
+        });
+    });
 
     critical_section::with(|cs| {
         KEYBOARD_REPORT.replace(
             cs,
             KeyboardReport {
-                modifier: unsafe { MODIFIERS.load(Ordering::Relaxed) },
+                modifier,
                 reserved: 0,
                 leds: 0,
                 keycodes,
@@ -370,7 +365,9 @@ unsafe fn USBCTRL_IRQ() {
     prepare_report();
 
     let report = critical_section::with(|cs| *KEYBOARD_REPORT.borrow_ref(cs));
-    println!("m: {=u8:x}", report.modifier);
+    if report.modifier != 0 {
+        println!("m: {=u8:x}", report.modifier);
+    }
     match usb_hid.push_input(&report) {
         Ok(_) => {
             critical_section::with(|cs| KEYBOARD_REPORT.replace(cs, BLANK_REPORT));
@@ -392,8 +389,8 @@ unsafe fn USBCTRL_IRQ() {
 
     // macOS doesn't like it when you don't pull this, apparently.
     // TODO: maybe even parse something here
-    let mut out: [u8; 64] = [0; 64];
-    let siz = usb_hid.pull_raw_output(&mut out).unwrap_unchecked();
+    // let mut out: [u8; 64] = [0; 64];
+    // let siz = usb_hid.pull_raw_output(&mut out).unwrap_unchecked();
     // if siz > 8 {
     //     println!("outty: {:a}, {:?}", out, siz);
     // }

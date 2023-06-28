@@ -162,7 +162,7 @@ impl<const RSIZE: usize, const CSIZE: usize> Matrix<RSIZE, CSIZE> {
         let c = self.cur_strobe;
 
         let push_codes = |codes: [(KeyCode, StateType); 2]| {
-            codes.iter().enumerate().for_each(|(i, key)| {
+            codes.iter().for_each(|key| {
                 if key.0.is_modifier() {
                     (self.mod_update)((key.0, key.1));
                 } else {
@@ -192,5 +192,91 @@ impl<const RSIZE: usize, const CSIZE: usize> Matrix<RSIZE, CSIZE> {
                 ]);
             }
         }
+    }
+}
+
+#[derive(Copy, Clone)]
+pub struct KeyQueue<const QSIZE: usize> {
+    pub keys: [Option<KeyCode>; QSIZE],
+}
+
+impl<const QSIZE: usize> KeyQueue<QSIZE> {
+    pub const fn new() -> Self {
+        KeyQueue {
+            keys: [None; QSIZE],
+        }
+    }
+
+    pub fn len(&self) -> usize {
+        self.keys.iter().filter(|k| k.is_some()).count()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.keys.iter().all(|k| k.is_none())
+    }
+
+    pub fn clear(&mut self) {
+        self.keys.iter_mut().for_each(|k| {
+            *k = None;
+        })
+    }
+
+    /// remove all instances of a specific KeyCode
+    pub fn dequeue(&mut self, key: KeyCode) {
+        self.keys.iter_mut().for_each(|k| {
+            if *k == Some(key) {
+                *k = None;
+            }
+        });
+    }
+
+    /// push a key into the queue
+    /// returns false if the queue is full
+    /// returns false if the key is already in the queue
+    /// returns true if the key is not in the queue
+    pub fn enqueue(&mut self, key: KeyCode) -> bool {
+        if self.len() >= QSIZE {
+            return false;
+        }
+        if self.keys.iter().any(|k| *k == Some(key)) {
+            false
+        } else {
+            for i in 0..QSIZE {
+                if self.keys[i].is_none() {
+                    self.keys[i] = Some(key);
+                    break;
+                }
+            }
+            true
+        }
+    }
+
+    // return an array of the keys in the queue as u8s
+    // returns None if the queue is empty
+    pub fn get_hidcodes(&self) -> [u8; QSIZE] {
+        let mut keys: [u8; QSIZE] = [0x00; QSIZE];
+        self.keys.iter().enumerate().for_each(|(i, k)| {
+            if k.is_some() {
+                keys[i] = k.unwrap().into();
+            } else {
+                keys[i] = 0x00;
+            }
+        });
+        keys
+    }
+
+    // return an array of the keys in the queue
+    // returns None if the queue is empty
+    pub fn get_keys(&self) -> [Option<KeyCode>; QSIZE] {
+        if self.len() == 0 {
+            return [None; QSIZE];
+        }
+        let mut keys: [Option<KeyCode>; QSIZE] = [None; QSIZE];
+        self.keys.iter().enumerate().for_each(|(i, k)| {
+            if let Some(k) = k {
+                keys[i] = Some(*k);
+            }
+        });
+        keys
     }
 }

@@ -4,7 +4,7 @@ use defmt::{info, println};
 
 use crate::{key_codes::KeyCode, keyscanning::StateType};
 
-const DEBOUNCE_CYCLES: u16 = 3;
+const DEBOUNCE_CYCLES: u16 = 2;
 const HOLD_CYCLES: u16 = 30;
 // TODO impl idle tracking
 // const IDLE_CYCLES: u8 = 100;
@@ -42,7 +42,7 @@ impl Default for Key {
             tap: |keycodes: [KeyCode; 2]| keycodes,
             hold: |keycodes: [KeyCode; 2]| keycodes,
             idle: |_keycodes: [KeyCode; 2]| [KeyCode::________, KeyCode::________],
-            off: |_keycodes: [KeyCode; 2]| [KeyCode::________, KeyCode::________],
+            off: |keycodes: [KeyCode; 2]| keycodes,
         }
     }
 }
