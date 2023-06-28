@@ -6,6 +6,7 @@ mod key;
 mod key_codes;
 mod key_mapping;
 mod keyscanning;
+mod macros;
 mod mods;
 
 use core::sync::atomic::AtomicBool;
@@ -15,6 +16,7 @@ use core::{
 };
 
 use crate::{key_codes::KeyCode, pac::interrupt};
+use cortex_m::asm::delay;
 use cortex_m_rt::entry;
 use defmt::*;
 use defmt_rtt as _;
@@ -46,8 +48,8 @@ use rp2040_hal::{
 };
 use ws2812_pio::Ws2812;
 
-use crate::keyscanning::Matrix;
 use crate::keyscanning::StateType;
+use crate::keyscanning::{Matrix, Operation};
 
 use self::keyscanning::KeyQueue;
 
@@ -199,14 +201,24 @@ fn main() -> ! {
     }
 
     // TODO create way to handle more than 6 codes per poll
-    fn push_input(c: (KeyCode, StateType)) {
+    fn push_input(c: (KeyCode, StateType, Operation)) {
         if c.0 != KeyCode::________ {
             unsafe {
-                if c.1 == StateType::Idle || c.1 == StateType::Off {
-                    println!("{:?} = {}", KEY_QUEUE.keys, KEY_QUEUE.len());
-                    KEY_QUEUE.dequeue(c.0);
-                } else {
-                    KEY_QUEUE.enqueue(c.0);
+                match c.2 {
+                    Operation::SendOn => {
+                        if c.1 == StateType::Idle || c.1 == StateType::Off {
+                            println!("{:?} = {}", KEY_QUEUE.keys, KEY_QUEUE.len());
+                            KEY_QUEUE.dequeue(c.0);
+                        } else {
+                            KEY_QUEUE.enqueue((c.0, c.2));
+                        }
+                    }
+                    Operation::SendOff => {
+                        if c.1 == StateType::Idle || c.1 == StateType::Off {
+                            println!("{:?} = {}", KEY_QUEUE.keys, KEY_QUEUE.len());
+                            KEY_QUEUE.enqueue((c.0, c.2));
+                        }
+                    }
                 }
             }
         }
@@ -219,7 +231,7 @@ fn main() -> ! {
             if c.1 == StateType::Idle || c.1 == StateType::Off {
                 MODIFIERS.dequeue(c.0);
             } else {
-                MODIFIERS.enqueue(c.0);
+                MODIFIERS.enqueue((c.0, Operation::SendOn));
             }
         }
     }
@@ -279,7 +291,10 @@ fn main() -> ! {
     info!("Loop starting!");
     loop {
         delay.delay_us(1000u32);
-        matrix.poll();
+        matrix.poll(Context {
+            key_queue: unsafe { KEY_QUEUE.get_keys() },
+            modifiers: unsafe { MODIFIERS.get_keys() },
+        });
     }
 }
 
@@ -287,9 +302,10 @@ static RCOL: AtomicU8 = AtomicU8::new(0);
 static GCOL: AtomicU8 = AtomicU8::new(0);
 static BCOL: AtomicU8 = AtomicU8::new(0);
 
-struct Context {
-    key_queue: Option<KeyQueue<6>>,
-    modifiers: Option<KeyQueue<6>>,
+#[derive(Debug, PartialEq, Copy, Clone)]
+pub struct Context {
+    key_queue: [Option<KeyCode>; 6],
+    modifiers: [Option<KeyCode>; 6],
 }
 
 static mut USB_ALLOCATOR: Option<UsbBusAllocator<UsbBus>> = None;
@@ -312,12 +328,26 @@ fn prepare_report() {
         }
     };
 
+    let mut dq: [Option<KeyCode>; 6] = [None; 6];
     critical_section::with(|_| unsafe {
-        KEY_QUEUE.get_hidcodes().iter().for_each(|k| {
-            let kr = *k;
-            push_keycode(kr);
+        KEY_QUEUE.keys.iter().for_each(|k| {
+            if k.is_some() {
+                let kr = k.unwrap();
+                push_keycode(kr.0.into());
+                if kr.1 == Operation::SendOff {
+                    dq[dq.iter().position(|x| x.is_none()).unwrap()] = Some(kr.0);
+                }
+            }
         });
     });
+    unsafe {
+        dq.iter().for_each(|k| {
+            if k.is_some() {
+                let kr = k.unwrap();
+                KEY_QUEUE.dequeue(kr);
+            }
+        });
+    }
     critical_section::with(|_| unsafe {
         MODIFIERS.get_keys().iter().for_each(|k| {
             let kr = *k;

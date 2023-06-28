@@ -1,12 +1,13 @@
 #![allow(unused_imports)]
+use crate::Operation;
 use defmt::export::debug;
 use defmt::{info, println};
 
-use crate::Context;
 use crate::{key_codes::KeyCode, keyscanning::StateType};
+use crate::{Context, KeyImpl};
 
-const DEBOUNCE_CYCLES: u16 = 3;
-const HOLD_CYCLES: u16 = 20;
+pub(crate) const DEBOUNCE_CYCLES: u16 = 3;
+pub(crate) const HOLD_CYCLES: u16 = 20;
 // TODO impl idle tracking
 // const IDLE_CYCLES: u8 = 100;
 
@@ -18,18 +19,20 @@ pub struct Key {
     pub cycles_off: u16,
     pub state: StateType,
     pub prevstate: StateType,
-    pub keycode: [KeyCode; 2],
-    previnfo: [bool; 6],
-    pub tap: fn([KeyCode; 2], ctx: Context) -> [KeyCode; 2],
-    pub hold: fn([KeyCode; 2], ctx: Context) -> [KeyCode; 2],
-    pub idle: fn([KeyCode; 2], ctx: Context) -> [KeyCode; 2],
-    pub off: fn([KeyCode; 2], StateType, ctx: Context) -> [KeyCode; 2],
+    pub keycode: [(KeyCode, Operation); 2],
+    pub previnfo: [bool; 6],
 }
 
 pub trait Default {
     fn new(KC1: KeyCode, KC2: Option<KeyCode>) -> Self
     where
         Self: Sized;
+    fn tap(&mut self, ctx: Context) -> [(KeyCode, Operation); 2];
+    fn hold(&mut self, ctx: Context) -> [(KeyCode, Operation); 2];
+    fn idle(&self, ctx: Context) -> [(KeyCode, Operation); 2];
+    fn off(&mut self, ctx: Context) -> [(KeyCode, Operation); 2];
+    fn get_keys(&mut self, ctx: Context) -> [(KeyCode, Operation); 2];
+    fn scan(&mut self, is_high: bool, ctx: Context) -> [(KeyCode, Operation); 2];
 }
 
 impl Default for Key {
@@ -40,89 +43,27 @@ impl Default for Key {
             cycles_off: 0,
             state: StateType::Off,
             prevstate: StateType::Off,
-            keycode: [KC1, KC2.unwrap_or(KeyCode::________)],
+            keycode: [
+                (KC1, Operation::SendOn),
+                (KC2.unwrap_or(KeyCode::________), Operation::SendOn),
+            ],
             previnfo: [false; 6],
-            tap: |keycodes: [KeyCode; 2], ctx: Context| keycodes,
-            hold: |keycodes: [KeyCode; 2], ctx: Context| keycodes,
-            idle: |_keycodes: [KeyCode; 2], ctx: Context| [KeyCode::________, KeyCode::________],
-            off: |keycodes: [KeyCode; 2], prevstate: StateType, ctx: Context| keycodes,
         }
     }
-}
-
-#[allow(dead_code)]
-impl Key {
-    /// Perform state change as a result of the scan
-    pub fn scan(&mut self, is_high: bool, ctx: Context) -> [KeyCode; 2] {
-        // println!("{}", is_high);
-        const DEFCODE: [KeyCode; 2] = [KeyCode::________, KeyCode::________];
-        // if they KeyCode is empty then don't bother processing
-        if self.keycode == [KeyCode::________, KeyCode::________] {
-            return DEFCODE;
-        }
-        //     ____________________________
-        //    |                            |
-        //    |       Cycle Counters       |
-        //    |                            |
-        //    |____________________________|
-
-        // set the raw state to the state of the pin
-        if is_high {
-            // increment cycles while pin is high
-            if self.cycles < u16::MAX {
-                self.cycles += 1;
-            }
-            self.cycles_off = 0;
-        } else {
-            // increment cycles_off while pin is low
-            if self.cycles_off < u16::MAX {
-                self.cycles_off += 1;
-            }
-            // reset cycles since pin is low
-            self.cycles = 0;
-        }
-        self.raw_state = is_high;
-
-        //     ____________________________
-        //    |                            |
-        //    |        State Change        |
-        //    |                            |
-        //    |____________________________|
-
-        // if we have gotten more cycles in than the debounce_cycles
-        if self.cycles >= DEBOUNCE_CYCLES {
-            // if the current state is Tap  and we have more cycles than hold_cycles
-            if self.state == StateType::Tap && self.cycles >= HOLD_CYCLES {
-                self.prevstate = self.state;
-                self.state = StateType::Hold;
-            } else if self.state == StateType::Off || self.state == StateType::Tap {
-                // if the current state is Off
-                self.prevstate = self.state;
-                self.state = StateType::Tap;
-            }
-            return self.get_keys(ctx);
-        // } else if self.cycles_off >= DEBOUNCE_CYCLES.into() {
-        } else if self.cycles_off >= 1 {
-            self.prevstate = self.state;
-            self.state = StateType::Off;
-        }
-        self.get_keys(ctx)
+    fn tap(&mut self, _ctx: Context) -> [(KeyCode, Operation); 2] {
+        self.keycode
     }
-    pub fn get_keys(&self, ctx: Context) -> [KeyCode; 2] {
-        // info!("{:?}", self.state);
-        // Match all types of self.state
-        match self.state {
-            StateType::Tap => (self.tap)(self.keycode, ctx),
-            StateType::Hold => (self.hold)(self.keycode, ctx),
-            StateType::Idle => (self.idle)(self.keycode, ctx),
-            StateType::Off => (self.off)(self.keycode, self.prevstate, ctx),
-        }
+    fn hold(&mut self, _ctx: Context) -> [(KeyCode, Operation); 2] {
+        self.keycode
     }
-
-    pub fn set_previnfo(&mut self, ind: usize, val: bool) {
-        self.previnfo[ind] = val;
+    fn idle(&self, _ctx: Context) -> [(KeyCode, Operation); 2] {
+        [
+            (KeyCode::________, Operation::SendOn),
+            (KeyCode::________, Operation::SendOn),
+        ]
     }
-    pub fn get_previnfo(&mut self, ind: usize, val: bool) {
-        self.previnfo[ind] = val;
+    fn off(&mut self, _ctx: Context) -> [(KeyCode, Operation); 2] {
+        self.keycode
     }
+    KeyImpl!(Default);
 }

@@ -8,13 +8,19 @@ use embedded_hal::digital::v2::{InputPin, OutputPin};
 use rp2040_hal::gpio::DynPin;
 use usbd_hid::descriptor::KeyboardReport;
 
-use crate::Context;
 use crate::key::Default;
+use crate::Context;
 use crate::{
     key::Key,
     key_codes::KeyCode,
     // mods::mod_tap::ModTap,
 };
+
+#[derive(Copy, Clone, PartialEq, PartialOrd, Debug, Format)]
+pub enum Operation {
+    SendOn,
+    SendOff,
+}
 
 #[derive(Copy, Clone, PartialEq, PartialOrd, Debug, Format)]
 pub enum StateType {
@@ -81,12 +87,11 @@ pub struct Matrix<const RSIZE: usize, const CSIZE: usize> {
     state: KeyMatrix<RSIZE, CSIZE>,
     callback:
         fn(row: usize, col: usize, state: StateType, prevstate: StateType, keycodes: [KeyCode; 2]),
-    push_input: fn(c: (KeyCode, StateType)),
+    push_input: fn(c: (KeyCode, StateType, Operation)),
     mod_update: fn(c: (KeyCode, StateType)),
     wait_cycles: u16,
     cycles: u16,
     cur_strobe: usize,
-    context: Context,
 }
 
 impl<const RSIZE: usize, const CSIZE: usize> Matrix<RSIZE, CSIZE> {
@@ -100,7 +105,7 @@ impl<const RSIZE: usize, const CSIZE: usize> Matrix<RSIZE, CSIZE> {
             prevstate: StateType,
             keycodes: [KeyCode; 2],
         ),
-        push_input: fn(c: (KeyCode, StateType)),
+        push_input: fn(c: (KeyCode, StateType, Operation)),
         mod_update: fn(c: (KeyCode, StateType)),
         keymap: KeyMatrix<RSIZE, CSIZE>,
     ) -> Self {
@@ -115,7 +120,6 @@ impl<const RSIZE: usize, const CSIZE: usize> Matrix<RSIZE, CSIZE> {
             cur_strobe: 0,
             push_input,
             mod_update,
-            context: Context {key_queue: None, modifiers: None},
         };
         new.cols[new.cur_strobe].set_high();
         new.clear();
@@ -164,12 +168,12 @@ impl<const RSIZE: usize, const CSIZE: usize> Matrix<RSIZE, CSIZE> {
         self.next_strobe();
         let c = self.cur_strobe;
 
-        let push_codes = |codes: [(KeyCode, StateType); 2]| {
+        let push_codes = |codes: [(KeyCode, StateType, Operation); 2]| {
             codes.iter().for_each(|key| {
                 if key.0.is_modifier() {
                     (self.mod_update)((key.0, key.1));
                 } else {
-                    (self.push_input)((key.0, key.1));
+                    (self.push_input)((key.0, key.1, key.2));
                 }
             })
         };
@@ -178,20 +182,20 @@ impl<const RSIZE: usize, const CSIZE: usize> Matrix<RSIZE, CSIZE> {
             let codes = self.state.matrix[r][c].scan(self.rows[r].is_high(), ctx);
             if self.state.matrix[r][c].state != self.state.matrix[r][c].prevstate {
                 push_codes([
-                    (codes[0], self.state.matrix[r][c].state),
-                    (codes[1], self.state.matrix[r][c].state),
+                    (codes[0].0, self.state.matrix[r][c].state, codes[0].1),
+                    (codes[1].0, self.state.matrix[r][c].state, codes[1].1),
                 ]);
                 self.execute_callback(
                     r + 1,
                     c + 1,
                     self.state.matrix[r][c].state,
                     self.state.matrix[r][c].prevstate,
-                    codes,
+                    [codes[0].0, codes[1].0],
                 );
             } else if self.state.matrix[r][c].state == StateType::Hold {
                 push_codes([
-                    (codes[0], self.state.matrix[r][c].state),
-                    (codes[1], self.state.matrix[r][c].state),
+                    (codes[0].0, self.state.matrix[r][c].state, codes[0].1),
+                    (codes[1].0, self.state.matrix[r][c].state, codes[1].1),
                 ]);
             }
         }
@@ -200,7 +204,7 @@ impl<const RSIZE: usize, const CSIZE: usize> Matrix<RSIZE, CSIZE> {
 
 #[derive(Copy, Clone)]
 pub struct KeyQueue<const QSIZE: usize> {
-    pub keys: [Option<KeyCode>; QSIZE],
+    pub keys: [Option<(KeyCode, Operation)>; QSIZE],
 }
 
 impl<const QSIZE: usize> KeyQueue<QSIZE> {
@@ -227,7 +231,7 @@ impl<const QSIZE: usize> KeyQueue<QSIZE> {
     /// remove all instances of a specific KeyCode
     pub fn dequeue(&mut self, key: KeyCode) {
         self.keys.iter_mut().for_each(|k| {
-            if *k == Some(key) {
+            if k.is_some() && k.unwrap().0 == key {
                 *k = None;
             }
         });
@@ -237,11 +241,11 @@ impl<const QSIZE: usize> KeyQueue<QSIZE> {
     /// returns false if the queue is full
     /// returns false if the key is already in the queue
     /// returns true if the key is not in the queue
-    pub fn enqueue(&mut self, key: KeyCode) -> bool {
+    pub fn enqueue(&mut self, key: (KeyCode, Operation)) -> bool {
         if self.len() >= QSIZE {
             return false;
         }
-        if self.keys.iter().any(|k| *k == Some(key)) {
+        if self.keys.iter().any(|k| k.is_some() && k.unwrap().0 == key.0) {
             false
         } else {
             for i in 0..QSIZE {
@@ -260,7 +264,7 @@ impl<const QSIZE: usize> KeyQueue<QSIZE> {
         let mut keys: [u8; QSIZE] = [0x00; QSIZE];
         self.keys.iter().enumerate().for_each(|(i, k)| {
             if k.is_some() {
-                keys[i] = k.unwrap().into();
+                keys[i] = k.unwrap().0.into();
             } else {
                 keys[i] = 0x00;
             }
@@ -277,7 +281,7 @@ impl<const QSIZE: usize> KeyQueue<QSIZE> {
         let mut keys: [Option<KeyCode>; QSIZE] = [None; QSIZE];
         self.keys.iter().enumerate().for_each(|(i, k)| {
             if let Some(k) = k {
-                keys[i] = Some(*k);
+                keys[i] = Some(k.0);
             }
         });
         keys
