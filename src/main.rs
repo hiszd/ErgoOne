@@ -8,7 +8,6 @@ mod key_mapping;
 mod keyscanning;
 mod mods;
 
-use core::borrow::BorrowMut;
 use core::sync::atomic::AtomicBool;
 use core::{
     cell::RefCell,
@@ -19,7 +18,6 @@ use crate::{key_codes::KeyCode, pac::interrupt};
 use cortex_m_rt::entry;
 use defmt::*;
 use defmt_rtt as _;
-use heapless::pool::Box;
 use heapless::String;
 use keyscanning::{Col, Row};
 use panic_probe as _;
@@ -289,6 +287,11 @@ static RCOL: AtomicU8 = AtomicU8::new(0);
 static GCOL: AtomicU8 = AtomicU8::new(0);
 static BCOL: AtomicU8 = AtomicU8::new(0);
 
+struct Context {
+    key_queue: Option<KeyQueue<6>>,
+    modifiers: Option<KeyQueue<6>>,
+}
+
 static mut USB_ALLOCATOR: Option<UsbBusAllocator<UsbBus>> = None;
 static mut HID_BUS: Option<UsbDevice<UsbBus>> = None;
 static mut USB_HID: Option<HIDClass<UsbBus>> = None;
@@ -365,9 +368,6 @@ unsafe fn USBCTRL_IRQ() {
     prepare_report();
 
     let report = critical_section::with(|cs| *KEYBOARD_REPORT.borrow_ref(cs));
-    if report.modifier != 0 {
-        println!("m: {=u8:x}", report.modifier);
-    }
     match usb_hid.push_input(&report) {
         Ok(_) => {
             critical_section::with(|cs| KEYBOARD_REPORT.replace(cs, BLANK_REPORT));

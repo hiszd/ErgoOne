@@ -8,6 +8,7 @@ use embedded_hal::digital::v2::{InputPin, OutputPin};
 use rp2040_hal::gpio::DynPin;
 use usbd_hid::descriptor::KeyboardReport;
 
+use crate::Context;
 use crate::key::Default;
 use crate::{
     key::Key,
@@ -85,6 +86,7 @@ pub struct Matrix<const RSIZE: usize, const CSIZE: usize> {
     wait_cycles: u16,
     cycles: u16,
     cur_strobe: usize,
+    context: Context,
 }
 
 impl<const RSIZE: usize, const CSIZE: usize> Matrix<RSIZE, CSIZE> {
@@ -113,6 +115,7 @@ impl<const RSIZE: usize, const CSIZE: usize> Matrix<RSIZE, CSIZE> {
             cur_strobe: 0,
             push_input,
             mod_update,
+            context: Context {key_queue: None, modifiers: None},
         };
         new.cols[new.cur_strobe].set_high();
         new.clear();
@@ -157,7 +160,7 @@ impl<const RSIZE: usize, const CSIZE: usize> Matrix<RSIZE, CSIZE> {
         // str.push_str(&strobe).unwrap();
         // self.execute_info(&str)
     }
-    pub fn poll(&mut self) {
+    pub fn poll(&mut self, ctx: Context) {
         self.next_strobe();
         let c = self.cur_strobe;
 
@@ -172,7 +175,7 @@ impl<const RSIZE: usize, const CSIZE: usize> Matrix<RSIZE, CSIZE> {
         };
 
         for r in 0..RSIZE {
-            let codes = self.state.matrix[r][c].scan(self.rows[r].is_high());
+            let codes = self.state.matrix[r][c].scan(self.rows[r].is_high(), ctx);
             if self.state.matrix[r][c].state != self.state.matrix[r][c].prevstate {
                 push_codes([
                     (codes[0], self.state.matrix[r][c].state),

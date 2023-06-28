@@ -2,10 +2,11 @@
 use defmt::export::debug;
 use defmt::{info, println};
 
+use crate::Context;
 use crate::{key_codes::KeyCode, keyscanning::StateType};
 
-const DEBOUNCE_CYCLES: u16 = 2;
-const HOLD_CYCLES: u16 = 30;
+const DEBOUNCE_CYCLES: u16 = 3;
+const HOLD_CYCLES: u16 = 20;
 // TODO impl idle tracking
 // const IDLE_CYCLES: u8 = 100;
 
@@ -18,10 +19,11 @@ pub struct Key {
     pub state: StateType,
     pub prevstate: StateType,
     pub keycode: [KeyCode; 2],
-    pub tap: fn([KeyCode; 2]) -> [KeyCode; 2],
-    pub hold: fn([KeyCode; 2]) -> [KeyCode; 2],
-    pub idle: fn([KeyCode; 2]) -> [KeyCode; 2],
-    pub off: fn([KeyCode; 2]) -> [KeyCode; 2],
+    previnfo: [bool; 6],
+    pub tap: fn([KeyCode; 2], ctx: Context) -> [KeyCode; 2],
+    pub hold: fn([KeyCode; 2], ctx: Context) -> [KeyCode; 2],
+    pub idle: fn([KeyCode; 2], ctx: Context) -> [KeyCode; 2],
+    pub off: fn([KeyCode; 2], StateType, ctx: Context) -> [KeyCode; 2],
 }
 
 pub trait Default {
@@ -39,10 +41,11 @@ impl Default for Key {
             state: StateType::Off,
             prevstate: StateType::Off,
             keycode: [KC1, KC2.unwrap_or(KeyCode::________)],
-            tap: |keycodes: [KeyCode; 2]| keycodes,
-            hold: |keycodes: [KeyCode; 2]| keycodes,
-            idle: |_keycodes: [KeyCode; 2]| [KeyCode::________, KeyCode::________],
-            off: |keycodes: [KeyCode; 2]| keycodes,
+            previnfo: [false; 6],
+            tap: |keycodes: [KeyCode; 2], ctx: Context| keycodes,
+            hold: |keycodes: [KeyCode; 2], ctx: Context| keycodes,
+            idle: |_keycodes: [KeyCode; 2], ctx: Context| [KeyCode::________, KeyCode::________],
+            off: |keycodes: [KeyCode; 2], prevstate: StateType, ctx: Context| keycodes,
         }
     }
 }
@@ -50,7 +53,7 @@ impl Default for Key {
 #[allow(dead_code)]
 impl Key {
     /// Perform state change as a result of the scan
-    pub fn scan(&mut self, is_high: bool) -> [KeyCode; 2] {
+    pub fn scan(&mut self, is_high: bool, ctx: Context) -> [KeyCode; 2] {
         // println!("{}", is_high);
         const DEFCODE: [KeyCode; 2] = [KeyCode::________, KeyCode::________];
         // if they KeyCode is empty then don't bother processing
@@ -97,22 +100,29 @@ impl Key {
                 self.prevstate = self.state;
                 self.state = StateType::Tap;
             }
-            return self.get_keys();
+            return self.get_keys(ctx);
         // } else if self.cycles_off >= DEBOUNCE_CYCLES.into() {
         } else if self.cycles_off >= 1 {
             self.prevstate = self.state;
             self.state = StateType::Off;
         }
-        self.get_keys()
+        self.get_keys(ctx)
     }
-    pub fn get_keys(&self) -> [KeyCode; 2] {
+    pub fn get_keys(&self, ctx: Context) -> [KeyCode; 2] {
         // info!("{:?}", self.state);
         // Match all types of self.state
         match self.state {
-            StateType::Tap => (self.tap)(self.keycode),
-            StateType::Hold => (self.hold)(self.keycode),
-            StateType::Idle => (self.idle)(self.keycode),
-            StateType::Off => (self.off)(self.keycode),
+            StateType::Tap => (self.tap)(self.keycode, ctx),
+            StateType::Hold => (self.hold)(self.keycode, ctx),
+            StateType::Idle => (self.idle)(self.keycode, ctx),
+            StateType::Off => (self.off)(self.keycode, self.prevstate, ctx),
         }
+    }
+
+    pub fn set_previnfo(&mut self, ind: usize, val: bool) {
+        self.previnfo[ind] = val;
+    }
+    pub fn get_previnfo(&mut self, ind: usize, val: bool) {
+        self.previnfo[ind] = val;
     }
 }
