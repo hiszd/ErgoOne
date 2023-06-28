@@ -5,6 +5,7 @@ use defmt::Format;
 #[allow(non_camel_case_types)]
 #[derive(Copy, Clone, PartialEq, PartialOrd, Debug, Format)]
 pub enum KeyCode {
+    EEEEEEEE,
     /// Empty
     ________,
     Ltr_Azzz,
@@ -456,6 +457,7 @@ impl From<KeyCode> for &str {
             KeyCode::Led_Col1 => "Led_Col1",
             KeyCode::Led_Col2 => "Led_Col2",
             KeyCode::________ => "________",
+            KeyCode::EEEEEEEE => "EEEEEEEE",
             _ => "undefined",
         }
     }

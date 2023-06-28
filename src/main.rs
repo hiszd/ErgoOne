@@ -198,15 +198,21 @@ fn main() -> ! {
     }
 
     // TODO create way to handle more than 6 codes per poll
-    fn push_input(c: KeyCode) {
-        unsafe {
-            if c != KeyCode::________ {
-                match KEY_QUEUE.enqueue(c) {
-                    Ok(_) => {}
-                    Err(e) => error!("{}: {:?}", c, e),
-                };
-            }
+    unsafe fn push_input(c: (KeyCode, StateType)) {
+        if c != KeyCode::________ && !KEY_QUEUE.is_full() {
+            match KEY_QUEUE.enqueue(c) {
+                Ok(_) => {}
+                Err(e) => error!("{}: {:?}", c, e),
+            };
         }
+    }
+
+    // update MODIFIERS with a new value based on what is presed, or released
+    unsafe fn mod_update(c: KeyCode) {
+        let mods = MODIFIERS.load(Ordering::Relaxed);
+        MODIFIERS.
+        mods |= c.modifier_bitmask();
+
     }
 
     let mut matrix: Matrix<5, 16> = Matrix::new(
@@ -214,6 +220,7 @@ fn main() -> ! {
         cols,
         callback,
         push_input,
+        mod_update,
         key_mapping::FancyAlice66(),
     );
     // TODO reboot into bootloader if started while escape is pressed.
@@ -277,6 +284,7 @@ static mut USB_HID: Option<HIDClass<UsbBus>> = None;
 static mut REPORTSENT: AtomicBool = AtomicBool::new(false);
 static mut READYTOSEND: AtomicBool = AtomicBool::new(false);
 static mut KEY_QUEUE: Queue<KeyCode, 16> = Queue::new();
+static mut MODIFIERS: AtomicU8 = AtomicU8::new(0);
 // TODO create way to handle more than 6 codes per poll
 fn prepare_report() {
     let mut keycodes = [0u8; 6];
@@ -312,7 +320,8 @@ fn prepare_report() {
     codes.iter().for_each(|k| {
         if k != &KeyCode::________ {
             if let Some(bitmask) = k.modifier_bitmask() {
-                modifier |= bitmask;
+                // modifier |= bitmask;
+                // info!("modifier: {=u8:#x}", modifier);
             } else {
                 push_keycode(k.into());
             }
@@ -324,7 +333,7 @@ fn prepare_report() {
         KEYBOARD_REPORT.replace(
             cs,
             KeyboardReport {
-                modifier,
+                modifier: unsafe { MODIFIERS.load(Ordering::Relaxed) },
                 reserved: 0,
                 leds: 0,
                 keycodes,
@@ -361,6 +370,7 @@ unsafe fn USBCTRL_IRQ() {
     prepare_report();
 
     let report = critical_section::with(|cs| *KEYBOARD_REPORT.borrow_ref(cs));
+    println!("m: {=u8:x}", report.modifier);
     match usb_hid.push_input(&report) {
         Ok(_) => {
             critical_section::with(|cs| KEYBOARD_REPORT.replace(cs, BLANK_REPORT));

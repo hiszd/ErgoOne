@@ -80,7 +80,8 @@ pub struct Matrix<const RSIZE: usize, const CSIZE: usize> {
     state: KeyMatrix<RSIZE, CSIZE>,
     callback:
         fn(row: usize, col: usize, state: StateType, prevstate: StateType, keycodes: [KeyCode; 2]),
-    push_input: fn(codes: KeyCode),
+    push_input: fn(c: (KeyCode, StateType)),
+    mod_update: fn(c: (KeyCode, StateType)),
     wait_cycles: u16,
     cycles: u16,
     cur_strobe: usize,
@@ -97,7 +98,8 @@ impl<const RSIZE: usize, const CSIZE: usize> Matrix<RSIZE, CSIZE> {
             prevstate: StateType,
             keycodes: [KeyCode; 2],
         ),
-        push_input: fn(codes: KeyCode),
+        push_input: fn(c: (KeyCode, StateType)),
+        mod_update: fn(c: (KeyCode, StateType)),
         keymap: KeyMatrix<RSIZE, CSIZE>,
     ) -> Self {
         let mut new = Matrix {
@@ -110,6 +112,7 @@ impl<const RSIZE: usize, const CSIZE: usize> Matrix<RSIZE, CSIZE> {
             cycles: 0,
             cur_strobe: 0,
             push_input,
+            mod_update,
         };
         new.cols[new.cur_strobe].set_high();
         new.clear();
@@ -158,16 +161,23 @@ impl<const RSIZE: usize, const CSIZE: usize> Matrix<RSIZE, CSIZE> {
         self.next_strobe();
         let c = self.cur_strobe;
 
-        let push_codes = |keys: [KeyCode; 2]| {
-            keys.iter().for_each(|key| {
-                (self.push_input)(*key);
+        let push_codes = |codes: [(KeyCode, StateType); 2]| {
+            codes.iter().enumerate().for_each(|(i, key)| {
+                if key.0.is_modifier() {
+                    (self.mod_update)((key.0, key.1));
+                } else {
+                    (self.push_input)((key.0, key.1));
+                }
             })
         };
 
         for r in 0..RSIZE {
             let codes = self.state.matrix[r][c].scan(self.rows[r].is_high());
             if self.state.matrix[r][c].state != self.state.matrix[r][c].prevstate {
-                push_codes(codes);
+                push_codes([
+                    (codes[0], self.state.matrix[r][c].state),
+                    (codes[1], self.state.matrix[r][c].state),
+                ]);
                 self.execute_callback(
                     r + 1,
                     c + 1,
@@ -176,7 +186,10 @@ impl<const RSIZE: usize, const CSIZE: usize> Matrix<RSIZE, CSIZE> {
                     codes,
                 );
             } else if self.state.matrix[r][c].state == StateType::Hold {
-                push_codes(codes);
+                push_codes([
+                    (codes[0], self.state.matrix[r][c].state),
+                    (codes[1], self.state.matrix[r][c].state),
+                ]);
             }
         }
     }

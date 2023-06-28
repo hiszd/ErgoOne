@@ -5,7 +5,7 @@ use defmt::{info, println};
 use crate::{key_codes::KeyCode, keyscanning::StateType};
 
 const DEBOUNCE_CYCLES: u16 = 3;
-const HOLD_CYCLES: u16 = 1000;
+const HOLD_CYCLES: u16 = 30;
 // TODO impl idle tracking
 // const IDLE_CYCLES: u8 = 100;
 
@@ -40,7 +40,7 @@ impl Default for Key {
             prevstate: StateType::Off,
             keycode: [KC1, KC2.unwrap_or(KeyCode::________)],
             tap: |keycodes: [KeyCode; 2]| keycodes,
-            hold: |_keycodes: [KeyCode; 2]| [KeyCode::Ltr_Dzzz, KeyCode::________],
+            hold: |keycodes: [KeyCode; 2]| keycodes,
             idle: |_keycodes: [KeyCode; 2]| [KeyCode::________, KeyCode::________],
             off: |_keycodes: [KeyCode; 2]| [KeyCode::________, KeyCode::________],
         }
@@ -87,23 +87,23 @@ impl Key {
         //    |____________________________|
 
         // if we have gotten more cycles in than the debounce_cycles
-        if self.cycles >= DEBOUNCE_CYCLES.into() {
+        if self.cycles >= DEBOUNCE_CYCLES {
             // if the current state is Tap  and we have more cycles than hold_cycles
-            if self.state == StateType::Tap && self.cycles >= HOLD_CYCLES.into() {
-                self.prevstate = self.state.clone();
+            if self.state == StateType::Tap && self.cycles >= HOLD_CYCLES {
+                self.prevstate = self.state;
                 self.state = StateType::Hold;
             } else if self.state == StateType::Off || self.state == StateType::Tap {
                 // if the current state is Off
-                self.prevstate = self.state.clone();
+                self.prevstate = self.state;
                 self.state = StateType::Tap;
             }
             return self.get_keys();
         // } else if self.cycles_off >= DEBOUNCE_CYCLES.into() {
         } else if self.cycles_off >= 1 {
-            self.prevstate = self.state.clone();
+            self.prevstate = self.state;
             self.state = StateType::Off;
         }
-        return self.get_keys();
+        self.get_keys()
     }
     pub fn get_keys(&self) -> [KeyCode; 2] {
         // info!("{:?}", self.state);
