@@ -27,12 +27,12 @@ pub trait Default {
     fn new(KC1: KeyCode, KC2: Option<KeyCode>) -> Self
     where
         Self: Sized;
-    fn tap(&mut self, ctx: Context) -> [(KeyCode, Operation); 2];
-    fn hold(&mut self, ctx: Context) -> [(KeyCode, Operation); 2];
-    fn idle(&self, ctx: Context) -> [(KeyCode, Operation); 2];
-    fn off(&mut self, ctx: Context) -> [(KeyCode, Operation); 2];
-    fn get_keys(&mut self, ctx: Context) -> [(KeyCode, Operation); 2];
-    fn scan(&mut self, is_high: bool, ctx: Context) -> [(KeyCode, Operation); 2];
+    fn tap(&mut self, ctx: Context, inp_call: (fn((KeyCode, Operation)), fn(KeyCode)), mod_call: (fn(KeyCode), fn(KeyCode))) -> [(KeyCode, Operation); 2];
+    fn hold(&mut self, ctx: Context, inp_call: (fn((KeyCode, Operation)), fn(KeyCode)), mod_call: (fn(KeyCode), fn(KeyCode))) -> [(KeyCode, Operation); 2];
+    fn idle(&self, ctx: Context, inp_call: (fn((KeyCode, Operation)), fn(KeyCode)), mod_call: (fn(KeyCode), fn(KeyCode))) -> [(KeyCode, Operation); 2];
+    fn off(&mut self, ctx: Context, inp_call: (fn((KeyCode, Operation)), fn(KeyCode)), mod_call: (fn(KeyCode), fn(KeyCode))) -> [(KeyCode, Operation); 2];
+    fn get_keys(&mut self, ctx: Context, inp_call: (fn((KeyCode, Operation)), fn(KeyCode)), mod_call: (fn(KeyCode), fn(KeyCode))) -> [(KeyCode, Operation); 2];
+    fn scan(&mut self, is_high: bool, ctx: Context, inp_call: (fn((KeyCode, Operation)), fn(KeyCode)), mod_call: (fn(KeyCode), fn(KeyCode))) -> [(KeyCode, Operation); 2];
 }
 
 impl Default for Key {
@@ -50,19 +50,19 @@ impl Default for Key {
             previnfo: [false; 6],
         }
     }
-    fn tap(&mut self, _ctx: Context) -> [(KeyCode, Operation); 2] {
+    fn tap(&mut self, ctx: Context, inp_call: (fn((KeyCode, Operation)), fn(KeyCode)), mod_call: (fn(KeyCode), fn(KeyCode))) -> [(KeyCode, Operation); 2] {
         self.keycode
     }
-    fn hold(&mut self, _ctx: Context) -> [(KeyCode, Operation); 2] {
+    fn hold(&mut self, _ctx: Context, inp_call: (fn((KeyCode, Operation)), fn(KeyCode)), mod_call: (fn(KeyCode), fn(KeyCode))) -> [(KeyCode, Operation); 2] {
         self.keycode
     }
-    fn idle(&self, _ctx: Context) -> [(KeyCode, Operation); 2] {
+    fn idle(&self, _ctx: Context, inp_call: (fn((KeyCode, Operation)), fn(KeyCode)), mod_call: (fn(KeyCode), fn(KeyCode))) -> [(KeyCode, Operation); 2] {
         [
             (KeyCode::________, Operation::SendOn),
             (KeyCode::________, Operation::SendOn),
         ]
     }
-    fn off(&mut self, _ctx: Context) -> [(KeyCode, Operation); 2] {
+    fn off(&mut self, _ctx: Context, inp_call: (fn((KeyCode, Operation)), fn(KeyCode)), mod_call: (fn(KeyCode), fn(KeyCode))) -> [(KeyCode, Operation); 2] {
         self.keycode
     }
     KeyImpl!(Default);

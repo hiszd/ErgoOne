@@ -87,8 +87,8 @@ pub struct Matrix<const RSIZE: usize, const CSIZE: usize> {
     state: KeyMatrix<RSIZE, CSIZE>,
     callback:
         fn(row: usize, col: usize, state: StateType, prevstate: StateType, keycodes: [KeyCode; 2]),
-    push_input: fn(c: (KeyCode, StateType, Operation)),
-    mod_update: fn(c: (KeyCode, StateType)),
+    inp_call: (fn((KeyCode, Operation)), fn(KeyCode)),
+    mod_call: (fn(c: KeyCode), fn(c: KeyCode)),
     wait_cycles: u16,
     cycles: u16,
     cur_strobe: usize,
@@ -105,8 +105,8 @@ impl<const RSIZE: usize, const CSIZE: usize> Matrix<RSIZE, CSIZE> {
             prevstate: StateType,
             keycodes: [KeyCode; 2],
         ),
-        push_input: fn(c: (KeyCode, StateType, Operation)),
-        mod_update: fn(c: (KeyCode, StateType)),
+        inp_call: (fn((KeyCode, Operation)), fn(KeyCode)),
+        mod_call: (fn(c: KeyCode), fn(c: KeyCode)),
         keymap: KeyMatrix<RSIZE, CSIZE>,
     ) -> Self {
         let mut new = Matrix {
@@ -118,8 +118,8 @@ impl<const RSIZE: usize, const CSIZE: usize> Matrix<RSIZE, CSIZE> {
             wait_cycles: 2,
             cycles: 0,
             cur_strobe: 0,
-            push_input,
-            mod_update,
+            inp_call,
+            mod_call,
         };
         new.cols[new.cur_strobe].set_high();
         new.clear();
@@ -164,7 +164,7 @@ impl<const RSIZE: usize, const CSIZE: usize> Matrix<RSIZE, CSIZE> {
         // str.push_str(&strobe).unwrap();
         // self.execute_info(&str)
     }
-    pub fn poll(&mut self, ctx: Context) {
+    pub fn poll(&mut self, ctx: Context) -> bool {
         self.next_strobe();
         let c = self.cur_strobe;
 
@@ -178,8 +178,13 @@ impl<const RSIZE: usize, const CSIZE: usize> Matrix<RSIZE, CSIZE> {
             })
         };
 
+        let mut rtrn: bool = false;
+
         for r in 0..RSIZE {
-            let codes = self.state.matrix[r][c].scan(self.rows[r].is_high(), ctx);
+            let codes = self.state.matrix[r][c].scan(self.rows[r].is_high(), ctx, inp_call, mod_call);
+            if (r == 0 && c == 0) && self.state.matrix[r][c].state == StateType::Tap {
+                rtrn = true;
+            }
             if self.state.matrix[r][c].state != self.state.matrix[r][c].prevstate {
                 push_codes([
                     (codes[0].0, self.state.matrix[r][c].state, codes[0].1),
@@ -199,6 +204,7 @@ impl<const RSIZE: usize, const CSIZE: usize> Matrix<RSIZE, CSIZE> {
                 ]);
             }
         }
+        rtrn
     }
 }
 
@@ -245,7 +251,11 @@ impl<const QSIZE: usize> KeyQueue<QSIZE> {
         if self.len() >= QSIZE {
             return false;
         }
-        if self.keys.iter().any(|k| k.is_some() && k.unwrap().0 == key.0) {
+        if self
+            .keys
+            .iter()
+            .any(|k| k.is_some() && k.unwrap().0 == key.0)
+        {
             false
         } else {
             for i in 0..QSIZE {

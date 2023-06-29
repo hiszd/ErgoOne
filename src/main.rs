@@ -64,11 +64,11 @@ pub static BOOT_LOADER: [u8; 256] = rp2040_boot2::BOOT_LOADER_W25Q080;
 #[entry]
 fn main() -> ! {
     info!("Program start");
+    // Initialize everything
     let mut pac = pac::Peripherals::take().unwrap();
     let core = pac::CorePeripherals::take().unwrap();
     let mut watchdog = Watchdog::new(pac.WATCHDOG);
     let mut sio = Sio::new(pac.SIO);
-
     let external_xtal_freq_hz = 12_000_000u32;
     let clocks = init_clocks_and_plls(
         external_xtal_freq_hz,
@@ -81,10 +81,8 @@ fn main() -> ! {
     )
     .ok()
     .unwrap();
-
     let mut delay = cortex_m::delay::Delay::new(core.SYST, clocks.system_clock.freq().to_Hz());
     let timer = Timer::new(pac.TIMER, &mut pac.RESETS);
-
     let pins = rp2040_hal::gpio::Pins::new(
         pac.IO_BANK0,
         pac.PADS_BANK0,
@@ -92,6 +90,7 @@ fn main() -> ! {
         &mut pac.RESETS,
     );
 
+    // Initialize USB
     let bus_allocator = unsafe {
         USB_ALLOCATOR = Some(UsbBusAllocator::new(UsbBus::new(
             pac.USBCTRL_REGS,
@@ -102,7 +101,6 @@ fn main() -> ! {
         )));
         USB_ALLOCATOR.as_ref().unwrap()
     };
-
     unsafe {
         USB_HID = Some(HIDClass::new_with_settings(
             bus_allocator,
@@ -125,12 +123,12 @@ fn main() -> ! {
         );
         HID_BUS.as_mut().unwrap().force_reset().ok();
     }
-
     // Enable the USB interrupt
     unsafe {
         pac::NVIC::unmask(rp2040_hal::pac::Interrupt::USBCTRL_IRQ);
     };
 
+    // Initialize Keyscanning
     let rows: [Row; 5] = [
         Row::new(pins.gpio15.into()),
         Row::new(pins.gpio14.into()),
@@ -138,7 +136,6 @@ fn main() -> ! {
         Row::new(pins.gpio12.into()),
         Row::new(pins.gpio11.into()),
     ];
-
     let cols: [Col; 16] = [
         Col::new(pins.gpio29.into()),
         Col::new(pins.gpio28.into()),
@@ -157,7 +154,6 @@ fn main() -> ! {
         Col::new(pins.gpio1.into()),
         Col::new(pins.gpio0.into()),
     ];
-
     fn callback(
         row: usize,
         col: usize,
@@ -200,51 +196,77 @@ fn main() -> ! {
         }
     }
 
-    // TODO create way to handle more than 6 codes per poll
-    fn push_input(c: (KeyCode, StateType, Operation)) {
+    // TODO create a way to enqueue and dequeue from inside of the key local functions themselves
+    fn push_input(c: (KeyCode, Operation)) {
         if c.0 != KeyCode::________ {
             unsafe {
-                match c.2 {
-                    Operation::SendOn => {
-                        if c.1 == StateType::Idle || c.1 == StateType::Off {
-                            println!("{:?} = {}", KEY_QUEUE.keys, KEY_QUEUE.len());
-                            KEY_QUEUE.dequeue(c.0);
-                        } else {
-                            KEY_QUEUE.enqueue((c.0, c.2));
-                        }
-                    }
-                    Operation::SendOff => {
-                        if c.1 == StateType::Idle || c.1 == StateType::Off {
-                            println!("{:?} = {}", KEY_QUEUE.keys, KEY_QUEUE.len());
-                            KEY_QUEUE.enqueue((c.0, c.2));
-                        }
-                    }
-                }
+                KEY_QUEUE.enqueue((c.0, c.1));
+            }
+        }
+    }
+    fn pull_input(c: KeyCode) {
+        if c != KeyCode::________ {
+            unsafe {
+                KEY_QUEUE.dequeue(c);
             }
         }
     }
 
+    // TODO create way to handle more than 6 codes per poll
+    // fn push_input(c: (KeyCode, StateType, Operation)) {
+    //     if c.0 != KeyCode::________ {
+    //         unsafe {
+    //             match c.2 {
+    //                 Operation::SendOn => {
+    //                     if c.1 == StateType::Idle || c.1 == StateType::Off {
+    //                         println!("{:?} = {}", KEY_QUEUE.keys, KEY_QUEUE.len());
+    //                         KEY_QUEUE.dequeue(c.0);
+    //                     } else {
+    //                         KEY_QUEUE.enqueue((c.0, c.2));
+    //                     }
+    //                 }
+    //                 Operation::SendOff => {
+    //                     if c.1 == StateType::Idle || c.1 == StateType::Off {
+    //                         println!("{:?} = {}", KEY_QUEUE.keys, KEY_QUEUE.len());
+    //                         KEY_QUEUE.enqueue((c.0, c.2));
+    //                     }
+    //                 }
+    //             }
+    //         }
+    //     }
+    // }
     // update MODIFIERS with a new value based on what is presed, or released
-    fn mod_update(c: (KeyCode, StateType)) {
-        println!("{:?}", c);
+    fn mod_push(c: KeyCode) {
+        println!("push: {:?}", c);
         unsafe {
-            if c.1 == StateType::Idle || c.1 == StateType::Off {
-                MODIFIERS.dequeue(c.0);
-            } else {
-                MODIFIERS.enqueue((c.0, Operation::SendOn));
-            }
+            MODIFIERS.enqueue((c, Operation::SendOn));
         }
     }
-
+    fn mod_pull(c: KeyCode) {
+        println!("pull: {:?}", c);
+        unsafe {
+            MODIFIERS.dequeue(c);
+        }
+    }
     let mut matrix: Matrix<5, 16> = Matrix::new(
         rows,
         cols,
         callback,
-        push_input,
-        mod_update,
+        inp_call: (push_input, pull_input),
+        mod_call: ( mod_push, mod_pull ),
         key_mapping::FancyAlice66(),
     );
     // TODO reboot into bootloader if started while escape is pressed.
+    let poll1 = matrix.poll(Context {
+        key_queue: unsafe { KEY_QUEUE.get_keys() },
+        modifiers: unsafe { MODIFIERS.get_keys() },
+    });
+    if poll1 {
+        let gpio_activity_pin_mask = 0;
+        let disable_interface_mask = 0;
+        info!("Escape key detected on boot, going into bootloader mode.");
+        rp2040_hal::rom_data::reset_to_usb_boot(gpio_activity_pin_mask, disable_interface_mask);
+    }
 
     let mut mc = Multicore::new(&mut pac.PSM, &mut pac.PPB, &mut sio.fifo);
 
