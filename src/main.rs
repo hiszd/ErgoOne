@@ -1,12 +1,14 @@
 #![no_std]
 #![no_main]
 #![allow(non_snake_case)]
+#![feature(adt_const_params)]
 
 mod key;
 mod key_codes;
 mod key_mapping;
 mod keyscanning;
 mod macros;
+mod actions;
 mod mods;
 
 use core::sync::atomic::AtomicBool;
@@ -197,12 +199,17 @@ fn main() -> ! {
     }
 
     // TODO create a way to enqueue and dequeue from inside of the key local functions themselves
-    fn push_input(c: (KeyCode, Operation)) {
+    fn action(action: &str, (code, op): (KeyCode, Operation)) {
+        match action {
+            "ipush" => {
         if c.0 != KeyCode::________ {
             unsafe {
-                KEY_QUEUE.enqueue((c.0, c.1));
+                KEY_QUEUE.enqueue((code, op));
             }
         }
+        }
+    }
+    fn push_input(c: (KeyCode, Operation)) {
     }
     fn pull_input(c: KeyCode) {
         if c != KeyCode::________ {
