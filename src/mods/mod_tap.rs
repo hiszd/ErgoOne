@@ -1,4 +1,5 @@
 use defmt::error;
+use defmt::warn;
 
 use crate::key::DEBOUNCE_CYCLES;
 use crate::key::HOLD_CYCLES;
@@ -11,12 +12,37 @@ pub trait ModTap {
     fn new(KC1: KeyCode, KC2: Option<KeyCode>) -> Self
     where
         Self: Sized;
-    fn tap(&mut self, _ctx: Context, inp_call: (fn((KeyCode, Operation)), fn(KeyCode)), mod_call: (fn(KeyCode), fn(KeyCode))) -> [(KeyCode, Operation); 2];
-    fn hold(&mut self, _ctx: Context, inp_call: (fn((KeyCode, Operation)), fn(KeyCode)), mod_call: (fn(KeyCode), fn(KeyCode))) -> [(KeyCode, Operation); 2];
-    fn idle(&mut self, _ctx: Context, inp_call: (fn((KeyCode, Operation)), fn(KeyCode)), mod_call: (fn(KeyCode), fn(KeyCode))) -> [(KeyCode, Operation); 2];
-    fn off(&mut self, _ctx: Context, inp_call: (fn((KeyCode, Operation)), fn(KeyCode)), mod_call: (fn(KeyCode), fn(KeyCode))) -> [(KeyCode, Operation); 2];
-    fn get_keys(&mut self, ctx: Context, inp_call: (fn((KeyCode, Operation)), fn(KeyCode)), mod_call: (fn(KeyCode), fn(KeyCode))) -> [(KeyCode, Operation); 2];
-    fn scan(&mut self, is_high: bool, ctx: Context, inp_call: (fn((KeyCode, Operation)), fn(KeyCode)), mod_call: (fn(KeyCode), fn(KeyCode))) -> [(KeyCode, Operation); 2];
+    fn tap(
+        &mut self,
+        _ctx: Context,
+        action: fn(&str, (Option<KeyCode>, Option<Operation>)),
+    ) -> [(KeyCode, Operation); 2];
+    fn hold(
+        &mut self,
+        _ctx: Context,
+        action: fn(&str, (Option<KeyCode>, Option<Operation>)),
+    ) -> [(KeyCode, Operation); 2];
+    fn idle(
+        &mut self,
+        _ctx: Context,
+        action: fn(&str, (Option<KeyCode>, Option<Operation>)),
+    ) -> [(KeyCode, Operation); 2];
+    fn off(
+        &mut self,
+        _ctx: Context,
+        action: fn(&str, (Option<KeyCode>, Option<Operation>)),
+    ) -> [(KeyCode, Operation); 2];
+    fn get_keys(
+        &mut self,
+        ctx: Context,
+        action: fn(&str, (Option<KeyCode>, Option<Operation>)),
+    ) -> [(KeyCode, Operation); 2];
+    fn scan(
+        &mut self,
+        is_high: bool,
+        ctx: Context,
+        action: fn(&str, (Option<KeyCode>, Option<Operation>)),
+    ) -> [(KeyCode, Operation); 2];
     fn exist_next(&self, ks: [Option<KeyCode>; 6], key: Option<KeyCode>) -> bool;
 }
 
@@ -35,80 +61,120 @@ impl ModTap for Key {
             previnfo: [false; 6],
         }
     }
-    fn tap(&mut self, ctx: Context, inp_call: (fn((KeyCode, Operation)), fn(KeyCode)), mod_call: (fn(KeyCode), fn(KeyCode))) -> [(KeyCode, Operation); 2] {
-        let mut combo: bool;
+    // when state becomes tap enqueue modifier
+    // when state becomes hold never queue key
+    // when state goes from tap>off and another key was never pressed enqueue key
+    // when state goes from tap>off ant another key was pressed never queue key
+    fn tap(
+        &mut self,
+        ctx: Context,
+        action: fn(&str, (Option<KeyCode>, Option<Operation>)),
+    ) -> [(KeyCode, Operation); 2] {
+        let combo: bool;
         if self.keycode[0].0.is_modifier() {
             combo = self.exist_next(ctx.key_queue, None);
         } else {
             combo = self.exist_next(ctx.key_queue, Some(self.keycode[0].0));
         }
+
+
+        if self.state != self.prevstate {
+            action("mpush", (Some(self.keycode[1].0), Some(self.keycode[1].1)));
+        }
+
+
         self.previnfo[0] = combo;
         if combo {
-            // **************************************
-            // this is the new way to do this!
-            // update all other actions
-            // **************************************
-            if self.keycode[0].0.is_modifier() {
-                mod_call.0(self.keycode[0].0);
+            match self.keycode[1].0.is_modifier() {
+                true => action("mpush", (Some(self.keycode[1].0), Some(self.keycode[1].1))),
+                false => action("ipush", (Some(self.keycode[1].0), Some(self.keycode[1].1))),
             }
             [
                 (self.keycode[1].0, self.keycode[1].1),
                 (KeyCode::________, Operation::SendOn),
             ]
         } else {
+            match self.keycode[0].0.is_modifier() {
+                true => action("mpush", (Some(self.keycode[0].0), Some(self.keycode[0].1))),
+                false => action("ipush", (Some(self.keycode[0].0), Some(self.keycode[0].1))),
+            }
             [
                 (self.keycode[0].0, self.keycode[1].1),
                 (KeyCode::________, Operation::SendOn),
             ]
         }
     }
-    fn hold(&mut self, _ctx: Context, inp_call: (fn((KeyCode, Operation)), fn(KeyCode)), mod_call: (fn(KeyCode), fn(KeyCode))) -> [(KeyCode, Operation); 2] {
+    fn hold(
+        &mut self,
+        _ctx: Context,
+        action: fn(&str, (Option<KeyCode>, Option<Operation>)),
+    ) -> [(KeyCode, Operation); 2] {
         self.previnfo[0] = true;
+        match self.keycode[1].0.is_modifier() {
+            true => action("mpush", (Some(self.keycode[1].0), Some(self.keycode[1].1))),
+            false => action("ipush", (Some(self.keycode[1].0), Some(self.keycode[1].1))),
+        }
         [
             (self.keycode[1].0, self.keycode[1].1),
             (KeyCode::________, Operation::SendOn),
         ]
     }
-    fn idle(&mut self, _ctx: Context, inp_call: (fn((KeyCode, Operation)), fn(KeyCode)), mod_call: (fn(KeyCode), fn(KeyCode))) -> [(KeyCode, Operation); 2] {
+    fn idle(
+        &mut self,
+        _ctx: Context,
+        _action: fn(&str, (Option<KeyCode>, Option<Operation>)),
+    ) -> [(KeyCode, Operation); 2] {
         [
             (KeyCode::________, Operation::SendOn),
             (KeyCode::________, Operation::SendOn),
         ]
     }
-    fn off(&mut self, _ctx: Context, inp_call: (fn((KeyCode, Operation)), fn(KeyCode)), mod_call: (fn(KeyCode), fn(KeyCode))) -> [(KeyCode, Operation); 2] {
+    fn off(
+        &mut self,
+        _ctx: Context,
+        action: fn(&str, (Option<KeyCode>, Option<Operation>)),
+    ) -> [(KeyCode, Operation); 2] {
+        let rtrnnum: u8;
         if self.prevstate == StateType::Tap {
             if self.previnfo[0] {
                 self.previnfo[0] = false;
-                [
-                    (self.keycode[0].0, self.keycode[0].1),
-                    (KeyCode::________, Operation::SendOn),
-                ]
+                rtrnnum = 1;
             } else {
-                [
-                    (self.keycode[1].0, self.keycode[1].1),
-                    (KeyCode::________, Operation::SendOn),
-                ]
+                rtrnnum = 2;
             }
         } else if self.prevstate == StateType::Hold || self.previnfo[0] {
             if self.previnfo[0] {
                 self.previnfo[0] = false;
-                [
-                    (self.keycode[1].0, self.keycode[1].1),
-                    (KeyCode::________, Operation::SendOn),
-                ]
+                rtrnnum = 2;
             } else {
-                [
-                    (self.keycode[0].0, self.keycode[0].1),
-                    (KeyCode::________, Operation::SendOn),
-                ]
+                rtrnnum = 1;
             }
         } else if self.prevstate == StateType::Off {
+            rtrnnum = 0;
+        } else {
+            error!("Invalid state type: {}", self.prevstate);
+            rtrnnum = 0;
+        }
+
+        if rtrnnum == 1 {
+            match self.keycode[0].0.is_modifier() {
+                true => action("mpush", (Some(self.keycode[0].0), Some(self.keycode[0].1))),
+                false => action("ipush", (Some(self.keycode[0].0), Some(self.keycode[0].1))),
+            }
             [
+                (self.keycode[0].0, self.keycode[0].1),
                 (KeyCode::________, Operation::SendOn),
+            ]
+        } else if rtrnnum == 2 {
+            match self.keycode[1].0.is_modifier() {
+                true => action("mpush", (Some(self.keycode[1].0), Some(self.keycode[1].1))),
+                false => action("ipush", (Some(self.keycode[1].0), Some(self.keycode[1].1))),
+            }
+            [
+                (self.keycode[1].0, self.keycode[1].1),
                 (KeyCode::________, Operation::SendOn),
             ]
         } else {
-            error!("Invalid state type: {}", self.prevstate);
             [
                 (KeyCode::________, Operation::SendOn),
                 (KeyCode::________, Operation::SendOn),

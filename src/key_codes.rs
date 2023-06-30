@@ -458,7 +458,6 @@ impl From<KeyCode> for &str {
             KeyCode::Led_Col2 => "Led_Col2",
             KeyCode::________ => "________",
             KeyCode::EEEEEEEE => "EEEEEEEE",
-            _ => "undefined",
         }
     }
 }

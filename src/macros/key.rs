@@ -3,9 +3,17 @@
 macro_rules! KeyImpl {
     ($a:expr) => {
         /// Perform state change as a result of the scan
-        fn scan(&mut self, is_high: bool, ctx: Context, inp_call: (fn((KeyCode, Operation)), fn(KeyCode)), mod_call: (fn(KeyCode), fn(KeyCode))) -> [(KeyCode, Operation); 2] {
+        fn scan(
+            &mut self,
+            is_high: bool,
+            ctx: Context,
+            action: fn(&str, (Option<KeyCode>, Option<Operation>)),
+        ) -> [(KeyCode, Operation); 2] {
             // println!("{}", is_high);
-            const DEFCODE: [(KeyCode, Operation); 2] = [(KeyCode::________, Operation::SendOn),(KeyCode::________, Operation::SendOn)];
+            const DEFCODE: [(KeyCode, Operation); 2] = [
+                (KeyCode::________, Operation::SendOn),
+                (KeyCode::________, Operation::SendOn),
+            ];
             // if they KeyCode is empty then don't bother processing
             if self.keycode[0].0 == KeyCode::________ && self.keycode[1].0 == KeyCode::________ {
                 return DEFCODE;
@@ -50,22 +58,26 @@ macro_rules! KeyImpl {
                     self.prevstate = self.state;
                     self.state = StateType::Tap;
                 }
-                return self.get_keys(ctx, inp_call, mod_call);
+                return self.get_keys(ctx, action);
             // } else if self.cycles_off >= DEBOUNCE_CYCLES.into() {
             } else if self.cycles_off >= 1 {
                 self.prevstate = self.state;
                 self.state = StateType::Off;
             }
-            self.get_keys(ctx, inp_call, mod_call)
+            self.get_keys(ctx, action)
         }
-        fn get_keys(&mut self, ctx: Context, inp_pull: (fn((KeyCode, Operation)), fn(KeyCode)), mod_pull: (fn(KeyCode), fn(KeyCode))) -> [(KeyCode, Operation); 2] {
+        fn get_keys(
+            &mut self,
+            ctx: Context,
+            action: fn(&str, (Option<KeyCode>, Option<Operation>)),
+        ) -> [(KeyCode, Operation); 2] {
             // info!("{:?}", self.state);
             // Match all types of self.state
             match self.state {
-                StateType::Tap => self.tap(ctx, inp_pull, mod_pull),
-                StateType::Hold => self.hold(ctx, inp_pull, mod_pull),
-                StateType::Idle => self.idle(ctx, inp_pull, mod_pull),
-                StateType::Off => self.off(ctx, inp_pull, mod_pull),
+                StateType::Tap => self.tap(ctx, action),
+                StateType::Hold => self.hold(ctx, action),
+                StateType::Idle => self.idle(ctx, action),
+                StateType::Off => self.off(ctx, action),
             }
         }
     };

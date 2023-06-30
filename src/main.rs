@@ -1,14 +1,12 @@
 #![no_std]
 #![no_main]
 #![allow(non_snake_case)]
-#![feature(adt_const_params)]
 
 mod key;
 mod key_codes;
 mod key_mapping;
 mod keyscanning;
 mod macros;
-mod actions;
 mod mods;
 
 use core::sync::atomic::AtomicBool;
@@ -18,7 +16,6 @@ use core::{
 };
 
 use crate::{key_codes::KeyCode, pac::interrupt};
-use cortex_m::asm::delay;
 use cortex_m_rt::entry;
 use defmt::*;
 use defmt_rtt as _;
@@ -198,24 +195,35 @@ fn main() -> ! {
         }
     }
 
-    // TODO create a way to enqueue and dequeue from inside of the key local functions themselves
-    fn action(action: &str, (code, op): (KeyCode, Operation)) {
+    fn action(action: &str, (code, op): (Option<KeyCode>, Option<Operation>)) {
         match action {
             "ipush" => {
-        if c.0 != KeyCode::________ {
-            unsafe {
-                KEY_QUEUE.enqueue((code, op));
+                if code.unwrap() != KeyCode::________ {
+                    unsafe {
+                        KEY_QUEUE.enqueue((code.unwrap(), op.unwrap()));
+                    }
+                }
             }
-        }
-        }
-    }
-    fn push_input(c: (KeyCode, Operation)) {
-    }
-    fn pull_input(c: KeyCode) {
-        if c != KeyCode::________ {
-            unsafe {
-                KEY_QUEUE.dequeue(c);
+            "ipull" => {
+                if code.unwrap() != KeyCode::________ {
+                    unsafe {
+                        KEY_QUEUE.dequeue(code.unwrap());
+                    }
+                }
             }
+            "mpush" => {
+                println!("push: {:?}", code.unwrap());
+                unsafe {
+                    MODIFIERS.enqueue((code.unwrap(), Operation::SendOn));
+                }
+            }
+            "mpull" => {
+                println!("pull: {:?}", code.unwrap());
+                unsafe {
+                    MODIFIERS.dequeue(code.unwrap());
+                }
+            }
+            _ => {}
         }
     }
 
@@ -242,32 +250,14 @@ fn main() -> ! {
     //         }
     //     }
     // }
-    // update MODIFIERS with a new value based on what is presed, or released
-    fn mod_push(c: KeyCode) {
-        println!("push: {:?}", c);
-        unsafe {
-            MODIFIERS.enqueue((c, Operation::SendOn));
-        }
-    }
-    fn mod_pull(c: KeyCode) {
-        println!("pull: {:?}", c);
-        unsafe {
-            MODIFIERS.dequeue(c);
-        }
-    }
-    let mut matrix: Matrix<5, 16> = Matrix::new(
-        rows,
-        cols,
-        callback,
-        inp_call: (push_input, pull_input),
-        mod_call: ( mod_push, mod_pull ),
-        key_mapping::FancyAlice66(),
-    );
+
+    let mut matrix: Matrix<5, 16> =
+        Matrix::new(rows, cols, callback, key_mapping::FancyAlice66());
     // TODO reboot into bootloader if started while escape is pressed.
     let poll1 = matrix.poll(Context {
         key_queue: unsafe { KEY_QUEUE.get_keys() },
         modifiers: unsafe { MODIFIERS.get_keys() },
-    });
+    }, action as fn(&str, (Option<KeyCode>, Option<Operation>)));
     if poll1 {
         let gpio_activity_pin_mask = 0;
         let disable_interface_mask = 0;
@@ -323,7 +313,7 @@ fn main() -> ! {
         matrix.poll(Context {
             key_queue: unsafe { KEY_QUEUE.get_keys() },
             modifiers: unsafe { MODIFIERS.get_keys() },
-        });
+        }, action as fn(&str, (Option<KeyCode>, Option<Operation>)));
     }
 }
 

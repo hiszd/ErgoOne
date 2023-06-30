@@ -87,8 +87,6 @@ pub struct Matrix<const RSIZE: usize, const CSIZE: usize> {
     state: KeyMatrix<RSIZE, CSIZE>,
     callback:
         fn(row: usize, col: usize, state: StateType, prevstate: StateType, keycodes: [KeyCode; 2]),
-    inp_call: (fn((KeyCode, Operation)), fn(KeyCode)),
-    mod_call: (fn(c: KeyCode), fn(c: KeyCode)),
     wait_cycles: u16,
     cycles: u16,
     cur_strobe: usize,
@@ -105,8 +103,6 @@ impl<const RSIZE: usize, const CSIZE: usize> Matrix<RSIZE, CSIZE> {
             prevstate: StateType,
             keycodes: [KeyCode; 2],
         ),
-        inp_call: (fn((KeyCode, Operation)), fn(KeyCode)),
-        mod_call: (fn(c: KeyCode), fn(c: KeyCode)),
         keymap: KeyMatrix<RSIZE, CSIZE>,
     ) -> Self {
         let mut new = Matrix {
@@ -118,8 +114,6 @@ impl<const RSIZE: usize, const CSIZE: usize> Matrix<RSIZE, CSIZE> {
             wait_cycles: 2,
             cycles: 0,
             cur_strobe: 0,
-            inp_call,
-            mod_call,
         };
         new.cols[new.cur_strobe].set_high();
         new.clear();
@@ -164,44 +158,46 @@ impl<const RSIZE: usize, const CSIZE: usize> Matrix<RSIZE, CSIZE> {
         // str.push_str(&strobe).unwrap();
         // self.execute_info(&str)
     }
-    pub fn poll(&mut self, ctx: Context) -> bool {
+    pub fn poll(&mut self, ctx: Context, action: fn(&str, (Option<KeyCode>, Option<Operation>))) -> bool {
         self.next_strobe();
         let c = self.cur_strobe;
 
-        let push_codes = |codes: [(KeyCode, StateType, Operation); 2]| {
-            codes.iter().for_each(|key| {
-                if key.0.is_modifier() {
-                    (self.mod_update)((key.0, key.1));
-                } else {
-                    (self.push_input)((key.0, key.1, key.2));
-                }
-            })
-        };
+        // let push_codes = |codes: [(KeyCode, StateType, Operation); 2]| {
+        //     codes.iter().for_each(|key| {
+        //         if key.0.is_modifier() {
+        //             (self.mod_update)((key.0, key.1));
+        //         } else {
+        //             (self.push_input)((key.0, key.1, key.2));
+        //         }
+        //     })
+        // };
 
         let mut rtrn: bool = false;
 
         for r in 0..RSIZE {
-            let codes = self.state.matrix[r][c].scan(self.rows[r].is_high(), ctx, inp_call, mod_call);
+            let codes = self.state.matrix[r][c].scan(self.rows[r].is_high(), ctx, action);
+            // self.state.matrix[r][c].scan(self.rows[r].is_high(), ctx, action);
             if (r == 0 && c == 0) && self.state.matrix[r][c].state == StateType::Tap {
                 rtrn = true;
             }
             if self.state.matrix[r][c].state != self.state.matrix[r][c].prevstate {
-                push_codes([
-                    (codes[0].0, self.state.matrix[r][c].state, codes[0].1),
-                    (codes[1].0, self.state.matrix[r][c].state, codes[1].1),
-                ]);
+                // push_codes([
+                //     (codes[0].0, self.state.matrix[r][c].state, codes[0].1),
+                //     (codes[1].0, self.state.matrix[r][c].state, codes[1].1),
+                // ]);
                 self.execute_callback(
                     r + 1,
                     c + 1,
                     self.state.matrix[r][c].state,
                     self.state.matrix[r][c].prevstate,
+                    // [KeyCode::________, KeyCode::________],
                     [codes[0].0, codes[1].0],
                 );
             } else if self.state.matrix[r][c].state == StateType::Hold {
-                push_codes([
-                    (codes[0].0, self.state.matrix[r][c].state, codes[0].1),
-                    (codes[1].0, self.state.matrix[r][c].state, codes[1].1),
-                ]);
+                // push_codes([
+                //     (codes[0].0, self.state.matrix[r][c].state, codes[0].1),
+                //     (codes[1].0, self.state.matrix[r][c].state, codes[1].1),
+                // ]);
             }
         }
         rtrn
