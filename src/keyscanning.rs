@@ -3,7 +3,8 @@
 
 // use rp2040_hal::gpio::PinMode::{Input, Output}
 
-use defmt::{debug, info, println, Format};
+use crate::mods::mod_tap::ModTap;
+use defmt::{debug, info, println, Format, error};
 use embedded_hal::digital::v2::{InputPin, OutputPin};
 use rp2040_hal::gpio::DynPin;
 use usbd_hid::descriptor::KeyboardReport;
@@ -175,9 +176,20 @@ impl<const RSIZE: usize, const CSIZE: usize> Matrix<RSIZE, CSIZE> {
         let mut rtrn: bool = false;
 
         for r in 0..RSIZE {
-            let codes = self.state.matrix[r][c].scan(self.rows[r].is_high(), ctx, action);
+            let codes: [(KeyCode, Operation); 2];
+            match self.state.matrix[r][c].typ {
+                "Default" => {
+                    codes = self.state.matrix[r][c].scan(self.rows[r].is_high(), ctx, action);
+                }
+                "ModTap" => {
+                    codes = self.state.matrix[r][c].mtscan(self.rows[r].is_high(), ctx, action);
+                }
+                _ => {
+                    error!("Unknown key type {}", self.state.matrix[r][c].typ);
+                }
+            }
             // self.state.matrix[r][c].scan(self.rows[r].is_high(), ctx, action);
-            if (r == 0 && c == 0) && self.state.matrix[r][c].state == StateType::Tap {
+            if (r == 0 && c == 0) && self.state.matrix[r][c].raw_state == true {
                 rtrn = true;
             }
             if self.state.matrix[r][c].state != self.state.matrix[r][c].prevstate {
@@ -185,14 +197,14 @@ impl<const RSIZE: usize, const CSIZE: usize> Matrix<RSIZE, CSIZE> {
                 //     (codes[0].0, self.state.matrix[r][c].state, codes[0].1),
                 //     (codes[1].0, self.state.matrix[r][c].state, codes[1].1),
                 // ]);
-                self.execute_callback(
-                    r + 1,
-                    c + 1,
-                    self.state.matrix[r][c].state,
-                    self.state.matrix[r][c].prevstate,
-                    // [KeyCode::________, KeyCode::________],
-                    [codes[0].0, codes[1].0],
-                );
+                // self.execute_callback(
+                //     r + 1,
+                //     c + 1,
+                //     self.state.matrix[r][c].state,
+                //     self.state.matrix[r][c].prevstate,
+                //     // [KeyCode::________, KeyCode::________],
+                //     [codes[0].0, codes[1].0],
+                // );
             } else if self.state.matrix[r][c].state == StateType::Hold {
                 // push_codes([
                 //     (codes[0].0, self.state.matrix[r][c].state, codes[0].1),

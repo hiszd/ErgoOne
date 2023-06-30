@@ -52,6 +52,40 @@ use crate::keyscanning::{Matrix, Operation};
 
 use self::keyscanning::KeyQueue;
 
+pub fn action(action: &str, (code, op): (Option<KeyCode>, Option<Operation>)) {
+    match action {
+        "ipush" => {
+            println!("ipush: {:?}", code.unwrap());
+            if code.unwrap() != KeyCode::________ {
+                unsafe {
+                    KEY_QUEUE.enqueue((code.unwrap(), op.unwrap()));
+                }
+            }
+        }
+        "ipull" => {
+            println!("ipull: {:?}", code.unwrap());
+            if code.unwrap() != KeyCode::________ {
+                unsafe {
+                    KEY_QUEUE.dequeue(code.unwrap());
+                }
+            }
+        }
+        "mpush" => {
+            println!("mpush: {:?}", code.unwrap());
+            unsafe {
+                MODIFIERS.enqueue((code.unwrap(), Operation::SendOn));
+            }
+        }
+        "mpull" => {
+            println!("mpull: {:?}", code.unwrap());
+            unsafe {
+                MODIFIERS.dequeue(code.unwrap());
+            }
+        }
+        _ => {}
+    }
+}
+
 static mut CORE1_STACK: Stack<4096> = Stack::new();
 
 /// The linker will place this boot block at the start of our program image. We
@@ -195,38 +229,6 @@ fn main() -> ! {
         }
     }
 
-    fn action(action: &str, (code, op): (Option<KeyCode>, Option<Operation>)) {
-        match action {
-            "ipush" => {
-                if code.unwrap() != KeyCode::________ {
-                    unsafe {
-                        KEY_QUEUE.enqueue((code.unwrap(), op.unwrap()));
-                    }
-                }
-            }
-            "ipull" => {
-                if code.unwrap() != KeyCode::________ {
-                    unsafe {
-                        KEY_QUEUE.dequeue(code.unwrap());
-                    }
-                }
-            }
-            "mpush" => {
-                println!("push: {:?}", code.unwrap());
-                unsafe {
-                    MODIFIERS.enqueue((code.unwrap(), Operation::SendOn));
-                }
-            }
-            "mpull" => {
-                println!("pull: {:?}", code.unwrap());
-                unsafe {
-                    MODIFIERS.dequeue(code.unwrap());
-                }
-            }
-            _ => {}
-        }
-    }
-
     // TODO create way to handle more than 6 codes per poll
     // fn push_input(c: (KeyCode, StateType, Operation)) {
     //     if c.0 != KeyCode::________ {
@@ -251,13 +253,15 @@ fn main() -> ! {
     //     }
     // }
 
-    let mut matrix: Matrix<5, 16> =
-        Matrix::new(rows, cols, callback, key_mapping::FancyAlice66());
+    let mut matrix: Matrix<5, 16> = Matrix::new(rows, cols, callback, key_mapping::FancyAlice66());
     // TODO reboot into bootloader if started while escape is pressed.
-    let poll1 = matrix.poll(Context {
-        key_queue: unsafe { KEY_QUEUE.get_keys() },
-        modifiers: unsafe { MODIFIERS.get_keys() },
-    }, action as fn(&str, (Option<KeyCode>, Option<Operation>)));
+    let poll1 = matrix.poll(
+        Context {
+            key_queue: unsafe { KEY_QUEUE.get_keys() },
+            modifiers: unsafe { MODIFIERS.get_keys() },
+        },
+        action as fn(&str, (Option<KeyCode>, Option<Operation>)),
+    );
     if poll1 {
         let gpio_activity_pin_mask = 0;
         let disable_interface_mask = 0;
@@ -310,10 +314,13 @@ fn main() -> ! {
     info!("Loop starting!");
     loop {
         delay.delay_us(1000u32);
-        matrix.poll(Context {
-            key_queue: unsafe { KEY_QUEUE.get_keys() },
-            modifiers: unsafe { MODIFIERS.get_keys() },
-        }, action as fn(&str, (Option<KeyCode>, Option<Operation>)));
+        matrix.poll(
+            Context {
+                key_queue: unsafe { KEY_QUEUE.get_keys() },
+                modifiers: unsafe { MODIFIERS.get_keys() },
+            },
+            action as fn(&str, (Option<KeyCode>, Option<Operation>)),
+        );
     }
 }
 

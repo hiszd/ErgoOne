@@ -9,25 +9,26 @@ use crate::{key::Key, key_codes::KeyCode};
 use crate::{Context, KeyImpl};
 
 pub trait ModTap {
-    fn new(KC1: KeyCode, KC2: Option<KeyCode>) -> Self
+    fn mtnew(KC1: KeyCode, KC2: Option<KeyCode>) -> Self
     where
-        Self: Sized;
-    fn tap(
+        Self: Sized,
+        Self: ModTap;
+    fn mttap(
+        &mut self,
+        ctx: Context,
+        action: fn(&str, (Option<KeyCode>, Option<Operation>)),
+    ) -> [(KeyCode, Operation); 2];
+    fn mthold(
         &mut self,
         _ctx: Context,
         action: fn(&str, (Option<KeyCode>, Option<Operation>)),
     ) -> [(KeyCode, Operation); 2];
-    fn hold(
+    fn mtidle(
         &mut self,
         _ctx: Context,
         action: fn(&str, (Option<KeyCode>, Option<Operation>)),
     ) -> [(KeyCode, Operation); 2];
-    fn idle(
-        &mut self,
-        _ctx: Context,
-        action: fn(&str, (Option<KeyCode>, Option<Operation>)),
-    ) -> [(KeyCode, Operation); 2];
-    fn off(
+    fn mtoff(
         &mut self,
         _ctx: Context,
         action: fn(&str, (Option<KeyCode>, Option<Operation>)),
@@ -37,7 +38,7 @@ pub trait ModTap {
         ctx: Context,
         action: fn(&str, (Option<KeyCode>, Option<Operation>)),
     ) -> [(KeyCode, Operation); 2];
-    fn scan(
+    fn mtscan(
         &mut self,
         is_high: bool,
         ctx: Context,
@@ -47,7 +48,7 @@ pub trait ModTap {
 }
 
 impl ModTap for Key {
-    fn new(KC1: KeyCode, KC2: Option<KeyCode>) -> Self {
+    fn mtnew(KC1: KeyCode, KC2: Option<KeyCode>) -> Self {
         Key {
             cycles: 0,
             raw_state: false,
@@ -59,126 +60,109 @@ impl ModTap for Key {
                 (KC2.unwrap_or(KeyCode::________), Operation::SendOn),
             ],
             previnfo: [false; 6],
+            typ: "ModTap",
         }
     }
     // when state becomes tap enqueue modifier
     // when state becomes hold never queue key
-    // when state goes from tap>off and another key was never pressed enqueue key
-    // when state goes from tap>off ant another key was pressed never queue key
-    fn tap(
+    fn mttap(
         &mut self,
         ctx: Context,
         action: fn(&str, (Option<KeyCode>, Option<Operation>)),
     ) -> [(KeyCode, Operation); 2] {
         let combo: bool;
-        if self.keycode[0].0.is_modifier() {
+        if self.keycode[1].0.is_modifier() {
             combo = self.exist_next(ctx.key_queue, None);
         } else {
-            combo = self.exist_next(ctx.key_queue, Some(self.keycode[0].0));
+            error!("{} is not a modifier", self.keycode[1].0);
+            return [(KeyCode::________, Operation::SendOn); 2];
         }
-
-
-        if self.state != self.prevstate {
-            action("mpush", (Some(self.keycode[1].0), Some(self.keycode[1].1)));
-        }
-
 
         self.previnfo[0] = combo;
-        if combo {
-            match self.keycode[1].0.is_modifier() {
-                true => action("mpush", (Some(self.keycode[1].0), Some(self.keycode[1].1))),
-                false => action("ipush", (Some(self.keycode[1].0), Some(self.keycode[1].1))),
-            }
-            [
-                (self.keycode[1].0, self.keycode[1].1),
-                (KeyCode::________, Operation::SendOn),
-            ]
-        } else {
-            match self.keycode[0].0.is_modifier() {
-                true => action("mpush", (Some(self.keycode[0].0), Some(self.keycode[0].1))),
-                false => action("ipush", (Some(self.keycode[0].0), Some(self.keycode[0].1))),
-            }
-            [
-                (self.keycode[0].0, self.keycode[1].1),
-                (KeyCode::________, Operation::SendOn),
-            ]
-        }
-    }
-    fn hold(
-        &mut self,
-        _ctx: Context,
-        action: fn(&str, (Option<KeyCode>, Option<Operation>)),
-    ) -> [(KeyCode, Operation); 2] {
-        self.previnfo[0] = true;
         match self.keycode[1].0.is_modifier() {
-            true => action("mpush", (Some(self.keycode[1].0), Some(self.keycode[1].1))),
-            false => action("ipush", (Some(self.keycode[1].0), Some(self.keycode[1].1))),
+            true => {
+                action("mpush", (Some(self.keycode[1].0), Some(self.keycode[1].1)));
+                warn!("mttap");
+            }
+            false => error!("{} is not a modifier", self.keycode[1].0),
         }
         [
             (self.keycode[1].0, self.keycode[1].1),
             (KeyCode::________, Operation::SendOn),
         ]
     }
-    fn idle(
-        &mut self,
-        _ctx: Context,
-        _action: fn(&str, (Option<KeyCode>, Option<Operation>)),
-    ) -> [(KeyCode, Operation); 2] {
-        [
-            (KeyCode::________, Operation::SendOn),
-            (KeyCode::________, Operation::SendOn),
-        ]
-    }
-    fn off(
+    fn mthold(
         &mut self,
         _ctx: Context,
         action: fn(&str, (Option<KeyCode>, Option<Operation>)),
     ) -> [(KeyCode, Operation); 2] {
-        let rtrnnum: u8;
-        if self.prevstate == StateType::Tap {
-            if self.previnfo[0] {
-                self.previnfo[0] = false;
-                rtrnnum = 1;
-            } else {
-                rtrnnum = 2;
+        self.previnfo[0] = true;
+        match self.keycode[1].0.is_modifier() {
+            true => {
+                action("mpush", (Some(self.keycode[1].0), Some(self.keycode[1].1)));
+                warn!("mthold");
             }
-        } else if self.prevstate == StateType::Hold || self.previnfo[0] {
-            if self.previnfo[0] {
-                self.previnfo[0] = false;
-                rtrnnum = 2;
-            } else {
-                rtrnnum = 1;
-            }
-        } else if self.prevstate == StateType::Off {
-            rtrnnum = 0;
-        } else {
-            error!("Invalid state type: {}", self.prevstate);
-            rtrnnum = 0;
+            false => error!("{} is not a modifier", self.keycode[1].0),
         }
-
-        if rtrnnum == 1 {
-            match self.keycode[0].0.is_modifier() {
-                true => action("mpush", (Some(self.keycode[0].0), Some(self.keycode[0].1))),
-                false => action("ipush", (Some(self.keycode[0].0), Some(self.keycode[0].1))),
+        [
+            (self.keycode[1].0, self.keycode[1].1),
+            (KeyCode::________, Operation::SendOn),
+        ]
+    }
+    fn mtidle(
+        &mut self,
+        _ctx: Context,
+        _action: fn(&str, (Option<KeyCode>, Option<Operation>)),
+    ) -> [(KeyCode, Operation); 2] {
+        [(KeyCode::________, Operation::SendOn); 2]
+    }
+    // when state goes from tap>off and another key was never pressed enqueue key and pull modifier
+    // when state goes from tap>off and another key was pressed never queue key and pull modifier
+    // when state goed from hold>off never queue key, but pull modifier
+    fn mtoff(
+        &mut self,
+        _ctx: Context,
+        action: fn(&str, (Option<KeyCode>, Option<Operation>)),
+    ) -> [(KeyCode, Operation); 2] {
+        match self.prevstate {
+            StateType::Tap => {
+                if !self.previnfo[0] {
+                    match self.keycode[0].0.is_modifier() {
+                        true => error!("{} is a modifier, but shouldn't be", self.keycode[0].0),
+                        false => {
+                            warn!("mtoff");
+                            action("ipush", (Some(self.keycode[0].0), Some(self.keycode[0].1)));
+                            action("mpull", (Some(self.keycode[1].0), Some(self.keycode[1].1)));
+                        }
+                    }
+                    return [
+                        (self.keycode[0].0, self.keycode[0].1),
+                        (KeyCode::________, Operation::SendOn),
+                    ];
+                } else {
+                    return [(KeyCode::________, Operation::SendOn); 2];
+                }
             }
-            [
-                (self.keycode[0].0, self.keycode[0].1),
-                (KeyCode::________, Operation::SendOn),
-            ]
-        } else if rtrnnum == 2 {
-            match self.keycode[1].0.is_modifier() {
-                true => action("mpush", (Some(self.keycode[1].0), Some(self.keycode[1].1))),
-                false => action("ipush", (Some(self.keycode[1].0), Some(self.keycode[1].1))),
+            StateType::Hold => {
+                match self.keycode[0].0.is_modifier() {
+                    true => error!("{} is a modifier, but shouldn't be", self.keycode[0].0),
+                    false => {
+                        action("mpull", (Some(self.keycode[1].0), Some(self.keycode[1].1)));
+                        warn!("mtoff");
+                    }
+                }
+                return [
+                    (self.keycode[0].0, self.keycode[0].1),
+                    (KeyCode::________, Operation::SendOn),
+                ];
             }
-            [
-                (self.keycode[1].0, self.keycode[1].1),
-                (KeyCode::________, Operation::SendOn),
-            ]
-        } else {
-            [
-                (KeyCode::________, Operation::SendOn),
-                (KeyCode::________, Operation::SendOn),
-            ]
+            StateType::Off => {
+                return [(KeyCode::________, Operation::SendOn); 2];
+            }
+            _ => {
+                warn!("mtoff");
+                return [(KeyCode::________, Operation::SendOn); 2];
+            }
         }
     }
 
@@ -199,13 +183,65 @@ impl ModTap for Key {
             ks.iter().any(|k| k.is_some())
         }
     }
-    KeyImpl!(ModTap);
+    #[doc = " Perform state change as a result of the scan"]
+    fn mtscan(
+        &mut self,
+        is_high: bool,
+        ctx: Context,
+        action: fn(&str, (Option<KeyCode>, Option<Operation>)),
+    ) -> [(KeyCode, Operation); 2] {
+        const DEFCODE: [(KeyCode, Operation); 2] = [
+            (KeyCode::________, Operation::SendOn),
+            (KeyCode::________, Operation::SendOn),
+        ];
+        if self.keycode[0].0 == KeyCode::________ && self.keycode[1].0 == KeyCode::________ {
+            return DEFCODE;
+        }
+        if is_high {
+            if self.cycles < u16::MAX {
+                self.cycles += 1;
+            }
+            self.cycles_off = 0;
+        } else {
+            if self.cycles_off < u16::MAX {
+                self.cycles_off += 1;
+            }
+            self.cycles = 0;
+        }
+        self.raw_state = is_high;
+        if self.cycles >= DEBOUNCE_CYCLES {
+            if self.state == StateType::Tap && self.cycles >= HOLD_CYCLES {
+                self.prevstate = self.state;
+                self.state = StateType::Hold;
+            } else if self.state == StateType::Off || self.state == StateType::Tap {
+                self.prevstate = self.state;
+                self.state = StateType::Tap;
+            }
+            return self.get_keys(ctx, action);
+        } else if self.cycles_off >= 1 {
+            self.prevstate = self.state;
+            self.state = StateType::Off;
+        }
+        self.get_keys(ctx, action)
+    }
+    fn get_keys(
+        &mut self,
+        ctx: Context,
+        action: fn(&str, (Option<KeyCode>, Option<Operation>)),
+    ) -> [(KeyCode, Operation); 2] {
+        match self.state {
+            StateType::Tap => self.mttap(ctx, action),
+            StateType::Hold => self.mthold(ctx, action),
+            StateType::Idle => self.mtidle(ctx, action),
+            StateType::Off => self.mtoff(ctx, action),
+        }
+    }
 }
 
 #[allow(unused_macros)]
 #[macro_export]
 macro_rules! mt {
     ($code1:expr, $code2:expr) => {
-        ModTap::new($code1, Some($code2))
+        ModTap::mtnew($code1, Some($code2))
     };
 }

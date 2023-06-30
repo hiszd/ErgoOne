@@ -70,7 +70,7 @@ macro_rules! KeyImpl {
             &mut self,
             ctx: Context,
             action: fn(&str, (Option<KeyCode>, Option<Operation>)),
-        ) -> [(KeyCode, Operation); 2] {
+        ) -> [(KeyCode, Operation); 2]  {
             // info!("{:?}", self.state);
             // Match all types of self.state
             match self.state {
