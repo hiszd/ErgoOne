@@ -4,7 +4,7 @@
 // use rp2040_hal::gpio::PinMode::{Input, Output}
 
 use crate::mods::mod_tap::ModTap;
-use defmt::{debug, info, println, Format, error};
+use defmt::{debug, error, info, println, Format};
 use embedded_hal::digital::v2::{InputPin, OutputPin};
 use rp2040_hal::gpio::DynPin;
 use usbd_hid::descriptor::KeyboardReport;
@@ -159,7 +159,11 @@ impl<const RSIZE: usize, const CSIZE: usize> Matrix<RSIZE, CSIZE> {
         // str.push_str(&strobe).unwrap();
         // self.execute_info(&str)
     }
-    pub fn poll(&mut self, ctx: Context, action: fn(&str, (Option<KeyCode>, Option<Operation>))) -> bool {
+    pub fn poll(
+        &mut self,
+        ctx: Context,
+        action: fn(&str, (Option<KeyCode>, Option<Operation>)),
+    ) -> bool {
         self.next_strobe();
         let c = self.cur_strobe;
 
@@ -176,19 +180,32 @@ impl<const RSIZE: usize, const CSIZE: usize> Matrix<RSIZE, CSIZE> {
         let mut rtrn: bool = false;
 
         for r in 0..RSIZE {
-            let codes: [(KeyCode, Operation); 2];
-            match self.state.matrix[r][c].typ {
-                "Default" => {
-                    codes = self.state.matrix[r][c].scan(self.rows[r].is_high(), ctx, action);
-                }
-                "ModTap" => {
-                    codes = self.state.matrix[r][c].mtscan(self.rows[r].is_high(), ctx, action);
-                }
-                _ => {
-                    error!("Unknown key type {}", self.state.matrix[r][c].typ);
-                }
-            }
+            // let codes: [(KeyCode, Operation); 2];
+            // match self.state.matrix[r][c].typ {
+            //     "Default" => {
+            //         codes = self.state.matrix[r][c].scan(self.rows[r].is_high(), ctx, action);
+            //     }
+            //     "ModTap" => {
+            //         codes = self.state.matrix[r][c].mtscan(self.rows[r].is_high(), ctx, action);
+            //     }
+            //     _ => {
+            //         codes = [(KeyCode::________, Operation::SendOn); 2];
+            //         error!("Unknown key type {}", self.state.matrix[r][c].typ);
+            //     }
+            // }
             // self.state.matrix[r][c].scan(self.rows[r].is_high(), ctx, action);
+            let st = self.rows[r].is_high();
+            if st {
+                if self.state.matrix[r][c].raw_state == false {
+                    println!("{}, {}:  {}", r, c, st);
+                }
+                self.state.matrix[r][c].raw_state = true;
+            } else {
+                if self.state.matrix[r][c].raw_state == true {
+                    println!("{}, {}:  {}", r, c, st);
+                }
+                self.state.matrix[r][c].raw_state = false;
+            }
             if (r == 0 && c == 0) && self.state.matrix[r][c].raw_state == true {
                 rtrn = true;
             }
@@ -243,12 +260,15 @@ impl<const QSIZE: usize> KeyQueue<QSIZE> {
     }
 
     /// remove all instances of a specific KeyCode
-    pub fn dequeue(&mut self, key: KeyCode) {
+    pub fn dequeue(&mut self, key: KeyCode) -> bool {
+        let mut rtrn: bool = false;
         self.keys.iter_mut().for_each(|k| {
             if k.is_some() && k.unwrap().0 == key {
                 *k = None;
+                rtrn = true;
             }
         });
+        rtrn
     }
 
     /// push a key into the queue

@@ -55,7 +55,7 @@ use self::keyscanning::KeyQueue;
 pub fn action(action: &str, (code, op): (Option<KeyCode>, Option<Operation>)) {
     match action {
         "ipush" => {
-            println!("ipush: {:?}", code.unwrap());
+            // println!("ipush: {:?}", code.unwrap());
             if code.unwrap() != KeyCode::________ {
                 unsafe {
                     KEY_QUEUE.enqueue((code.unwrap(), op.unwrap()));
@@ -63,7 +63,7 @@ pub fn action(action: &str, (code, op): (Option<KeyCode>, Option<Operation>)) {
             }
         }
         "ipull" => {
-            println!("ipull: {:?}", code.unwrap());
+            // println!("ipull: {:?}", code.unwrap());
             if code.unwrap() != KeyCode::________ {
                 unsafe {
                     KEY_QUEUE.dequeue(code.unwrap());
@@ -71,17 +71,15 @@ pub fn action(action: &str, (code, op): (Option<KeyCode>, Option<Operation>)) {
             }
         }
         "mpush" => {
-            println!("mpush: {:?}", code.unwrap());
+            // println!("mpush: {:?}", code.unwrap());
             unsafe {
                 MODIFIERS.enqueue((code.unwrap(), Operation::SendOn));
             }
         }
-        "mpull" => {
-            println!("mpull: {:?}", code.unwrap());
-            unsafe {
-                MODIFIERS.dequeue(code.unwrap());
-            }
-        }
+        "mpull" => unsafe {
+            let mm = MODIFIERS.dequeue(code.unwrap());
+            println!("mpull: {:?} :: {:?}", code.unwrap(), mm);
+        },
         _ => {}
     }
 }
@@ -341,6 +339,7 @@ static mut REPORTSENT: AtomicBool = AtomicBool::new(false);
 static mut READYTOSEND: AtomicBool = AtomicBool::new(false);
 static mut KEY_QUEUE: KeyQueue<6> = KeyQueue::new();
 static mut MODIFIERS: KeyQueue<6> = KeyQueue::new();
+static mut MODSSY_LAST: [Option<KeyCode>; 6] = [None; 6];
 // TODO create way to handle more than 6 codes per poll
 fn prepare_report() {
     let mut keycodes = [0u8; 6];
@@ -374,14 +373,23 @@ fn prepare_report() {
             }
         });
     }
+    let modssy_last = unsafe { MODSSY_LAST };
+    let mut modssy: [Option<KeyCode>; 6] = [None; 6];
     critical_section::with(|_| unsafe {
         MODIFIERS.get_keys().iter().for_each(|k| {
             let kr = *k;
             if kr.is_some() {
-                modifier |= kr.unwrap().modifier_bitmask().unwrap();
+                modssy[modssy.iter().position(|x| x.is_none()).unwrap()] = Some(kr.unwrap());
+                modifier |= 1 << (kr.unwrap().modifier_bitmask().unwrap() ^ 0xE0)
             }
         });
     });
+    if modifier != 0 && modssy_last != modssy {
+        warn!("modifiers: {:?}, {=u8:#x}", modssy, modifier);
+    };
+    unsafe {
+        MODSSY_LAST = modssy;
+    }
 
     critical_section::with(|cs| {
         KEYBOARD_REPORT.replace(

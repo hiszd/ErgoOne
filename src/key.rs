@@ -1,7 +1,7 @@
 #![allow(unused_imports)]
 use crate::Operation;
 use defmt::export::debug;
-use defmt::{info, println, warn};
+use defmt::{info, println};
 
 use crate::{key_codes::KeyCode, keyscanning::StateType};
 use crate::{Context, KeyImpl};
@@ -93,7 +93,6 @@ impl Default for Key {
         _ctx: Context,
         action: fn(&str, (Option<KeyCode>, Option<Operation>)),
     ) -> [(KeyCode, Operation); 2] {
-        warn!("tappy");
         match self.keycode[0].0.is_modifier() {
             true => action("mpush", (Some(self.keycode[0].0), Some(self.keycode[0].1))),
             false => action("ipush", (Some(self.keycode[0].0), Some(self.keycode[0].1))),

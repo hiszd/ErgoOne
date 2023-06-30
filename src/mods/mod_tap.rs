@@ -1,5 +1,4 @@
 use defmt::error;
-use defmt::warn;
 
 use crate::key::DEBOUNCE_CYCLES;
 use crate::key::HOLD_CYCLES;
@@ -44,7 +43,7 @@ pub trait ModTap {
         ctx: Context,
         action: fn(&str, (Option<KeyCode>, Option<Operation>)),
     ) -> [(KeyCode, Operation); 2];
-    fn exist_next(&self, ks: [Option<KeyCode>; 6], key: Option<KeyCode>) -> bool;
+    fn exist_next(&self, ms: [Option<KeyCode>; 6], ks: [Option<KeyCode>; 6], key: KeyCode) -> bool;
 }
 
 impl ModTap for Key {
@@ -72,7 +71,7 @@ impl ModTap for Key {
     ) -> [(KeyCode, Operation); 2] {
         let combo: bool;
         if self.keycode[1].0.is_modifier() {
-            combo = self.exist_next(ctx.key_queue, None);
+            combo = self.exist_next(ctx.modifiers, ctx.key_queue, self.keycode[1].0);
         } else {
             error!("{} is not a modifier", self.keycode[1].0);
             return [(KeyCode::________, Operation::SendOn); 2];
@@ -82,7 +81,6 @@ impl ModTap for Key {
         match self.keycode[1].0.is_modifier() {
             true => {
                 action("mpush", (Some(self.keycode[1].0), Some(self.keycode[1].1)));
-                warn!("mttap");
             }
             false => error!("{} is not a modifier", self.keycode[1].0),
         }
@@ -100,7 +98,6 @@ impl ModTap for Key {
         match self.keycode[1].0.is_modifier() {
             true => {
                 action("mpush", (Some(self.keycode[1].0), Some(self.keycode[1].1)));
-                warn!("mthold");
             }
             false => error!("{} is not a modifier", self.keycode[1].0),
         }
@@ -130,7 +127,6 @@ impl ModTap for Key {
                     match self.keycode[0].0.is_modifier() {
                         true => error!("{} is a modifier, but shouldn't be", self.keycode[0].0),
                         false => {
-                            warn!("mtoff");
                             action("ipush", (Some(self.keycode[0].0), Some(self.keycode[0].1)));
                             action("mpull", (Some(self.keycode[1].0), Some(self.keycode[1].1)));
                         }
@@ -148,11 +144,10 @@ impl ModTap for Key {
                     true => error!("{} is a modifier, but shouldn't be", self.keycode[0].0),
                     false => {
                         action("mpull", (Some(self.keycode[1].0), Some(self.keycode[1].1)));
-                        warn!("mtoff");
                     }
                 }
                 return [
-                    (self.keycode[0].0, self.keycode[0].1),
+                    (self.keycode[1].0, self.keycode[1].1),
                     (KeyCode::________, Operation::SendOn),
                 ];
             }
@@ -160,28 +155,32 @@ impl ModTap for Key {
                 return [(KeyCode::________, Operation::SendOn); 2];
             }
             _ => {
-                warn!("mtoff");
                 return [(KeyCode::________, Operation::SendOn); 2];
             }
         }
     }
 
     /// check to see if another key exists in the queue after the current one
-    fn exist_next(&self, ks: [Option<KeyCode>; 6], key: Option<KeyCode>) -> bool {
-        if key.is_some() {
-            let ind: usize = ks
-                .iter()
-                .position(|k| k.is_some() && k.unwrap() == key.unwrap())
-                .unwrap();
-            for i in ind + 1..ks.len() {
+    fn exist_next(&self, ms: [Option<KeyCode>; 6], ks: [Option<KeyCode>; 6], key: KeyCode) -> bool {
+        let mut rtrn1 = false;
+        let mut rtrn2 = false;
+        let ind1: Option<usize> = ks.iter().position(|k| k.is_some() && k.unwrap() == key);
+        if ind1.is_some() {
+            for i in ind1.unwrap() + 1..ks.len() {
                 if ks[i].is_some() {
-                    return true;
+                    rtrn1 = true;
                 }
             }
-            false
-        } else {
-            ks.iter().any(|k| k.is_some())
         }
+        let ind2: Option<usize> = ms.iter().position(|k| k.is_some() && k.unwrap() == key);
+        if ind2.is_some() {
+            for i in ind2.unwrap() + 1..ms.len() {
+                if ms[i].is_some() {
+                    rtrn2 = true;
+                }
+            }
+        }
+        rtrn1 || rtrn2
     }
     #[doc = " Perform state change as a result of the scan"]
     fn mtscan(
