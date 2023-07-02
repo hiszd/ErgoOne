@@ -4,7 +4,7 @@
 // use rp2040_hal::gpio::PinMode::{Input, Output}
 
 use crate::mods::mod_tap::ModTap;
-use defmt::{debug, error, info, println, Format};
+use defmt::{debug, error, info, println, Format, warn};
 use embedded_hal::digital::v2::{InputPin, OutputPin};
 use rp2040_hal::gpio::DynPin;
 use usbd_hid::descriptor::KeyboardReport;
@@ -115,7 +115,7 @@ impl<const RSIZE: usize, const CSIZE: usize> Matrix<RSIZE, CSIZE> {
             callback,
             wait_cycles: 2,
             cycles: 0,
-            cur_strobe: 0,
+            cur_strobe: (CSIZE-1),
         };
         new.cols[new.cur_strobe].set_high();
         new.clear();
@@ -168,8 +168,6 @@ impl<const RSIZE: usize, const CSIZE: usize> Matrix<RSIZE, CSIZE> {
         self.next_strobe();
         let c = self.cur_strobe;
 
-        let mut rtrn: bool = false;
-
         for r in 0..RSIZE {
             let codes: [(KeyCode, Operation); 2];
             match self.state.matrix[r][c].typ {
@@ -184,9 +182,6 @@ impl<const RSIZE: usize, const CSIZE: usize> Matrix<RSIZE, CSIZE> {
                     error!("Unknown key type {}", self.state.matrix[r][c].typ);
                 }
             }
-            if (r == 0 && c == 0) && self.state.matrix[r][c].raw_state == true {
-                rtrn = true;
-            }
             if self.state.matrix[r][c].state != self.state.matrix[r][c].prevstate {
                 self.execute_callback(
                     r + 1,
@@ -198,7 +193,10 @@ impl<const RSIZE: usize, const CSIZE: usize> Matrix<RSIZE, CSIZE> {
                 );
             }
         }
-        rtrn
+        if self.state.matrix[0][0].raw_state {
+            return true;
+        }
+        false
     }
 }
 

@@ -52,10 +52,11 @@ use crate::keyscanning::{Matrix, Operation};
 
 use self::keyscanning::KeyQueue;
 
+/// execute function for key code
 pub fn action(action: &str, (code, op): (Option<KeyCode>, Option<Operation>)) {
     match action {
         "ipush" => {
-            println!("ipush: {:?}", code.unwrap());
+            // println!("ipush: {:?}", code.unwrap());
             if code.unwrap() != KeyCode::________ {
                 unsafe {
                     KEY_QUEUE.enqueue((code.unwrap(), op.unwrap()));
@@ -185,6 +186,7 @@ fn main() -> ! {
         Col::new(pins.gpio1.into()),
         Col::new(pins.gpio0.into()),
     ];
+    /// callback to print a report of what happened during the scan
     fn callback(
         row: usize,
         col: usize,
@@ -227,30 +229,6 @@ fn main() -> ! {
         }
     }
 
-    // TODO create way to handle more than 6 codes per poll
-    // fn push_input(c: (KeyCode, StateType, Operation)) {
-    //     if c.0 != KeyCode::________ {
-    //         unsafe {
-    //             match c.2 {
-    //                 Operation::SendOn => {
-    //                     if c.1 == StateType::Idle || c.1 == StateType::Off {
-    //                         println!("{:?} = {}", KEY_QUEUE.keys, KEY_QUEUE.len());
-    //                         KEY_QUEUE.dequeue(c.0);
-    //                     } else {
-    //                         KEY_QUEUE.enqueue((c.0, c.2));
-    //                     }
-    //                 }
-    //                 Operation::SendOff => {
-    //                     if c.1 == StateType::Idle || c.1 == StateType::Off {
-    //                         println!("{:?} = {}", KEY_QUEUE.keys, KEY_QUEUE.len());
-    //                         KEY_QUEUE.enqueue((c.0, c.2));
-    //                     }
-    //                 }
-    //             }
-    //         }
-    //     }
-    // }
-
     let mut matrix: Matrix<5, 16> = Matrix::new(rows, cols, callback, key_mapping::FancyAlice66());
     // TODO reboot into bootloader if started while escape is pressed.
     let poll1 = matrix.poll(
@@ -260,6 +238,7 @@ fn main() -> ! {
         },
         action as fn(&str, (Option<KeyCode>, Option<Operation>)),
     );
+    warn!("Escape key not detected");
     if poll1 {
         let gpio_activity_pin_mask = 0;
         let disable_interface_mask = 0;
