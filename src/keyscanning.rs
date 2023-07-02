@@ -55,19 +55,20 @@ pub struct Row {
 
 impl Row {
     pub fn new(input: DynPin) -> Self {
-        Row { input }
+        let mut r: Row = Row { input };
+        r.input.into_floating_input();
+        r
     }
     pub fn is_high(&mut self) -> bool {
-        self.input.into_floating_input();
         self.input.is_high().unwrap()
     }
     pub fn is_low(&mut self) -> bool {
-        self.input.into_floating_input();
         self.input.is_low().unwrap()
     }
     pub fn drain(&mut self) {
         self.input.into_push_pull_output();
-        self.input.set_low().unwrap()
+        self.input.set_low().unwrap();
+        self.input.into_floating_input();
     }
 }
 
@@ -167,66 +168,34 @@ impl<const RSIZE: usize, const CSIZE: usize> Matrix<RSIZE, CSIZE> {
         self.next_strobe();
         let c = self.cur_strobe;
 
-        // let push_codes = |codes: [(KeyCode, StateType, Operation); 2]| {
-        //     codes.iter().for_each(|key| {
-        //         if key.0.is_modifier() {
-        //             (self.mod_update)((key.0, key.1));
-        //         } else {
-        //             (self.push_input)((key.0, key.1, key.2));
-        //         }
-        //     })
-        // };
-
         let mut rtrn: bool = false;
 
         for r in 0..RSIZE {
-            // let codes: [(KeyCode, Operation); 2];
-            // match self.state.matrix[r][c].typ {
-            //     "Default" => {
-            //         codes = self.state.matrix[r][c].scan(self.rows[r].is_high(), ctx, action);
-            //     }
-            //     "ModTap" => {
-            //         codes = self.state.matrix[r][c].mtscan(self.rows[r].is_high(), ctx, action);
-            //     }
-            //     _ => {
-            //         codes = [(KeyCode::________, Operation::SendOn); 2];
-            //         error!("Unknown key type {}", self.state.matrix[r][c].typ);
-            //     }
-            // }
-            // self.state.matrix[r][c].scan(self.rows[r].is_high(), ctx, action);
-            let st = self.rows[r].is_high();
-            if st {
-                if self.state.matrix[r][c].raw_state == false {
-                    println!("{}, {}:  {}", r, c, st);
+            let codes: [(KeyCode, Operation); 2];
+            match self.state.matrix[r][c].typ {
+                "Default" => {
+                    codes = self.state.matrix[r][c].scan(self.rows[r].is_high(), ctx, action);
                 }
-                self.state.matrix[r][c].raw_state = true;
-            } else {
-                if self.state.matrix[r][c].raw_state == true {
-                    println!("{}, {}:  {}", r, c, st);
+                "ModTap" => {
+                    codes = self.state.matrix[r][c].mtscan(self.rows[r].is_high(), ctx, action);
                 }
-                self.state.matrix[r][c].raw_state = false;
+                _ => {
+                    codes = [(KeyCode::________, Operation::SendOn); 2];
+                    error!("Unknown key type {}", self.state.matrix[r][c].typ);
+                }
             }
             if (r == 0 && c == 0) && self.state.matrix[r][c].raw_state == true {
                 rtrn = true;
             }
             if self.state.matrix[r][c].state != self.state.matrix[r][c].prevstate {
-                // push_codes([
-                //     (codes[0].0, self.state.matrix[r][c].state, codes[0].1),
-                //     (codes[1].0, self.state.matrix[r][c].state, codes[1].1),
-                // ]);
-                // self.execute_callback(
-                //     r + 1,
-                //     c + 1,
-                //     self.state.matrix[r][c].state,
-                //     self.state.matrix[r][c].prevstate,
-                //     // [KeyCode::________, KeyCode::________],
-                //     [codes[0].0, codes[1].0],
-                // );
-            } else if self.state.matrix[r][c].state == StateType::Hold {
-                // push_codes([
-                //     (codes[0].0, self.state.matrix[r][c].state, codes[0].1),
-                //     (codes[1].0, self.state.matrix[r][c].state, codes[1].1),
-                // ]);
+                self.execute_callback(
+                    r + 1,
+                    c + 1,
+                    self.state.matrix[r][c].state,
+                    self.state.matrix[r][c].prevstate,
+                    // [KeyCode::________, KeyCode::________],
+                    [codes[0].0, codes[1].0],
+                );
             }
         }
         rtrn

@@ -55,7 +55,7 @@ use self::keyscanning::KeyQueue;
 pub fn action(action: &str, (code, op): (Option<KeyCode>, Option<Operation>)) {
     match action {
         "ipush" => {
-            // println!("ipush: {:?}", code.unwrap());
+            println!("ipush: {:?}", code.unwrap());
             if code.unwrap() != KeyCode::________ {
                 unsafe {
                     KEY_QUEUE.enqueue((code.unwrap(), op.unwrap()));
@@ -380,7 +380,7 @@ fn prepare_report() {
             let kr = *k;
             if kr.is_some() {
                 modssy[modssy.iter().position(|x| x.is_none()).unwrap()] = Some(kr.unwrap());
-                modifier |= 1 << (kr.unwrap().modifier_bitmask().unwrap() ^ 0xE0)
+                modifier |= kr.unwrap().modifier_bitmask().unwrap();
             }
         });
     });
