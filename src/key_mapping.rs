@@ -1,16 +1,12 @@
 use crate::key_codes::KeyCode::*;
-use crate::{
-    key::Default,
-    mods::mod_tap::ModTap,
-    keyscanning::KeyMatrix,
-};
+use crate::{key::Default, keyscanning::KeyMatrix, mods::mod_tap::ModTap};
 
-use crate::mt;
+use crate::t;
 
 #[allow(unused_macros)]
-macro_rules! df {
+macro_rules! x {
     ($code:expr) => {
-        Default::new($code,None)
+        Default::new($code, None)
     };
 }
 
@@ -20,11 +16,11 @@ macro_rules! df {
 #[rustfmt::skip]
 pub fn FancyAlice66() -> KeyMatrix<5, 16> {
     KeyMatrix::new([
-        [df!(Fun_Escz), df!(Num_1zzz), df!(Num_2zzz), df!(Num_3zzz), df!(Num_4zzz), df!(Num_5zzz), df!(EEEEEEEE), df!(EEEEEEEE), df!(EEEEEEEE), df!(EEEEEEEE), df!(Num_6zzz), df!(Num_7zzz), df!(Num_8zzz), df!(Num_9zzz), df!(Num_0zzz), df!(Fun_Delz)],
-        [df!(Fun_Tabz), df!(Ltr_Qzzz), df!(Ltr_Wzzz), df!(Ltr_Dzzz), df!(Ltr_Fzzz), df!(Ltr_Zzzz), df!(EEEEEEEE), df!(EEEEEEEE), df!(EEEEEEEE), df!(EEEEEEEE), df!(Sym_Scln), df!(Ltr_Uzzz), df!(Ltr_Kzzz), df!(Ltr_Yzzz), df!(Ltr_Pzzz), df!(Sym_LBrk)],
-        [mt!(Fun_Escz, Mod_LCtl), df!(Ltr_Azzz), df!(Ltr_Szzz), df!(Ltr_Ezzz), df!(Ltr_Rzzz), df!(Ltr_Tzzz), df!(Sym_Minz), df!(Fun_Spcz), df!(Fun_Entz), df!(EEEEEEEE), df!(Ltr_Hzzz), df!(Ltr_Nzzz), df!(Ltr_Izzz), df!(Ltr_Ozzz), df!(Ltr_Lzzz), df!(Sym_SQut)],
-        [df!(Mod_LSft), df!(Ltr_Gzzz), df!(Ltr_Xzzz), df!(Ltr_Czzz), df!(Ltr_Vzzz), df!(Sym_FSla), df!(Fun_Tabz), df!(EEEEEEEE), df!(EEEEEEEE), df!(Fun_Bksp), df!(Ltr_Bzzz), df!(Ltr_Jzzz), df!(Ltr_Mzzz), df!(Sym_Coma), df!(Sym_Perd), df!(Mod_RSft)],
-        [df!(Mod_LCtl), df!(Num_9zzz), df!(Mod_LCmd), df!(Fun_Spcz), df!(Sym_LBrk), df!(Mod_LAlt), df!(EEEEEEEE), df!(EEEEEEEE), df!(EEEEEEEE), df!(EEEEEEEE), df!(EEEEEEEE), df!(Sym_RBrk), df!(Arw_Left), df!(Arw_Down), df!(Arw_Upzz), df!(Arw_Rght)],
+        [x!(Fun_Escz),           x!(Num_1zzz), x!(Num_2zzz), x!(Num_3zzz), x!(Num_4zzz), x!(Num_5zzz), x!(EEEEEEEE), x!(EEEEEEEE), x!(EEEEEEEE), x!(EEEEEEEE), x!(Num_6zzz), x!(Num_7zzz), x!(Num_8zzz), x!(Num_9zzz), x!(Num_0zzz), x!(Fun_Delz)],
+        [x!(Fun_Tabz),           x!(Ltr_Qzzz), x!(Ltr_Wzzz), x!(Ltr_Dzzz), x!(Ltr_Fzzz), x!(Ltr_Zzzz), x!(EEEEEEEE), x!(EEEEEEEE), x!(EEEEEEEE), x!(EEEEEEEE), x!(Sym_Scln), x!(Ltr_Uzzz), x!(Ltr_Kzzz), x!(Ltr_Yzzz), x!(Ltr_Pzzz), x!(Sym_LBrk)],
+        [t!(Fun_Escz, Mod_LCtl), x!(Ltr_Azzz), x!(Ltr_Szzz), x!(Ltr_Ezzz), x!(Ltr_Rzzz), x!(Ltr_Tzzz), x!(Sym_Minz), x!(Fun_Spcz), x!(Fun_Entz), x!(EEEEEEEE), x!(Ltr_Hzzz), x!(Ltr_Nzzz), x!(Ltr_Izzz), x!(Ltr_Ozzz), x!(Ltr_Lzzz), x!(Sym_SQut)],
+        [x!(Mod_LSft),           x!(Ltr_Gzzz), x!(Ltr_Xzzz), x!(Ltr_Czzz), x!(Ltr_Vzzz), x!(Sym_FSla), x!(Fun_Tabz), x!(EEEEEEEE), x!(EEEEEEEE), x!(Fun_Bksp), x!(Ltr_Bzzz), x!(Ltr_Jzzz), x!(Ltr_Mzzz), x!(Sym_Coma), x!(Sym_Perd), x!(Mod_RSft)],
+        [x!(Mod_LCtl),           x!(Num_9zzz), x!(Mod_LCmd), x!(Fun_Spcz), x!(Sym_LBrk), x!(Mod_LAlt), x!(EEEEEEEE), x!(EEEEEEEE), x!(EEEEEEEE), x!(EEEEEEEE), x!(EEEEEEEE), x!(Sym_RBrk), x!(Arw_Left), x!(Arw_Down), x!(Arw_Upzz), x!(Arw_Rght)],
     ])
 }
 
@@ -36,3 +32,10 @@ pub fn FancyAlice66() -> KeyMatrix<5, 16> {
 //     [kc!(Ltr_Azzz), kc!(Ltr_Bzzz), kc!(Ltr_Czzz), kc!(Ltr_Dzzz), kc!(Ltr_Ezzz), kc!(Ltr_Fzzz), kc!(Ltr_Gzzz), kc!(Ltr_Gzzz), kc!(Ltr_Gzzz), kc!(Ltr_Gzzz), kc!(Ltr_Gzzz), kc!(Ltr_Gzzz), kc!(Ltr_Gzzz), kc!(Ltr_Gzzz), kc!(Ltr_Gzzz), kc!(Ltr_Gzzz)],
 //     [kc!(Ltr_Azzz), kc!(Ltr_Bzzz), kc!(Ltr_Czzz), kc!(Ltr_Dzzz), kc!(Ltr_Ezzz), kc!(Ltr_Fzzz), kc!(Ltr_Gzzz), kc!(Ltr_Gzzz), kc!(Ltr_Gzzz), kc!(Ltr_Gzzz), kc!(Ltr_Gzzz), kc!(Ltr_Gzzz), kc!(Ltr_Gzzz), kc!(Ltr_Gzzz), kc!(Ltr_Gzzz), kc!(Ltr_Gzzz)],
 // ];
+
+impl<const RSIZE: usize, const CSIZE: usize> From<[[&str; CSIZE]; RSIZE]>
+    for KeyMatrix<RSIZE, CSIZE>
+{
+    // create KeyMatrix from a two dimensional array of strings
+    fn from(v: [[&str; CSIZE]; RSIZE]) -> Self {}
+}

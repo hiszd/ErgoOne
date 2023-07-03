@@ -239,7 +239,7 @@ impl ModTap for Key {
 
 #[allow(unused_macros)]
 #[macro_export]
-macro_rules! mt {
+macro_rules! t {
     ($code1:expr, $code2:expr) => {
         ModTap::mtnew($code1, Some($code2))
     };
