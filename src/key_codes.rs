@@ -557,6 +557,7 @@ impl From<&str> for KeyCode {
             "Led_Col2" => KeyCode::Led_Col2,
             "________" => KeyCode::________,
             "EEEEEEEE" => KeyCode::EEEEEEEE,
+            _ => KeyCode::EEEEEEEE,
         }
     }
 }

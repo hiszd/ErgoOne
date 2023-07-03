@@ -8,7 +8,7 @@ use crate::{key::Key, key_codes::KeyCode};
 use crate::{Context, KeyImpl};
 
 pub trait ModTap {
-    fn mtnew(KC1: KeyCode, KC2: Option<KeyCode>) -> Self
+    fn mtnew(KC1: KeyCode, KC2: KeyCode) -> Self
     where
         Self: Sized,
         Self: ModTap;
@@ -47,7 +47,7 @@ pub trait ModTap {
 }
 
 impl ModTap for Key {
-    fn mtnew(KC1: KeyCode, KC2: Option<KeyCode>) -> Self {
+    fn mtnew(KC1: KeyCode, KC2: KeyCode) -> Self {
         Key {
             cycles: 0,
             raw_state: false,
@@ -56,7 +56,7 @@ impl ModTap for Key {
             prevstate: StateType::Off,
             keycode: [
                 (KC1, Operation::SendOff),
-                (KC2.unwrap_or(KeyCode::________), Operation::SendOn),
+                (KC2, Operation::SendOn),
             ],
             previnfo: [false; 6],
             typ: "ModTap",
@@ -241,6 +241,6 @@ impl ModTap for Key {
 #[macro_export]
 macro_rules! t {
     ($code1:expr, $code2:expr) => {
-        ModTap::mtnew($code1, Some($code2))
+        ModTap::mtnew($code1, $code2)
     };
 }

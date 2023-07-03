@@ -13,7 +13,7 @@ pub(crate) const HOLD_CYCLES: u16 = 20;
 // const IDLE_CYCLES: u8 = 100;
 
 // #[derive(Copy, Clone, PartialEq, PartialOrd)]
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 pub struct Key {
     /// The cycles that have passed since the key was pressed(until u16::MAX)
     pub cycles: u16,

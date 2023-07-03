@@ -1,6 +1,7 @@
 #![no_std]
 #![no_main]
 #![allow(non_snake_case)]
+#![feature(generic_const_exprs)]
 
 mod key;
 mod key_codes;
@@ -229,8 +230,7 @@ fn main() -> ! {
         }
     }
 
-    let mut matrix: Matrix<5, 16> = Matrix::new(rows, cols, callback, key_mapping::FancyAlice66());
-    // TODO reboot into bootloader if started while escape is pressed.
+    let mut matrix: Matrix<5, 16> = Matrix::new(rows, cols, callback, key_mapping::ERGOONE.into());
     let poll1 = matrix.poll(
         Context {
             key_queue: unsafe { KEY_QUEUE.get_keys() },
@@ -238,12 +238,12 @@ fn main() -> ! {
         },
         action as fn(&str, (Option<KeyCode>, Option<Operation>)),
     );
-    warn!("Escape key not detected");
     if poll1 {
-        let gpio_activity_pin_mask = 0;
-        let disable_interface_mask = 0;
+        // let gpio_activity_pin_mask = 0;
+        // let disable_interface_mask = 0;
         info!("Escape key detected on boot, going into bootloader mode.");
-        rp2040_hal::rom_data::reset_to_usb_boot(gpio_activity_pin_mask, disable_interface_mask);
+        // rp2040_hal::rom_data::reset_to_usb_boot(gpio_activity_pin_mask, disable_interface_mask);
+        rp2040_hal::rom_data::reset_to_usb_boot(0, 0);
     }
 
     let mut mc = Multicore::new(&mut pac.PSM, &mut pac.PPB, &mut sio.fifo);
