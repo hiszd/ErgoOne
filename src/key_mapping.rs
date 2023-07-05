@@ -1,7 +1,8 @@
-use defmt::println;
+use defmt::{println, warn};
 use heapless::Vec;
 
 use crate::key::Key;
+use crate::key_codes::KeyCode;
 use crate::{key::Default, keyscanning::KeyMatrix, mods::mod_tap::ModTap};
 
 // Maybe instead of keycodes we store functions that return keycodes.
@@ -36,98 +37,35 @@ pub const ERGOONE: [&str; 80] = [
 //     [kc!(Ltr_Azzz), kc!(Ltr_Bzzz), kc!(Ltr_Czzz), kc!(Ltr_Dzzz), kc!(Ltr_Ezzz), kc!(Ltr_Fzzz), kc!(Ltr_Gzzz), kc!(Ltr_Gzzz), kc!(Ltr_Gzzz), kc!(Ltr_Gzzz), kc!(Ltr_Gzzz), kc!(Ltr_Gzzz), kc!(Ltr_Gzzz), kc!(Ltr_Gzzz), kc!(Ltr_Gzzz), kc!(Ltr_Gzzz)],
 // ];
 
-impl<const RSIZE: usize, const CSIZE: usize> From<[&str; CSIZE * RSIZE]>
+impl<const RSIZE: usize, const CSIZE: usize> From<[&str; RSIZE * CSIZE]>
     for KeyMatrix<RSIZE, CSIZE>
 {
-    // create KeyMatrix from a two dimensional array of strings
-    fn from(v: [&str; CSIZE * RSIZE]) -> Self {
-        // let mut nto: [[Key; CSIZE]; RSIZE];
-        // for c in 0..(CSIZE - 1) {
-        //     for r in 0..(RSIZE - 1) {
-        //         let sel = v[r][c];
-        //         if sel.len() > 0 {
-        //             if sel.starts_with("df_") {
-        //                 let i = sel.find("df_").unwrap();
-        //                 let sr: &str = sel[i..].into();
-        //                 println!("sr: {}", sr);
-        //                 nto[r][c] = Default::new(sr.into(), None);
-        //             } else if sel.starts_with("mt_") {
-        //                 let sr: Vec<&str, 2> = sel
-        //                     .split(",")
-        //                     .map(|x| {
-        //                         let i = x.find("mt_").unwrap_or(0);
-        //                         x[i..].into()
-        //                     })
-        //                     .collect();
-        //                 println!("sr: {}", sr);
-        //                 nto[r][c] = ModTap::mtnew(sr[0].into(), sr[1].into());
-        //             }
-        //         }
-        //     }
-        // }
-        // KeyMatrix::new(nto)
-        let mut ar: [[&str; CSIZE]; RSIZE] = [[""; CSIZE]; RSIZE];
-        for r in 0..RSIZE - 1 {
-            for c in 0..CSIZE - 1 {
-                let sel = v[c * r];
-                if sel.len() > 0 {
-                    if sel.starts_with("df_") {
-                        // let i = sel.find("df_").unwrap();
-                        // let sr: &str = sel[i..].into();
-                        // println!("sr: {}", sr);
-                        // ar[r][c] = sr.into();
-                        ar[r][c] = sel;
-                    } else if sel.starts_with("mt_") {
-                        // let sr: Vec<&str, 2> = sel
-                        //     .split(",")
-                        //     .map(|x| {
-                        //         let i = x.find("mt_").unwrap_or(0);
-                        //         x[i..].into()
-                        //     })
-                        //     .collect();
-                        // let i = sel.find("mt_").unwrap_or(0);
-                        // let sr: &str = sel[i..].into();
-                        // println!("sr: {}", sr);
-                        ar[r][c] = sel;
-                    } else {
-                        ar[r][c] = "df_EEEEEEEEE";
-                    }
+    fn from(v: [&str; RSIZE * CSIZE]) -> Self {
+        let mut m: [[Key; CSIZE]; RSIZE] = [[Default::new(KeyCode::EEEEEEEE, None); CSIZE]; RSIZE];
+        let mut r: usize = 0;
+        let mut c: usize = 0;
+        v.iter().enumerate().for_each(|(i, sel)| {
+            if i == (CSIZE * (r + 1)) {
+                r += 1;
+                c = 0;
+            }
+            if sel.len() > 0 {
+                if sel.starts_with("df_") {
+                    let b: usize = sel.find("df_").unwrap() + 3;
+                    m[r][c] = Default::new(sel[b..].into(), None);
+                } else if sel.starts_with("mt_") {
+                    let b: usize = sel.find("df_").unwrap_or(0) + 3;
+                    let sr = sel[b..]
+                        .split(",")
+                        .map(|s| s.trim())
+                        .collect::<Vec<&str, 2>>();
+                    m[r][c] = ModTap::mtnew(sr[0].into(), sr[1].into());
                 } else {
-                    ar[r][c] = "df_EEEEEEEEE";
+                    m[r][c] = Default::new("EEEEEEEE".into(), None);
                 }
             }
-        }
-        let km: [[Option<Key>; CSIZE]; RSIZE] = [[None; CSIZE]; RSIZE];
-        ar.iter()
-            .map(|v| {
-                let rt: Vec<Key, CSIZE> = v
-                    .iter()
-                    .map(|x| {
-                        if x.starts_with("df_") {
-                            let i = x.find("df_").unwrap();
-                            let sr: &str = x[i..].into();
-                            println!("sr: {}", sr);
-                            let k: Key = Default::new(sr.into(), None);
-                            k
-                        } else if x.starts_with("mt_") {
-                            let sr: Vec<&str, 2> = x
-                                .split(",")
-                                .map(|y| {
-                                    let i = y.find("mt_").unwrap_or(0);
-                                    y[i..].into()
-                                })
-                                .collect();
-                            println!("sr: {}", sr);
-                            let k: Key = ModTap::mtnew(sr[0].into(), sr[1].into());
-                            k
-                        } else {
-                            let k: Key = Default::new("EEEEEEEE".into(), None);
-                            k
-                        }
-                    })
-                    .collect();
-                rt
-            })
-            .collect();
+            c += 1;
+        });
+        KeyMatrix::new(m)
     }
 }

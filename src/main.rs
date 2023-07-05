@@ -289,6 +289,7 @@ fn main() -> ! {
     });
 
     info!("Loop starting!");
+    println!("thg = {}", 0*1);
     loop {
         delay.delay_us(1000u32);
         matrix.poll(
