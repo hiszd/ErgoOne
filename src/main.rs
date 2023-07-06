@@ -3,6 +3,7 @@
 #![allow(non_snake_case)]
 #![feature(generic_const_exprs)]
 
+mod actions;
 mod key;
 mod key_codes;
 mod key_mapping;
@@ -51,38 +52,80 @@ use ws2812_pio::Ws2812;
 use crate::keyscanning::StateType;
 use crate::keyscanning::{Matrix, Operation};
 
+use self::actions::CallbackActions;
 use self::keyscanning::KeyQueue;
 
+#[derive(Copy, Clone, PartialEq, PartialOrd)]
+pub enum ARGS {
+    KS {
+        code: Option<KeyCode>,
+        op: Option<Operation>,
+    },
+    RGB {
+        r: u8,
+        g: u8,
+        b: u8,
+    },
+}
+
 /// execute function for key code
-pub fn action(action: &str, (code, op): (Option<KeyCode>, Option<Operation>)) {
+pub fn action(action: CallbackActions, ops: ARGS) {
     match action {
-        "ipush" => {
-            // println!("ipush: {:?}", code.unwrap());
-            if code.unwrap() != KeyCode::________ {
-                unsafe {
-                    KEY_QUEUE.enqueue((code.unwrap(), op.unwrap()));
+        CallbackActions::iPush => match ops {
+            ARGS::KS { code, op } => {
+                if code.unwrap() != KeyCode::________ {
+                    unsafe {
+                        KEY_QUEUE.enqueue((code.unwrap(), op.unwrap()));
+                    }
                 }
             }
-        }
-        "ipull" => {
-            // println!("ipull: {:?}", code.unwrap());
-            if code.unwrap() != KeyCode::________ {
-                unsafe {
-                    KEY_QUEUE.dequeue(code.unwrap());
-                }
+            ARGS::RGB { r, g, b } => {
+                error!("Expected ARGS::KS but got ARGS::RGB");
             }
-        }
-        "mpush" => {
-            // println!("mpush: {:?}", code.unwrap());
-            unsafe {
-                MODIFIERS.enqueue((code.unwrap(), Operation::SendOn));
-            }
-        }
-        "mpull" => unsafe {
-            let mm = MODIFIERS.dequeue(code.unwrap());
-            println!("mpull: {:?} :: {:?}", code.unwrap(), mm);
         },
-        _ => {}
+        CallbackActions::iPull => match ops {
+            ARGS::KS { code, op } => {
+                if code.unwrap() != KeyCode::________ {
+                    unsafe {
+                        KEY_QUEUE.dequeue(code.unwrap());
+                    }
+                }
+            }
+            ARGS::RGB { r, g, b } => {
+                error!("Expected ARGS::KS but got ARGS::RGB");
+            }
+        },
+        CallbackActions::mPush => match ops {
+            ARGS::KS { code, op } => unsafe {
+                MODIFIERS.enqueue((code.unwrap(), Operation::SendOn));
+            },
+            ARGS::RGB { r, g, b } => unsafe {
+                error!("Expected ARGS::KS but got ARGS::RGB");
+            },
+        },
+        CallbackActions::mPull => unsafe {
+            match ops {
+                ARGS::KS { code, op } => {
+                    let mm = MODIFIERS.dequeue(code.unwrap());
+                    println!("mpull: {:?} :: {:?}", code.unwrap(), mm);
+                }
+                ARGS::RGB { r, g, b } => {
+                    error!("Expected ARGS::KS but got ARGS::RGB");
+                }
+            }
+        },
+        CallbackActions::RGBSet => {
+            match ops {
+                ARGS::RGB { r, g, b } => {
+                    RCOL.store(r, Ordering::Relaxed);
+                    GCOL.store(g, Ordering::Relaxed);
+                    BCOL.store(b, Ordering::Relaxed);
+                }
+                ARGS::KS { code, op } => {
+                    error!("Expected ARGS::RGB but got ARGS::KS");
+                }
+            }
+        },
     }
 }
 
@@ -230,7 +273,8 @@ fn main() -> ! {
         }
     }
 
-    let mut matrix: Matrix<5, 16> = Matrix::new(rows, cols, callback, key_mapping::ERGOONE.into());
+    let mut matrix: Matrix<5, 16> =
+        Matrix::new(rows, cols, callback, key_mapping::ERGOONE_0.into());
     let poll1 = matrix.poll(
         Context {
             key_queue: unsafe { KEY_QUEUE.get_keys() },
@@ -289,7 +333,7 @@ fn main() -> ! {
     });
 
     info!("Loop starting!");
-    println!("thg = {}", 0*1);
+    println!("thg = {}", 0 * 1);
     loop {
         delay.delay_us(1000u32);
         matrix.poll(

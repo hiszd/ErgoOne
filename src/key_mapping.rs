@@ -1,41 +1,27 @@
-use defmt::{println, warn};
 use heapless::Vec;
 
 use crate::key::Key;
 use crate::key_codes::KeyCode;
 use crate::{key::Default, keyscanning::KeyMatrix, mods::mod_tap::ModTap};
 
-// Maybe instead of keycodes we store functions that return keycodes.
-// This way we end up making them expandable by nature.
-
-// #[rustfmt::skip]
-// pub fn FancyAlice66() -> KeyMatrix<5, 16> {
-//     KeyMatrix::new([
-//         [x!(Fun_Escz),           x!(Num_1zzz), x!(Num_2zzz), x!(Num_3zzz), x!(Num_4zzz), x!(Num_5zzz), x!(EEEEEEEE), x!(EEEEEEEE), x!(EEEEEEEE), x!(EEEEEEEE), x!(Num_6zzz), x!(Num_7zzz), x!(Num_8zzz), x!(Num_9zzz), x!(Num_0zzz), x!(Fun_Delz)],
-//         [x!(Fun_Tabz),           x!(Ltr_Qzzz), x!(Ltr_Wzzz), x!(Ltr_Dzzz), x!(Ltr_Fzzz), x!(Ltr_Zzzz), x!(EEEEEEEE), x!(EEEEEEEE), x!(EEEEEEEE), x!(EEEEEEEE), x!(Sym_Scln), x!(Ltr_Uzzz), x!(Ltr_Kzzz), x!(Ltr_Yzzz), x!(Ltr_Pzzz), x!(Sym_LBrk)],
-//         [t!(Fun_Escz, Mod_LCtl), x!(Ltr_Azzz), x!(Ltr_Szzz), x!(Ltr_Ezzz), x!(Ltr_Rzzz), x!(Ltr_Tzzz), x!(Sym_Minz), x!(Fun_Spcz), x!(Fun_Entz), x!(EEEEEEEE), x!(Ltr_Hzzz), x!(Ltr_Nzzz), x!(Ltr_Izzz), x!(Ltr_Ozzz), x!(Ltr_Lzzz), x!(Sym_SQut)],
-//         [x!(Mod_LSft),           x!(Ltr_Gzzz), x!(Ltr_Xzzz), x!(Ltr_Czzz), x!(Ltr_Vzzz), x!(Sym_FSla), x!(Fun_Tabz), x!(EEEEEEEE), x!(EEEEEEEE), x!(Fun_Bksp), x!(Ltr_Bzzz), x!(Ltr_Jzzz), x!(Ltr_Mzzz), x!(Sym_Coma), x!(Sym_Perd), x!(Mod_RSft)],
-//         [x!(Mod_LCtl),           x!(Num_9zzz), x!(Mod_LCmd), x!(Fun_Spcz), x!(Sym_LBrk), x!(Mod_LAlt), x!(EEEEEEEE), x!(EEEEEEEE), x!(EEEEEEEE), x!(EEEEEEEE), x!(EEEEEEEE), x!(Sym_RBrk), x!(Arw_Left), x!(Arw_Down), x!(Arw_Upzz), x!(Arw_Rght)],
-//     ])
-// }
-
 #[rustfmt::skip]
-pub const ERGOONE: [&str; 80] = [
-"df_Fun_Escz",         "df_Num_1zzz","df_Num_2zzz","df_Num_3zzz","df_Num_4zzz","df_Num_5zzz","df_EEEEEEEE","df_EEEEEEEE","df_EEEEEEEE","df_EEEEEEEE","df_Num_6zzz","df_Num_7zzz","df_Num_8zzz","df_Num_9zzz","df_Num_0zzz","df_Fun_Delz",
-"df_Fun_Tabz",         "df_Ltr_Qzzz","df_Ltr_Wzzz","df_Ltr_Dzzz","df_Ltr_Fzzz","df_Ltr_Zzzz","df_EEEEEEEE","df_EEEEEEEE","df_EEEEEEEE","df_EEEEEEEE","df_Sym_Scln","df_Ltr_Uzzz","df_Ltr_Kzzz","df_Ltr_Yzzz","df_Ltr_Pzzz","df_Sym_LBrk",
-"mt_Fun_Escz,Mod_LCtl","df_Ltr_Azzz","df_Ltr_Szzz","df_Ltr_Ezzz","df_Ltr_Rzzz","df_Ltr_Tzzz","df_Sym_Minz","df_Fun_Spcz","df_Fun_Entz","df_EEEEEEEE","df_Ltr_Hzzz","df_Ltr_Nzzz","df_Ltr_Izzz","df_Ltr_Ozzz","df_Ltr_Lzzz","df_Sym_SQut",
-"df_Mod_LSft",         "df_Ltr_Gzzz","df_Ltr_Xzzz","df_Ltr_Czzz","df_Ltr_Vzzz","df_Sym_FSla","df_Fun_Tabz","df_EEEEEEEE","df_EEEEEEEE","df_Fun_Bksp","df_Ltr_Bzzz","df_Ltr_Jzzz","df_Ltr_Mzzz","df_Sym_Coma","df_Sym_Perd","df_Mod_RSft",
-"df_Mod_LCtl",         "df_Num_9zzz","df_Mod_LCmd","df_Fun_Spcz","df_Sym_LBrk","df_Mod_LAlt","df_EEEEEEEE","df_EEEEEEEE","df_EEEEEEEE","df_EEEEEEEE","df_EEEEEEEE","df_Sym_RBrk","df_Arw_Left","df_Arw_Down","df_Arw_Upzz","df_Arw_Rght",
+pub const ERGOONE_0: [&str; 80] = [
+"df,Fun_Escz",         "df,Num_1zzz","df,Num_2zzz","df,Num_3zzz","df,Num_4zzz","df,Num_5zzz","df,EEEEEEEE","df,EEEEEEEE","df,EEEEEEEE","df,EEEEEEEE","df,Num_6zzz","df,Num_7zzz","df,Num_8zzz","df,Num_9zzz","df,Num_0zzz","df,Fun_Delz",
+"df,Fun_Tabz",         "df,Ltr_Qzzz","df,Ltr_Wzzz","df,Ltr_Dzzz","df,Ltr_Fzzz","df,Ltr_Zzzz","df,EEEEEEEE","df,EEEEEEEE","df,EEEEEEEE","df,EEEEEEEE","df,Sym_Scln","df,Ltr_Uzzz","df,Ltr_Kzzz","df,Ltr_Yzzz","df,Ltr_Pzzz","df,Sym_LBrk",
+"mt,Fun_Escz,Mod_LCtl","df,Ltr_Azzz","df,Ltr_Szzz","df,Ltr_Ezzz","df,Ltr_Rzzz","df,Ltr_Tzzz","df,Sym_Minz","df,Fun_Spcz","df,Fun_Entz","df,EEEEEEEE","df,Ltr_Hzzz","df,Ltr_Nzzz","df,Ltr_Izzz","df,Ltr_Ozzz","df,Ltr_Lzzz","df,Sym_SQut",
+"df,Mod_LSft",         "df,Ltr_Gzzz","df,Ltr_Xzzz","df,Ltr_Czzz","df,Ltr_Vzzz","df,Sym_FSla","df,Fun_Tabz","df,EEEEEEEE","df,EEEEEEEE","df,Fun_Bksp","df,Ltr_Bzzz","df,Ltr_Jzzz","df,Ltr_Mzzz","df,Sym_Coma","df,Sym_Perd","df,Mod_RSft",
+"df,Mod_LCtl",         "df,Num_9zzz","df,Mod_LCmd","df,Fun_Spcz","df,Sym_LBrk","df,Mod_LAlt","df,EEEEEEEE","df,EEEEEEEE","df,EEEEEEEE","df,EEEEEEEE","df,EEEEEEEE","df,Sym_RBrk","df,Arw_Left","df,Arw_Down","df,Arw_Upzz","df,Arw_Rght",
 ];
 
-// #[rustfmt::skip]
-// pub const FN_LAYER_MAPPING: [[Key; 16]; 5] = [
-//     [kc!(Ltr_Azzz), kc!(Ltr_Bzzz), kc!(Ltr_Czzz), kc!(Ltr_Dzzz), kc!(Ltr_Ezzz), kc!(Ltr_Fzzz), kc!(Ltr_Gzzz), kc!(Ltr_Gzzz), kc!(Ltr_Gzzz), kc!(Ltr_Gzzz), kc!(Ltr_Gzzz), kc!(Ltr_Gzzz), kc!(Ltr_Gzzz), kc!(Ltr_Gzzz), kc!(Ltr_Gzzz), kc!(Ltr_Gzzz)],
-//     [kc!(Ltr_Azzz), kc!(Ltr_Bzzz), kc!(Ltr_Czzz), kc!(Ltr_Dzzz), kc!(Ltr_Ezzz), kc!(Ltr_Fzzz), kc!(Ltr_Gzzz), kc!(Ltr_Gzzz), kc!(Ltr_Gzzz), kc!(Ltr_Gzzz), kc!(Ltr_Gzzz), kc!(Ltr_Gzzz), kc!(Ltr_Gzzz), kc!(Ltr_Gzzz), kc!(Ltr_Gzzz), kc!(Ltr_Gzzz)],
-//     [kc!(Ltr_Azzz), kc!(Ltr_Bzzz), kc!(Ltr_Czzz), kc!(Ltr_Dzzz), kc!(Ltr_Ezzz), kc!(Ltr_Fzzz), kc!(Ltr_Gzzz), kc!(Ltr_Gzzz), kc!(Ltr_Gzzz), kc!(Ltr_Gzzz), kc!(Ltr_Gzzz), kc!(Ltr_Gzzz), kc!(Ltr_Gzzz), kc!(Ltr_Gzzz), kc!(Ltr_Gzzz), kc!(Ltr_Gzzz)],
-//     [kc!(Ltr_Azzz), kc!(Ltr_Bzzz), kc!(Ltr_Czzz), kc!(Ltr_Dzzz), kc!(Ltr_Ezzz), kc!(Ltr_Fzzz), kc!(Ltr_Gzzz), kc!(Ltr_Gzzz), kc!(Ltr_Gzzz), kc!(Ltr_Gzzz), kc!(Ltr_Gzzz), kc!(Ltr_Gzzz), kc!(Ltr_Gzzz), kc!(Ltr_Gzzz), kc!(Ltr_Gzzz), kc!(Ltr_Gzzz)],
-//     [kc!(Ltr_Azzz), kc!(Ltr_Bzzz), kc!(Ltr_Czzz), kc!(Ltr_Dzzz), kc!(Ltr_Ezzz), kc!(Ltr_Fzzz), kc!(Ltr_Gzzz), kc!(Ltr_Gzzz), kc!(Ltr_Gzzz), kc!(Ltr_Gzzz), kc!(Ltr_Gzzz), kc!(Ltr_Gzzz), kc!(Ltr_Gzzz), kc!(Ltr_Gzzz), kc!(Ltr_Gzzz), kc!(Ltr_Gzzz)],
-// ];
+#[allow(dead_code)]
+#[rustfmt::skip]
+pub const ERGOONE_1: [&str; 80] = [
+"df,________", "df,________","df,________","df,________","df,________","df,________","df,EEEEEEEE","df,EEEEEEEE","df,EEEEEEEE","df,EEEEEEEE","df,________","df,________","df,________","df,________","df,________","df,________",
+"df,________", "df,________","df,________","df,________","df,________","df,________","df,EEEEEEEE","df,EEEEEEEE","df,EEEEEEEE","df,EEEEEEEE","df,________","df,________","df,________","df,________","df,________","df,________",
+"df,________", "df,________","df,________","df,________","df,________","df,________","df,________","df,________","df,________","df,EEEEEEEE","df,________","df,________","df,________","df,________","df,________","df,________",
+"df,________", "df,________","df,________","df,________","df,________","df,________","df,________","df,EEEEEEEE","df,EEEEEEEE","df,________","df,________","df,________","df,________","df,________","df,________","df,________",
+"df,________", "df,________","df,________","df,________","df,________","df,________","df,EEEEEEEE","df,EEEEEEEE","df,EEEEEEEE","df,EEEEEEEE","df,EEEEEEEE","df,________","df,________","df,________","df,________","df,________",
+];
 
 impl<const RSIZE: usize, const CSIZE: usize> From<[&str; RSIZE * CSIZE]>
     for KeyMatrix<RSIZE, CSIZE>
@@ -50,11 +36,13 @@ impl<const RSIZE: usize, const CSIZE: usize> From<[&str; RSIZE * CSIZE]>
                 c = 0;
             }
             if sel.len() > 0 {
-                if sel.starts_with("df_") {
-                    let b: usize = sel.find("df_").unwrap() + 3;
+                // TODO use split and join with trim to remove whitespace instead of slicing the
+                // string and then parsing it
+                if sel.starts_with("df,") {
+                    let b: usize = sel.find("df,").unwrap() + 3;
                     m[r][c] = Default::new(sel[b..].into(), None);
-                } else if sel.starts_with("mt_") {
-                    let b: usize = sel.find("df_").unwrap_or(0) + 3;
+                } else if sel.starts_with("mt,") {
+                    let b: usize = sel.find("mt,").unwrap_or(0) + 3;
                     let sr = sel[b..]
                         .split(",")
                         .map(|s| s.trim())
