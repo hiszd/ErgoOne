@@ -1,5 +1,6 @@
 #![allow(unused_imports)]
-use crate::Operation;
+use crate::{Operation, ARGS};
+use crate::actions::CallbackActions;
 use defmt::export::debug;
 use defmt::{info, println};
 
@@ -30,6 +31,8 @@ pub struct Key {
     pub keycode: [(KeyCode, Operation); 2],
     /// Array of booleans for modules to use as a way to store information from the previous poll
     pub previnfo: [bool; 6],
+    /// Stores information needed by internal functions(e.g. colors for RGB keys)
+    pub stor: [u8; 6],
     /// holds a &str of the type of the key
     pub typ: &'static str,
 }
@@ -42,33 +45,33 @@ pub trait Default {
     fn tap(
         &mut self,
         ctx: Context,
-        action: fn(&str, (Option<KeyCode>, Option<Operation>)),
+        action: fn(CallbackActions, ARGS),
     ) -> [(KeyCode, Operation); 2];
     fn hold(
         &mut self,
         ctx: Context,
-        action: fn(&str, (Option<KeyCode>, Option<Operation>)),
+        action: fn(CallbackActions, ARGS),
     ) -> [(KeyCode, Operation); 2];
     fn idle(
         &self,
         _ctx: Context,
-        _action: fn(&str, (Option<KeyCode>, Option<Operation>)),
+        _action: fn(CallbackActions, ARGS),
     ) -> [(KeyCode, Operation); 2];
     fn off(
         &mut self,
         _ctx: Context,
-        action: fn(&str, (Option<KeyCode>, Option<Operation>)),
+        action: fn(CallbackActions, ARGS),
     ) -> [(KeyCode, Operation); 2];
     fn get_keys(
         &mut self,
         ctx: Context,
-        action: fn(&str, (Option<KeyCode>, Option<Operation>)),
+        action: fn(CallbackActions, ARGS),
     ) -> [(KeyCode, Operation); 2];
     fn scan(
         &mut self,
         is_high: bool,
         ctx: Context,
-        action: fn(&str, (Option<KeyCode>, Option<Operation>)),
+        action: fn(CallbackActions, ARGS),
     ) -> [(KeyCode, Operation); 2];
 }
 
@@ -85,35 +88,36 @@ impl Default for Key {
                 (KC2.unwrap_or(KeyCode::________), Operation::SendOn),
             ],
             previnfo: [false; 6],
+            stor: [0; 6],
             typ: "Default",
         }
     }
     fn tap(
         &mut self,
         _ctx: Context,
-        action: fn(&str, (Option<KeyCode>, Option<Operation>)),
+        action: fn(CallbackActions, ARGS),
     ) -> [(KeyCode, Operation); 2] {
         match self.keycode[0].0.is_modifier() {
-            true => action("mpush", (Some(self.keycode[0].0), Some(self.keycode[0].1))),
-            false => action("ipush", (Some(self.keycode[0].0), Some(self.keycode[0].1))),
+            true => action(CallbackActions::mPush, ARGS::KS { code: Some(self.keycode[0].0), op: Some(self.keycode[0].1)}),
+            false => action(CallbackActions::iPush, ARGS::KS { code: Some(self.keycode[0].0), op: Some(self.keycode[0].1)}),
         }
         self.keycode
     }
     fn hold(
         &mut self,
         _ctx: Context,
-        action: fn(&str, (Option<KeyCode>, Option<Operation>)),
+        action: fn(CallbackActions, ARGS),
     ) -> [(KeyCode, Operation); 2] {
         match self.keycode[0].0.is_modifier() {
-            true => action("mpush", (Some(self.keycode[0].0), Some(self.keycode[0].1))),
-            false => action("ipush", (Some(self.keycode[0].0), Some(self.keycode[0].1))),
+            true => action(CallbackActions::mPush, ARGS::KS { code: Some(self.keycode[0].0), op: Some(self.keycode[0].1)}),
+            false => action(CallbackActions::iPush, ARGS::KS { code: Some(self.keycode[0].0), op: Some(self.keycode[0].1)}),
         }
         self.keycode
     }
     fn idle(
         &self,
         _ctx: Context,
-        _action: fn(&str, (Option<KeyCode>, Option<Operation>)),
+        _action: fn(CallbackActions, ARGS),
     ) -> [(KeyCode, Operation); 2] {
         [
             (KeyCode::________, Operation::SendOn),
@@ -123,12 +127,12 @@ impl Default for Key {
     fn off(
         &mut self,
         _ctx: Context,
-        action: fn(&str, (Option<KeyCode>, Option<Operation>)),
+        action: fn(CallbackActions, ARGS),
     ) -> [(KeyCode, Operation); 2] {
         if self.state != self.prevstate {
             match self.keycode[0].0.is_modifier() {
-                true => action("mpull", (Some(self.keycode[0].0), Some(self.keycode[0].1))),
-                false => action("ipull", (Some(self.keycode[0].0), Some(self.keycode[0].1))),
+                true => action(CallbackActions::mPull, ARGS::KS { code: Some(self.keycode[0].0), op: Some(self.keycode[0].1)}),
+                false => action(CallbackActions::iPull, ARGS::KS { code: Some(self.keycode[0].0), op: Some(self.keycode[0].1)}),
             }
         }
         self.keycode

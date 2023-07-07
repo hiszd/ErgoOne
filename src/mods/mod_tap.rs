@@ -1,11 +1,13 @@
 use defmt::error;
 
+use crate::ARGS;
+use crate::actions::CallbackActions;
 use crate::key::DEBOUNCE_CYCLES;
 use crate::key::HOLD_CYCLES;
 use crate::keyscanning::StateType;
 use crate::Operation;
 use crate::{key::Key, key_codes::KeyCode};
-use crate::{Context, KeyImpl};
+use crate::Context;
 
 pub trait ModTap {
     fn mtnew(KC1: KeyCode, KC2: KeyCode) -> Self
@@ -15,33 +17,33 @@ pub trait ModTap {
     fn mttap(
         &mut self,
         ctx: Context,
-        action: fn(&str, (Option<KeyCode>, Option<Operation>)),
+        action: fn(CallbackActions, ARGS),
     ) -> [(KeyCode, Operation); 2];
     fn mthold(
         &mut self,
         _ctx: Context,
-        action: fn(&str, (Option<KeyCode>, Option<Operation>)),
+        action: fn(CallbackActions, ARGS),
     ) -> [(KeyCode, Operation); 2];
     fn mtidle(
         &mut self,
         _ctx: Context,
-        action: fn(&str, (Option<KeyCode>, Option<Operation>)),
+        action: fn(CallbackActions, ARGS),
     ) -> [(KeyCode, Operation); 2];
     fn mtoff(
         &mut self,
         _ctx: Context,
-        action: fn(&str, (Option<KeyCode>, Option<Operation>)),
+        action: fn(CallbackActions, ARGS),
     ) -> [(KeyCode, Operation); 2];
     fn get_keys(
         &mut self,
         ctx: Context,
-        action: fn(&str, (Option<KeyCode>, Option<Operation>)),
+        action: fn(CallbackActions, ARGS),
     ) -> [(KeyCode, Operation); 2];
     fn mtscan(
         &mut self,
         is_high: bool,
         ctx: Context,
-        action: fn(&str, (Option<KeyCode>, Option<Operation>)),
+        action: fn(CallbackActions, ARGS),
     ) -> [(KeyCode, Operation); 2];
     fn exist_next(&self, ms: [Option<KeyCode>; 6], ks: [Option<KeyCode>; 6], key: KeyCode) -> bool;
 }
@@ -59,6 +61,7 @@ impl ModTap for Key {
                 (KC2, Operation::SendOn),
             ],
             previnfo: [false; 6],
+            stor: [0; 6],
             typ: "ModTap",
         }
     }
@@ -67,7 +70,7 @@ impl ModTap for Key {
     fn mttap(
         &mut self,
         ctx: Context,
-        action: fn(&str, (Option<KeyCode>, Option<Operation>)),
+        action: fn(CallbackActions, ARGS),
     ) -> [(KeyCode, Operation); 2] {
         let combo: bool;
         if self.keycode[1].0.is_modifier() {
@@ -80,7 +83,7 @@ impl ModTap for Key {
         self.previnfo[0] = combo;
         match self.keycode[1].0.is_modifier() {
             true => {
-                action("mpush", (Some(self.keycode[1].0), Some(self.keycode[1].1)));
+                action(CallbackActions::mPush, ARGS::KS { code: Some(self.keycode[1].0), op: Some(self.keycode[1].1)});
             }
             false => error!("{} is not a modifier", self.keycode[1].0),
         }
@@ -92,12 +95,12 @@ impl ModTap for Key {
     fn mthold(
         &mut self,
         _ctx: Context,
-        action: fn(&str, (Option<KeyCode>, Option<Operation>)),
+        action: fn(CallbackActions, ARGS),
     ) -> [(KeyCode, Operation); 2] {
         self.previnfo[0] = true;
         match self.keycode[1].0.is_modifier() {
             true => {
-                action("mpush", (Some(self.keycode[1].0), Some(self.keycode[1].1)));
+                action(CallbackActions::mPush, ARGS::KS { code: Some(self.keycode[1].0), op: Some(self.keycode[1].1)});
             }
             false => error!("{} is not a modifier", self.keycode[1].0),
         }
@@ -109,7 +112,7 @@ impl ModTap for Key {
     fn mtidle(
         &mut self,
         _ctx: Context,
-        _action: fn(&str, (Option<KeyCode>, Option<Operation>)),
+        _action: fn(CallbackActions, ARGS),
     ) -> [(KeyCode, Operation); 2] {
         [(KeyCode::________, Operation::SendOn); 2]
     }
@@ -119,7 +122,7 @@ impl ModTap for Key {
     fn mtoff(
         &mut self,
         _ctx: Context,
-        action: fn(&str, (Option<KeyCode>, Option<Operation>)),
+        action: fn(CallbackActions, ARGS),
     ) -> [(KeyCode, Operation); 2] {
         match self.prevstate {
             StateType::Tap => {
@@ -127,8 +130,8 @@ impl ModTap for Key {
                     match self.keycode[0].0.is_modifier() {
                         true => error!("{} is a modifier, but shouldn't be", self.keycode[0].0),
                         false => {
-                            action("ipush", (Some(self.keycode[0].0), Some(self.keycode[0].1)));
-                            action("mpull", (Some(self.keycode[1].0), Some(self.keycode[1].1)));
+                            action(CallbackActions::iPush, ARGS::KS { code: Some(self.keycode[0].0), op: Some(self.keycode[0].1)});
+                            action(CallbackActions::mPull, ARGS::KS { code: Some(self.keycode[1].0), op: Some(self.keycode[1].1)});
                         }
                     }
                     return [
@@ -143,7 +146,7 @@ impl ModTap for Key {
                 match self.keycode[0].0.is_modifier() {
                     true => error!("{} is a modifier, but shouldn't be", self.keycode[0].0),
                     false => {
-                        action("mpull", (Some(self.keycode[1].0), Some(self.keycode[1].1)));
+                        action(CallbackActions::mPull, ARGS::KS { code: Some(self.keycode[1].0), op: Some(self.keycode[1].1)});
                     }
                 }
                 return [
@@ -187,7 +190,7 @@ impl ModTap for Key {
         &mut self,
         is_high: bool,
         ctx: Context,
-        action: fn(&str, (Option<KeyCode>, Option<Operation>)),
+        action: fn(CallbackActions, ARGS),
     ) -> [(KeyCode, Operation); 2] {
         const DEFCODE: [(KeyCode, Operation); 2] = [
             (KeyCode::________, Operation::SendOn),
@@ -226,7 +229,7 @@ impl ModTap for Key {
     fn get_keys(
         &mut self,
         ctx: Context,
-        action: fn(&str, (Option<KeyCode>, Option<Operation>)),
+        action: fn(CallbackActions, ARGS),
     ) -> [(KeyCode, Operation); 2] {
         match self.state {
             StateType::Tap => self.mttap(ctx, action),
@@ -235,12 +238,4 @@ impl ModTap for Key {
             StateType::Off => self.mtoff(ctx, action),
         }
     }
-}
-
-#[allow(unused_macros)]
-#[macro_export]
-macro_rules! t {
-    ($code1:expr, $code2:expr) => {
-        ModTap::mtnew($code1, $code2)
-    };
 }

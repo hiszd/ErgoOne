@@ -79,51 +79,50 @@ pub fn action(action: CallbackActions, ops: ARGS) {
                     }
                 }
             }
-            ARGS::RGB { r, g, b } => {
+            ARGS::RGB { r: _, g: _, b: _ } => {
                 error!("Expected ARGS::KS but got ARGS::RGB");
             }
         },
         CallbackActions::iPull => match ops {
-            ARGS::KS { code, op } => {
+            ARGS::KS { code, op: _ } => {
                 if code.unwrap() != KeyCode::________ {
                     unsafe {
                         KEY_QUEUE.dequeue(code.unwrap());
                     }
                 }
             }
-            ARGS::RGB { r, g, b } => {
+            ARGS::RGB { r: _, g: _, b: _ } => {
                 error!("Expected ARGS::KS but got ARGS::RGB");
             }
         },
         CallbackActions::mPush => match ops {
-            ARGS::KS { code, op } => unsafe {
+            ARGS::KS { code, op: _ } => unsafe {
                 MODIFIERS.enqueue((code.unwrap(), Operation::SendOn));
             },
-            ARGS::RGB { r, g, b } => unsafe {
+            ARGS::RGB { r: _, g: _, b: _ } => {
                 error!("Expected ARGS::KS but got ARGS::RGB");
-            },
+            }
         },
         CallbackActions::mPull => unsafe {
             match ops {
-                ARGS::KS { code, op } => {
+                ARGS::KS { code, op: _ } => {
                     let mm = MODIFIERS.dequeue(code.unwrap());
                     println!("mpull: {:?} :: {:?}", code.unwrap(), mm);
                 }
-                ARGS::RGB { r, g, b } => {
+                ARGS::RGB { r: _, g: _, b: _ } => {
                     error!("Expected ARGS::KS but got ARGS::RGB");
                 }
             }
         },
-        CallbackActions::RGBSet => {
-            match ops {
-                ARGS::RGB { r, g, b } => {
-                    RCOL.store(r, Ordering::Relaxed);
-                    GCOL.store(g, Ordering::Relaxed);
-                    BCOL.store(b, Ordering::Relaxed);
-                }
-                ARGS::KS { code, op } => {
-                    error!("Expected ARGS::RGB but got ARGS::KS");
-                }
+        CallbackActions::RGBSet => match ops {
+            ARGS::RGB { r, g, b } => {
+                println!("RGB: {} {} {}", r, g, b);
+                RCOL.store(r, Ordering::Relaxed);
+                GCOL.store(g, Ordering::Relaxed);
+                BCOL.store(b, Ordering::Relaxed);
+            }
+            ARGS::KS { code: _, op: _ } => {
+                error!("Expected ARGS::RGB but got ARGS::KS");
             }
         },
     }
@@ -259,18 +258,6 @@ fn main() -> ! {
         })
         .unwrap();
         info!("{}, c1: {}, c2: {}", str, keycodes[0], keycodes[1]);
-
-        for code in keycodes {
-            if code == KeyCode::Led_Col1 {
-                RCOL.store(255, Ordering::Relaxed);
-                GCOL.store(0, Ordering::Relaxed);
-                BCOL.store(0, Ordering::Relaxed);
-            } else if code == KeyCode::Led_Col2 {
-                RCOL.store(0, Ordering::Relaxed);
-                GCOL.store(0, Ordering::Relaxed);
-                BCOL.store(255, Ordering::Relaxed);
-            }
-        }
     }
 
     let mut matrix: Matrix<5, 16> =
@@ -280,7 +267,7 @@ fn main() -> ! {
             key_queue: unsafe { KEY_QUEUE.get_keys() },
             modifiers: unsafe { MODIFIERS.get_keys() },
         },
-        action as fn(&str, (Option<KeyCode>, Option<Operation>)),
+        action as fn(CallbackActions, ARGS),
     );
     if poll1 {
         // let gpio_activity_pin_mask = 0;
@@ -313,6 +300,7 @@ fn main() -> ! {
             let curcol = RGB8::new(R, G, B);
             let basecol = RGB8::new(0, 0, 0);
             if curcol != color {
+                println!("{},{},{}  {},{},{}", curcol.r, curcol.g, curcol.b, color.r, color.g, color.b);
                 ws.write(
                     [
                         basecol, basecol, basecol, basecol, basecol, basecol, basecol, basecol,
@@ -341,7 +329,7 @@ fn main() -> ! {
                 key_queue: unsafe { KEY_QUEUE.get_keys() },
                 modifiers: unsafe { MODIFIERS.get_keys() },
             },
-            action as fn(&str, (Option<KeyCode>, Option<Operation>)),
+            action as fn(CallbackActions, ARGS),
         );
     }
 }

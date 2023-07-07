@@ -7,7 +7,7 @@ macro_rules! KeyImpl {
             &mut self,
             is_high: bool,
             ctx: Context,
-            action: fn(&str, (Option<KeyCode>, Option<Operation>)),
+            action: fn(CallbackActions, ARGS),
         ) -> [(KeyCode, Operation); 2] {
             // println!("{}", is_high);
             const DEFCODE: [(KeyCode, Operation); 2] = [
@@ -69,7 +69,7 @@ macro_rules! KeyImpl {
         fn get_keys(
             &mut self,
             ctx: Context,
-            action: fn(&str, (Option<KeyCode>, Option<Operation>)),
+            action: fn(CallbackActions, ARGS),
         ) -> [(KeyCode, Operation); 2]  {
             // info!("{:?}", self.state);
             // Match all types of self.state

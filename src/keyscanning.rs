@@ -3,14 +3,16 @@
 
 // use rp2040_hal::gpio::PinMode::{Input, Output}
 
+use crate::actions::CallbackActions;
 use crate::mods::mod_tap::ModTap;
+use crate::mods::rgb_key::RGBKey;
 use defmt::{debug, error, info, println, Format, warn};
 use embedded_hal::digital::v2::{InputPin, OutputPin};
 use rp2040_hal::gpio::DynPin;
 use usbd_hid::descriptor::KeyboardReport;
 
 use crate::key::Default;
-use crate::Context;
+use crate::{Context, ARGS};
 use crate::{
     key::Key,
     key_codes::KeyCode,
@@ -163,7 +165,7 @@ impl<const RSIZE: usize, const CSIZE: usize> Matrix<RSIZE, CSIZE> {
     pub fn poll(
         &mut self,
         ctx: Context,
-        action: fn(&str, (Option<KeyCode>, Option<Operation>)),
+        action: fn(CallbackActions, ARGS),
     ) -> bool {
         self.next_strobe();
         let c = self.cur_strobe;
@@ -176,6 +178,9 @@ impl<const RSIZE: usize, const CSIZE: usize> Matrix<RSIZE, CSIZE> {
                 }
                 "ModTap" => {
                     codes = self.state.matrix[r][c].mtscan(self.rows[r].is_high(), ctx, action);
+                }
+                "RGBKey" => {
+                    codes = self.state.matrix[r][c].rkscan(self.rows[r].is_high(), ctx, action);
                 }
                 _ => {
                     codes = [(KeyCode::________, Operation::SendOn); 2];
