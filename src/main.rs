@@ -98,7 +98,8 @@ pub fn action(action: CallbackActions, ops: ARGS) {
         },
         CallbackActions::mPush => match ops {
             ARGS::KS { code, op: _ } => unsafe {
-                MODIFIERS.enqueue((code.unwrap(), Operation::SendOn));
+                let mm = MODIFIERS.enqueue((code.unwrap(), Operation::SendOn));
+                println!("mpush: {:?} :: {:?}", code.unwrap(), mm);
             },
             ARGS::RGB { r: _, g: _, b: _ } => {
                 error!("Expected ARGS::KS but got ARGS::RGB");

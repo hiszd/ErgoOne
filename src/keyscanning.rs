@@ -6,19 +6,20 @@
 use crate::actions::CallbackActions;
 use crate::mods::mod_combo::ModCombo;
 use crate::mods::mod_tap::ModTap;
+use crate::mods::mod_tapcom::TapCom;
 use crate::mods::rgb_key::RGBKey;
-use defmt::{debug, error, info, println, Format, warn};
+use defmt::{debug, error, info, println, warn, Format};
 use embedded_hal::digital::v2::{InputPin, OutputPin};
 use rp2040_hal::gpio::DynPin;
 use usbd_hid::descriptor::KeyboardReport;
 
 use crate::key::Default;
-use crate::{Context, ARGS};
 use crate::{
     key::Key,
     key_codes::KeyCode,
     // mods::mod_tap::ModTap,
 };
+use crate::{Context, ARGS};
 
 #[derive(Copy, Clone, PartialEq, PartialOrd, Debug, Format)]
 pub enum Operation {
@@ -118,7 +119,7 @@ impl<const RSIZE: usize, const CSIZE: usize> Matrix<RSIZE, CSIZE> {
             callback,
             wait_cycles: 2,
             cycles: 0,
-            cur_strobe: (CSIZE-1),
+            cur_strobe: (CSIZE - 1),
         };
         new.cols[new.cur_strobe].set_high();
         new.clear();
@@ -163,23 +164,22 @@ impl<const RSIZE: usize, const CSIZE: usize> Matrix<RSIZE, CSIZE> {
         // str.push_str(&strobe).unwrap();
         // self.execute_info(&str)
     }
-    pub fn poll(
-        &mut self,
-        ctx: Context,
-        action: fn(CallbackActions, ARGS),
-    ) -> bool {
+    pub fn poll(&mut self, ctx: Context, action: fn(CallbackActions, ARGS)) -> bool {
         self.next_strobe();
         let c = self.cur_strobe;
 
         for r in 0..RSIZE {
-            let codes: [(KeyCode, Operation); 2];
-            let typ: &str;
+            let codes: [Option<(KeyCode, Operation)>; 4];
+            let _typ: &str;
             match self.state.matrix[r][c].typ {
                 "Default" => {
                     codes = self.state.matrix[r][c].scan(self.rows[r].is_high(), ctx, action);
                 }
                 "ModTap" => {
                     codes = self.state.matrix[r][c].mtscan(self.rows[r].is_high(), ctx, action);
+                }
+                "TapCom" => {
+                    codes = self.state.matrix[r][c].tcscan(self.rows[r].is_high(), ctx, action);
                 }
                 "ModCombo" => {
                     codes = self.state.matrix[r][c].mcscan(self.rows[r].is_high(), ctx, action);
@@ -188,7 +188,7 @@ impl<const RSIZE: usize, const CSIZE: usize> Matrix<RSIZE, CSIZE> {
                     codes = self.state.matrix[r][c].rkscan(self.rows[r].is_high(), ctx, action);
                 }
                 _ => {
-                    codes = [(KeyCode::________, Operation::SendOn); 2];
+                    codes = [None; 4];
                     error!("Unknown key type {}", self.state.matrix[r][c].typ);
                 }
             }
@@ -199,7 +199,10 @@ impl<const RSIZE: usize, const CSIZE: usize> Matrix<RSIZE, CSIZE> {
                     self.state.matrix[r][c].state,
                     self.state.matrix[r][c].prevstate,
                     // [KeyCode::________, KeyCode::________],
-                    [codes[0].0, codes[1].0],
+                    [
+                        codes[0].unwrap_or((KeyCode::________, Operation::SendOn)).0,
+                        codes[1].unwrap_or((KeyCode::________, Operation::SendOn)).0,
+                    ],
                 );
             }
         }

@@ -1,5 +1,3 @@
-use defmt::error;
-
 use crate::actions::CallbackActions;
 use crate::key::DEBOUNCE_CYCLES;
 use crate::key::HOLD_CYCLES;
@@ -18,33 +16,33 @@ pub trait ModCombo {
         &mut self,
         ctx: Context,
         action: fn(CallbackActions, ARGS),
-    ) -> [(KeyCode, Operation); 2];
+    ) -> [Option<(KeyCode, Operation)>; 4];
     fn mchold(
         &mut self,
         _ctx: Context,
         action: fn(CallbackActions, ARGS),
-    ) -> [(KeyCode, Operation); 2];
+    ) -> [Option<(KeyCode, Operation)>; 4];
     fn mcidle(
         &mut self,
         _ctx: Context,
         action: fn(CallbackActions, ARGS),
-    ) -> [(KeyCode, Operation); 2];
+    ) -> [Option<(KeyCode, Operation)>; 4];
     fn mcoff(
         &mut self,
         _ctx: Context,
         action: fn(CallbackActions, ARGS),
-    ) -> [(KeyCode, Operation); 2];
+    ) -> [Option<(KeyCode, Operation)>; 4];
     fn get_keys(
         &mut self,
         ctx: Context,
         action: fn(CallbackActions, ARGS),
-    ) -> [(KeyCode, Operation); 2];
+    ) -> [Option<(KeyCode, Operation)>; 4];
     fn mcscan(
         &mut self,
         is_high: bool,
         ctx: Context,
         action: fn(CallbackActions, ARGS),
-    ) -> [(KeyCode, Operation); 2];
+    ) -> [Option<(KeyCode, Operation)>; 4];
 }
 
 impl ModCombo for Key {
@@ -55,7 +53,12 @@ impl ModCombo for Key {
             cycles_off: 0,
             state: StateType::Off,
             prevstate: StateType::Off,
-            keycode: [(KC1, Operation::SendOn), (KC2, Operation::SendOn)],
+            keycode: [
+                Some((KC1, Operation::SendOn)),
+                Some((KC2, Operation::SendOn)),
+                None,
+                None,
+            ],
             previnfo: [false; 6],
             stor: [0; 6],
             typ: "ModCombo",
@@ -65,68 +68,68 @@ impl ModCombo for Key {
         &mut self,
         _ctx: Context,
         action: fn(CallbackActions, ARGS),
-    ) -> [(KeyCode, Operation); 2] {
+    ) -> [Option<(KeyCode, Operation)>; 4] {
+        let [Some(kc0), Some(kc1), None, None] = self.keycode else {
+            return [None; 4];
+        };
         action(
             CallbackActions::mPush,
             ARGS::KS {
-                code: Some(self.keycode[1].0),
-                op: Some(self.keycode[1].1),
+                code: Some(kc1.0),
+                op: Some(kc1.1),
             },
         );
         action(
             CallbackActions::iPush,
             ARGS::KS {
-                code: Some(self.keycode[0].0),
-                op: Some(self.keycode[0].1),
+                code: Some(kc0.0),
+                op: Some(kc0.1),
             },
         );
-        [
-            (self.keycode[0].0, self.keycode[0].1),
-            (self.keycode[1].0, self.keycode[1].1),
-        ]
+        [Some((kc0.0, kc0.1)), Some((kc1.0, kc1.1)), None, None]
     }
     fn mchold(
         &mut self,
         _ctx: Context,
         _action: fn(CallbackActions, ARGS),
-    ) -> [(KeyCode, Operation); 2] {
-        [
-            (self.keycode[0].0, self.keycode[0].1),
-            (self.keycode[1].0, self.keycode[1].1),
-        ]
+    ) -> [Option<(KeyCode, Operation)>; 4] {
+        let [Some(kc0), Some(kc1), None, None] = self.keycode else {
+            return [None; 4];
+        };
+        [Some((kc0.0, kc0.1)), Some((kc1.0, kc1.1)), None, None]
     }
     fn mcidle(
         &mut self,
         _ctx: Context,
         _action: fn(CallbackActions, ARGS),
-    ) -> [(KeyCode, Operation); 2] {
-        [(KeyCode::________, Operation::SendOn); 2]
+    ) -> [Option<(KeyCode, Operation)>; 4] {
+        [None; 4]
     }
     fn mcoff(
         &mut self,
         _ctx: Context,
         action: fn(CallbackActions, ARGS),
-    ) -> [(KeyCode, Operation); 2] {
+    ) -> [Option<(KeyCode, Operation)>; 4] {
+        let [Some(kc0), Some(kc1), None, None] = self.keycode else {
+            return [None; 4];
+        };
         if self.prevstate != StateType::Off {
             action(
                 CallbackActions::iPull,
                 ARGS::KS {
-                    code: Some(self.keycode[0].0),
-                    op: Some(self.keycode[0].1),
+                    code: Some(kc0.0),
+                    op: Some(kc0.1),
                 },
             );
             action(
                 CallbackActions::mPull,
                 ARGS::KS {
-                    code: Some(self.keycode[1].0),
-                    op: Some(self.keycode[1].1),
+                    code: Some(kc1.0),
+                    op: Some(kc1.1),
                 },
             );
         }
-        [
-            (self.keycode[0].0, self.keycode[0].1),
-            (self.keycode[1].0, self.keycode[1].1),
-        ]
+        [Some((kc0.0, kc0.1)), Some((kc1.0, kc1.1)), None, None]
     }
     #[doc = " Perform state change as a result of the scan"]
     fn mcscan(
@@ -134,15 +137,14 @@ impl ModCombo for Key {
         is_high: bool,
         ctx: Context,
         action: fn(CallbackActions, ARGS),
-    ) -> [(KeyCode, Operation); 2] {
+    ) -> [Option<(KeyCode, Operation)>; 4] {
+        let [Some(kc0), Some(kc1), None, None] = self.keycode else {
+            return [None; 4];
+        };
         // println!("{}", is_high);
-        const DEFCODE: [(KeyCode, Operation); 2] = [
-            (KeyCode::________, Operation::SendOn),
-            (KeyCode::________, Operation::SendOn),
-        ];
         // if they KeyCode is empty then don't bother processing
-        if self.keycode[0].0 == KeyCode::________ && self.keycode[1].0 == KeyCode::________ {
-            return DEFCODE;
+        if kc0.0 == KeyCode::________ && kc1.0 == KeyCode::________ {
+            return [None; 4];
         }
         //     ____________________________
         //    |                            |
@@ -196,7 +198,7 @@ impl ModCombo for Key {
         &mut self,
         ctx: Context,
         action: fn(CallbackActions, ARGS),
-    ) -> [(KeyCode, Operation); 2] {
+    ) -> [Option<(KeyCode, Operation)>; 4] {
         match self.state {
             StateType::Tap => self.mctap(ctx, action),
             StateType::Hold => self.mchold(ctx, action),

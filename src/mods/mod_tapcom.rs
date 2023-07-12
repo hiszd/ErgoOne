@@ -11,27 +11,27 @@ use crate::Operation;
 use crate::ARGS;
 use crate::{key::Key, key_codes::KeyCode};
 
-pub trait ModTap {
-    fn mtnew(KC1: KeyCode, KC2: KeyCode) -> Self
+pub trait TapCom {
+    fn tcnew(KC1: KeyCode, KCA: (KeyCode, KeyCode)) -> Self
     where
         Self: Sized,
-        Self: ModTap;
-    fn mttap(
+        Self: TapCom;
+    fn tctap(
         &mut self,
         ctx: Context,
         action: fn(CallbackActions, ARGS),
     ) -> [Option<(KeyCode, Operation)>; 4];
-    fn mthold(
+    fn tchold(
         &mut self,
         _ctx: Context,
         action: fn(CallbackActions, ARGS),
     ) -> [Option<(KeyCode, Operation)>; 4];
-    fn mtidle(
+    fn tcidle(
         &mut self,
         _ctx: Context,
         action: fn(CallbackActions, ARGS),
     ) -> [Option<(KeyCode, Operation)>; 4];
-    fn mtoff(
+    fn tcoff(
         &mut self,
         _ctx: Context,
         action: fn(CallbackActions, ARGS),
@@ -41,7 +41,7 @@ pub trait ModTap {
         ctx: Context,
         action: fn(CallbackActions, ARGS),
     ) -> [Option<(KeyCode, Operation)>; 4];
-    fn mtscan(
+    fn tcscan(
         &mut self,
         is_high: bool,
         ctx: Context,
@@ -50,8 +50,9 @@ pub trait ModTap {
     fn exist_next(&self, ms: [Option<KeyCode>; 6], ks: [Option<KeyCode>; 6], key: KeyCode) -> bool;
 }
 
-impl ModTap for Key {
-    fn mtnew(KC1: KeyCode, KC2: KeyCode) -> Self {
+impl TapCom for Key {
+    fn tcnew(KC0: KeyCode, KCA: (KeyCode, KeyCode)) -> Self {
+        let (KC1, KC2) = KCA;
         Key {
             cycles: 0,
             raw_state: false,
@@ -59,76 +60,87 @@ impl ModTap for Key {
             state: StateType::Off,
             prevstate: StateType::Off,
             keycode: [
+                Some((KC0, Operation::SendOn)),
                 Some((KC1, Operation::SendOff)),
-                Some((KC2, Operation::SendOn)),
-                None,
+                Some((KC2, Operation::SendOff)),
                 None,
             ],
             previnfo: [false; 6],
             stor: [0; 6],
-            typ: "ModTap",
+            typ: "TapCom",
         }
     }
     // when state becomes tap enqueue modifier
     // when state becomes hold never queue key
-    fn mttap(
+    fn tctap(
         &mut self,
         ctx: Context,
         action: fn(CallbackActions, ARGS),
     ) -> [Option<(KeyCode, Operation)>; 4] {
-        let [Some(_kc0), Some(kc1), None, None] = self.keycode else {
+        let [Some(kc0), Some(_kc1), Some(_kc2), None] = self.keycode else {
             return [None; 4];
         };
         let mut combo: bool = false;
-        if kc1.0.is_modifier() {
-            if self.exist_next(ctx.modifiers, ctx.key_queue, kc1.0) {
-                combo = true;
+        // self.stor[0] is the amount of scans that there has been a combo
+        // self.stor[1] is the amount of scans that there has not been a combo
+        if kc0.0.is_modifier() {
+            if self.exist_next(ctx.modifiers, ctx.key_queue, kc0.0) {
+                if self.stor[0] <= u8::MAX {
+                    self.stor[0] += 1;
+                }
+                if self.stor[0] > 0 {
+                    combo = true;
+                    self.stor[1] = 0;
+                }
+            } else {
+                if self.stor[1] <= u8::MAX {
+                    self.stor[1] += 1;
+                }
+                if self.stor[1] > 1 as u8 {
+                    self.stor[0] = 0;
+                }
             }
         } else {
-            error!("{} is not a modifier", kc1.0);
+            error!("{} is not a modifier", kc0.0);
             return [None; 4];
         }
 
         self.previnfo[0] = combo;
 
-        match kc1.0.is_modifier() {
-            true => {
-                action(
-                    CallbackActions::mPush,
-                    ARGS::KS {
-                        code: Some(kc1.0),
-                        op: Some(kc1.1),
-                    },
-                );
-            }
-            false => error!("{} is not a modifier", kc1.0),
-        }
-        [Some((kc1.0, kc1.1)), None, None, None]
+        action(
+            CallbackActions::mPush,
+            ARGS::KS {
+                code: Some(kc0.0),
+                op: Some(kc0.1),
+            },
+        );
+
+        [Some((kc0.0, kc0.1)), None, None, None]
     }
-    fn mthold(
+    fn tchold(
         &mut self,
         _ctx: Context,
         action: fn(CallbackActions, ARGS),
     ) -> [Option<(KeyCode, Operation)>; 4] {
-        let [Some(_kc0), Some(kc1), None, None] = self.keycode else {
+        let [Some(kc0), Some(_kc1), Some(_kc2), None] = self.keycode else {
             return [None; 4];
         };
         self.previnfo[0] = true;
-        match kc1.0.is_modifier() {
+        match kc0.0.is_modifier() {
             true => {
                 action(
                     CallbackActions::mPush,
                     ARGS::KS {
-                        code: Some(kc1.0),
-                        op: Some(kc1.1),
+                        code: Some(kc0.0),
+                        op: Some(kc0.1),
                     },
                 );
             }
-            false => error!("{} is not a modifier", kc1.0),
+            false => error!("{} is not a modifier", kc0.0),
         }
-        [Some((kc1.0, kc1.1)), None, None, None]
+        [Some((kc0.0, kc0.1)), None, None, None]
     }
-    fn mtidle(
+    fn tcidle(
         &mut self,
         _ctx: Context,
         _action: fn(CallbackActions, ARGS),
@@ -138,41 +150,20 @@ impl ModTap for Key {
     // when state goes from tap>off and another key was never pressed enqueue key and pull modifier
     // when state goes from tap>off and another key was pressed never queue key and pull modifier
     // when state goed from hold>off never queue key, but pull modifier
-    fn mtoff(
+    fn tcoff(
         &mut self,
         _ctx: Context,
         action: fn(CallbackActions, ARGS),
     ) -> [Option<(KeyCode, Operation)>; 4] {
+        let [Some(kc0), Some(kc1), Some(kc2), None] = self.keycode else {
+            return [None; 4];
+        };
         match self.prevstate {
             StateType::Tap => {
-                let [Some(kc0), Some(kc1), None, None] = self.keycode else {
-                    return [None; 4];
-                };
                 // if there was not a combination of key pressed during the tap then
                 if !self.previnfo[0] {
                     println!("no combo");
-                    match kc0.0.is_modifier() {
-                        true => error!("{} is a modifier, but shouldn't be", kc0.0),
-                        false => {
-                            action(
-                                CallbackActions::mPull,
-                                ARGS::KS {
-                                    code: Some(kc1.0),
-                                    op: Some(kc1.1),
-                                },
-                            );
-                            action(
-                                CallbackActions::iPush,
-                                ARGS::KS {
-                                    code: Some(kc0.0),
-                                    op: Some(Operation::SendOff),
-                                },
-                            );
-                        }
-                    }
-                    return [Some((kc0.0, kc0.1)), None, None, None];
-                    // if there was a combination of keys pressed then do nothing
-                } else {
+                    self.previnfo[1] = true;
                     action(
                         CallbackActions::mPull,
                         ARGS::KS {
@@ -180,13 +171,70 @@ impl ModTap for Key {
                             op: Some(kc1.1),
                         },
                     );
-                    return [None; 4];
+                    match kc1.0.is_modifier() {
+                        true => {
+                            action(
+                                CallbackActions::mPush,
+                                ARGS::KS {
+                                    code: Some(kc1.0),
+                                    op: Some(Operation::SendOff),
+                                },
+                            );
+                        }
+                        false => {
+                            action(
+                                CallbackActions::iPush,
+                                ARGS::KS {
+                                    code: Some(kc1.0),
+                                    op: Some(Operation::SendOff),
+                                },
+                            );
+                        }
+                    }
+                    match kc2.0.is_modifier() {
+                        true => {
+                            action(
+                                CallbackActions::mPush,
+                                ARGS::KS {
+                                    code: Some(kc2.0),
+                                    op: Some(Operation::SendOff),
+                                },
+                            );
+                        }
+                        false => {
+                            action(
+                                CallbackActions::iPush,
+                                ARGS::KS {
+                                    code: Some(kc2.0),
+                                    op: Some(Operation::SendOn),
+                                },
+                            );
+                        }
+                    }
+                    return [
+                        Some((kc0.0, kc0.1)),
+                        Some((kc1.0, kc1.1)),
+                        Some((kc2.0, kc2.1)),
+                        None,
+                    ];
+                    // if there was a combination of keys pressed then do nothing
+                } else {
+                    println!("combo");
+                    action(
+                        CallbackActions::mPull,
+                        ARGS::KS {
+                            code: Some(kc1.0),
+                            op: Some(kc1.1),
+                        },
+                    );
+                    return [Some((kc1.0, kc1.1)), None, None, None];
                 }
             }
             StateType::Hold => {
                 let [Some(kc0), Some(kc1), None, None] = self.keycode else {
                     return [None; 4];
                 };
+                self.previnfo[1] = false;
                 match kc0.0.is_modifier() {
                     true => error!("{} is a modifier, but shouldn't be", kc0.0),
                     false => {
@@ -202,6 +250,49 @@ impl ModTap for Key {
                 return [Some((kc1.0, kc1.1)), None, None, None];
             }
             StateType::Off => {
+                if self.previnfo[1] {
+                    match kc1.0.is_modifier() {
+                        true => {
+                            action(
+                                CallbackActions::mPull,
+                                ARGS::KS {
+                                    code: Some(kc1.0),
+                                    op: Some(Operation::SendOff),
+                                },
+                            );
+                        }
+                        false => {
+                            action(
+                                CallbackActions::iPull,
+                                ARGS::KS {
+                                    code: Some(kc1.0),
+                                    op: Some(Operation::SendOn),
+                                },
+                            );
+                        }
+                    }
+                    match kc2.0.is_modifier() {
+                        true => {
+                            action(
+                                CallbackActions::mPull,
+                                ARGS::KS {
+                                    code: Some(kc2.0),
+                                    op: Some(Operation::SendOff),
+                                },
+                            );
+                        }
+                        false => {
+                            action(
+                                CallbackActions::iPull,
+                                ARGS::KS {
+                                    code: Some(kc2.0),
+                                    op: Some(Operation::SendOn),
+                                },
+                            );
+                        }
+                    }
+                    self.previnfo[1] = false;
+                }
                 return [None; 4];
             }
             _ => {
@@ -239,16 +330,13 @@ impl ModTap for Key {
         rtrn1 || rtrn2
     }
     #[doc = " Perform state change as a result of the scan"]
-    fn mtscan(
+    fn tcscan(
         &mut self,
         is_high: bool,
         ctx: Context,
         action: fn(CallbackActions, ARGS),
     ) -> [Option<(KeyCode, Operation)>; 4] {
-        let [Some(kc0), Some(kc1), None, None] = self.keycode else {
-            return [None; 4];
-        };
-        if kc0.0 == KeyCode::________ && kc1.0 == KeyCode::________ {
+        if self.keycode[0].is_none() && self.keycode[1].is_none() {
             return [None; 4];
         }
         if is_high {
@@ -284,10 +372,10 @@ impl ModTap for Key {
         action: fn(CallbackActions, ARGS),
     ) -> [Option<(KeyCode, Operation)>; 4] {
         match self.state {
-            StateType::Tap => self.mttap(ctx, action),
-            StateType::Hold => self.mthold(ctx, action),
-            StateType::Idle => self.mtidle(ctx, action),
-            StateType::Off => self.mtoff(ctx, action),
+            StateType::Tap => self.tctap(ctx, action),
+            StateType::Hold => self.tchold(ctx, action),
+            StateType::Idle => self.tcidle(ctx, action),
+            StateType::Off => self.tcoff(ctx, action),
         }
     }
 }

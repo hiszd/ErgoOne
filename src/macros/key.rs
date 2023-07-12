@@ -8,15 +8,11 @@ macro_rules! KeyImpl {
             is_high: bool,
             ctx: Context,
             action: fn(CallbackActions, ARGS),
-        ) -> [(KeyCode, Operation); 2] {
+        ) -> [Option<(KeyCode, Operation)>; 4] {
             // println!("{}", is_high);
-            const DEFCODE: [(KeyCode, Operation); 2] = [
-                (KeyCode::________, Operation::SendOn),
-                (KeyCode::________, Operation::SendOn),
-            ];
             // if they KeyCode is empty then don't bother processing
-            if self.keycode[0].0 == KeyCode::________ && self.keycode[1].0 == KeyCode::________ {
-                return DEFCODE;
+            if self.keycode[0].is_none() && self.keycode[1].is_none() {
+                return [None; 4];
             }
             //     ____________________________
             //    |                            |
@@ -70,7 +66,7 @@ macro_rules! KeyImpl {
             &mut self,
             ctx: Context,
             action: fn(CallbackActions, ARGS),
-        ) -> [(KeyCode, Operation); 2]  {
+        ) -> [Option<(KeyCode, Operation)>; 4] {
             // info!("{:?}", self.state);
             // Match all types of self.state
             match self.state {
