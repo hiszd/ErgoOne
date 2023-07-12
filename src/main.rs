@@ -75,7 +75,8 @@ pub fn action(action: CallbackActions, ops: ARGS) {
             ARGS::KS { code, op } => {
                 if code.unwrap() != KeyCode::________ {
                     unsafe {
-                        KEY_QUEUE.enqueue((code.unwrap(), op.unwrap()));
+                        let mm = KEY_QUEUE.enqueue((code.unwrap(), op.unwrap()));
+                        println!("ipush: {:?} :: {:?}", code.unwrap(), mm);
                     }
                 }
             }
@@ -300,7 +301,10 @@ fn main() -> ! {
             let curcol = RGB8::new(R, G, B);
             let basecol = RGB8::new(0, 0, 0);
             if curcol != color {
-                println!("{},{},{}  {},{},{}", curcol.r, curcol.g, curcol.b, color.r, color.g, color.b);
+                warn!(
+                    "{},{},{}  {},{},{}",
+                    curcol.r, curcol.g, curcol.b, color.r, color.g, color.b
+                );
                 ws.write(
                     [
                         basecol, basecol, basecol, basecol, basecol, basecol, basecol, basecol,

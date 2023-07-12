@@ -63,7 +63,7 @@ pub enum KeyCode {
     /// Right Square Bracket
     Sym_RBrk,
     /// Backslash
-    Sym_Bszz,
+    Sym_BSla,
     /// Semicolon
     Sym_Scln,
     /// Single Quote
@@ -217,7 +217,7 @@ impl From<&KeyCode> for u8 {
             KeyCode::Sym_Equz => 0x2e,
             KeyCode::Sym_LBrk => 0x2f,
             KeyCode::Sym_RBrk => 0x30,
-            KeyCode::Sym_Bszz => 0x31,
+            KeyCode::Sym_BSla => 0x31,
             KeyCode::Sym_Scln => 0x33,
             KeyCode::Sym_SQut => 0x34,
             KeyCode::Sym_Tild => 0x35,
@@ -314,7 +314,7 @@ impl From<KeyCode> for u8 {
             KeyCode::Sym_Equz => 0x2e,
             KeyCode::Sym_LBrk => 0x2f,
             KeyCode::Sym_RBrk => 0x30,
-            KeyCode::Sym_Bszz => 0x31,
+            KeyCode::Sym_BSla => 0x31,
             KeyCode::Sym_Scln => 0x33,
             KeyCode::Sym_SQut => 0x34,
             KeyCode::Sym_Tild => 0x35,
@@ -411,7 +411,7 @@ impl From<KeyCode> for &str {
             KeyCode::Sym_Equz => "Sym_Equz",
             KeyCode::Sym_LBrk => "Sym_LBrk",
             KeyCode::Sym_RBrk => "Sym_RBrk",
-            KeyCode::Sym_Bszz => "Sym_Bszz",
+            KeyCode::Sym_BSla => "Sym_BSla",
             KeyCode::Sym_Scln => "Sym_Scln",
             KeyCode::Sym_SQut => "Sym_SQut",
             KeyCode::Sym_Tild => "Sym_Tild",
@@ -510,7 +510,7 @@ impl From<&str> for KeyCode {
             "Sym_Equz" => KeyCode::Sym_Equz,
             "Sym_LBrk" => KeyCode::Sym_LBrk,
             "Sym_RBrk" => KeyCode::Sym_RBrk,
-            "Sym_Bszz" => KeyCode::Sym_Bszz,
+            "Sym_BSla" => KeyCode::Sym_BSla,
             "Sym_Scln" => KeyCode::Sym_Scln,
             "Sym_SQut" => KeyCode::Sym_SQut,
             "Sym_Tild" => KeyCode::Sym_Tild,

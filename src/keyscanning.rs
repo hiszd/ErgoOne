@@ -4,6 +4,7 @@
 // use rp2040_hal::gpio::PinMode::{Input, Output}
 
 use crate::actions::CallbackActions;
+use crate::mods::mod_combo::ModCombo;
 use crate::mods::mod_tap::ModTap;
 use crate::mods::rgb_key::RGBKey;
 use defmt::{debug, error, info, println, Format, warn};
@@ -172,12 +173,16 @@ impl<const RSIZE: usize, const CSIZE: usize> Matrix<RSIZE, CSIZE> {
 
         for r in 0..RSIZE {
             let codes: [(KeyCode, Operation); 2];
+            let typ: &str;
             match self.state.matrix[r][c].typ {
                 "Default" => {
                     codes = self.state.matrix[r][c].scan(self.rows[r].is_high(), ctx, action);
                 }
                 "ModTap" => {
                     codes = self.state.matrix[r][c].mtscan(self.rows[r].is_high(), ctx, action);
+                }
+                "ModCombo" => {
+                    codes = self.state.matrix[r][c].mcscan(self.rows[r].is_high(), ctx, action);
                 }
                 "RGBKey" => {
                     codes = self.state.matrix[r][c].rkscan(self.rows[r].is_high(), ctx, action);
