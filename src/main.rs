@@ -286,6 +286,7 @@ fn main() -> ! {
     let _ledcore = core1.spawn(unsafe { &mut CORE1_STACK.mem }, move || {
         use smart_leds::{SmartLedsWrite, RGB8};
         let (mut pio, sm0, _, _, _) = pac.PIO0.split(&mut pac.RESETS);
+        let empty: [RGB8; 8] = [RGB8::default(); 8];
         let mut ws = Ws2812::new(
             pins.gpio7.into_mode(),
             &mut pio,
@@ -293,34 +294,28 @@ fn main() -> ! {
             clocks.peripheral_clock.freq(),
             timer.count_down(),
         );
-        let mut color: RGB8 = RGB8::new(0, 0, 0);
+        let mut R = RCOL.load(Ordering::Relaxed);
+        let mut G = GCOL.load(Ordering::Relaxed);
+        let mut B = BCOL.load(Ordering::Relaxed);
+        ws.write(empty.iter().copied()).unwrap();
         loop {
-            let R = RCOL.load(Ordering::Relaxed);
-            let G = GCOL.load(Ordering::Relaxed);
-            let B = BCOL.load(Ordering::Relaxed);
-            let curcol = RGB8::new(R, G, B);
-            let basecol = RGB8::new(0, 0, 0);
-            if curcol != color {
-                warn!(
+            let color = [RGB8::new(R, G, B); 8];
+            R = RCOL.load(Ordering::Relaxed);
+            G = GCOL.load(Ordering::Relaxed);
+            B = BCOL.load(Ordering::Relaxed);
+            let curcol = [RGB8::new(R, G, B); 8];
+            if (curcol[0].r != color[0].r)
+                || (curcol[0].g != color[0].g)
+                || (curcol[0].b != color[0].b)
+            {
+                println!(
                     "{},{},{}  {},{},{}",
-                    curcol.r, curcol.g, curcol.b, color.r, color.g, color.b
+                    curcol[0].r, curcol[0].g, curcol[0].b, color[0].r, color[0].g, color[0].b
                 );
-                ws.write(
-                    [
-                        basecol, basecol, basecol, basecol, basecol, basecol, basecol, basecol,
-                    ]
-                    .iter()
-                    .copied(),
-                )
-                .unwrap();
-                color = curcol;
+                // ws.write(empty.iter().copied()).unwrap();
+                // color = curcol;
             }
-            ws.write(
-                [color, color, color, color, color, color, color, color]
-                    .iter()
-                    .copied(),
-            )
-            .unwrap();
+            ws.write(color.iter().copied()).unwrap();
         }
     });
 
