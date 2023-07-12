@@ -1,5 +1,6 @@
 use defmt::error;
 use defmt::println;
+use defmt::warn;
 
 use crate::actions::CallbackActions;
 use crate::key::DEBOUNCE_CYCLES;
@@ -82,7 +83,7 @@ impl ModTap for Key {
                 if self.stor[0] > 0 {
                     combo = true;
                     // reset the off counter
-                    println!("stor[1] = {}", self.stor[1]);
+                    // println!("stor[1] = {}", self.stor[1]);
                     self.stor[1] = 0;
                 }
             } else {
@@ -90,7 +91,7 @@ impl ModTap for Key {
                 if self.stor[1] <= u8::MAX {
                     self.stor[1] += 1;
                 }
-                if self.stor[1] > (DEBOUNCE_CYCLES + 1) as u8 {
+                if self.stor[1] > 1 as u8 {
                     self.stor[0] = 0;
                 }
             }
@@ -234,7 +235,6 @@ impl ModTap for Key {
             srt = ind1.unwrap();
         }
         for i in srt..ks.len() {
-            println!("ks[i] = {}", ks[i].unwrap_or(KeyCode::________));
             if ks[i].is_some() {
                 rtrn1 = true;
             }
@@ -242,16 +242,14 @@ impl ModTap for Key {
         srt = 0;
         let ind2: Option<usize> = ms.iter().position(|k| k.is_some() && k.unwrap() == key);
         if ind2.is_some() {
-            srt = ind2.unwrap();
+            srt = ind2.unwrap() + 1;
         }
         for i in srt..ms.len() {
             if ms[i].is_some() {
-                println!("ms[i] = {}", ms[i].unwrap());
                 rtrn2 = true;
             }
         }
-        println!("ks = {:?}", ks);
-        println!("rtrn1 = {}, rtrn2 = {}", rtrn1, rtrn2);
+        warn!("rtrn1 = {}, rtrn2 = {}", rtrn1, rtrn2);
         rtrn1 || rtrn2
     }
     #[doc = " Perform state change as a result of the scan"]
