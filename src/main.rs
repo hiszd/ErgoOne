@@ -263,7 +263,7 @@ fn main() -> ! {
     }
 
     let mut matrix: Matrix<5, 16> =
-        Matrix::new(rows, cols, callback, key_mapping::ERGOONE_0.into());
+        Matrix::new(rows, cols, callback, key_mapping::ERGOONE_RSTLNE.into());
     let poll1 = matrix.poll(
         Context {
             key_queue: unsafe { KEY_QUEUE.get_keys() },
@@ -385,23 +385,35 @@ fn prepare_report() {
             }
         });
     }
-    let modssy_last = unsafe { MODSSY_LAST };
+    let mut moddq: [Option<KeyCode>; 6] = [None; 6];
+    // let modssy_last = unsafe { MODSSY_LAST };
     let mut modssy: [Option<KeyCode>; 6] = [None; 6];
     critical_section::with(|_| unsafe {
-        MODIFIERS.get_keys().iter().for_each(|k| {
-            let kr = *k;
-            if kr.is_some() {
-                modssy[modssy.iter().position(|x| x.is_none()).unwrap()] = Some(kr.unwrap());
-                modifier |= kr.unwrap().modifier_bitmask().unwrap();
+        MODIFIERS.keys.iter().for_each(|k| {
+            if k.is_some() {
+                let kr = k.unwrap();
+                modssy[modssy.iter().position(|x| x.is_none()).unwrap()] = Some(kr.0);
+                modifier |= kr.0.modifier_bitmask().unwrap();
+                if kr.1 == Operation::SendOff {
+                    moddq[moddq.iter().position(|x| x.is_none()).unwrap()] = Some(kr.0);
+                }
             }
         });
     });
-    if modifier != 0 && modssy_last != modssy {
-        warn!("modifiers: {:?}, {=u8:#x}", modssy, modifier);
-    };
     unsafe {
-        MODSSY_LAST = modssy;
+        moddq.iter().for_each(|k| {
+            if k.is_some() {
+                let kr = k.unwrap();
+                MODIFIERS.dequeue(kr);
+            }
+        });
     }
+    // if modifier != 0 && modssy_last != modssy {
+    // warn!("modifiers: {:?}, {=u8:#x}", modssy, modifier);
+    // };
+    // unsafe {
+    // MODSSY_LAST = modssy;
+    // }
 
     critical_section::with(|cs| {
         KEYBOARD_REPORT.replace(

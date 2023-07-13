@@ -167,8 +167,8 @@ impl TapCom for Key {
                     action(
                         CallbackActions::mPull,
                         ARGS::KS {
-                            code: Some(kc1.0),
-                            op: Some(kc1.1),
+                            code: Some(kc0.0),
+                            op: Some(kc0.1),
                         },
                     );
                     match kc1.0.is_modifier() {
@@ -231,23 +231,15 @@ impl TapCom for Key {
                 }
             }
             StateType::Hold => {
-                let [Some(kc0), Some(kc1), None, None] = self.keycode else {
-                    return [None; 4];
-                };
                 self.previnfo[1] = false;
-                match kc0.0.is_modifier() {
-                    true => error!("{} is a modifier, but shouldn't be", kc0.0),
-                    false => {
-                        action(
-                            CallbackActions::mPull,
-                            ARGS::KS {
-                                code: Some(kc1.0),
-                                op: Some(kc1.1),
-                            },
-                        );
-                    }
-                }
-                return [Some((kc1.0, kc1.1)), None, None, None];
+                action(
+                    CallbackActions::mPull,
+                    ARGS::KS {
+                        code: Some(kc0.0),
+                        op: Some(kc0.1),
+                    },
+                );
+                return [Some((kc0.0, kc0.1)), None, None, None];
             }
             StateType::Off => {
                 if self.previnfo[1] {

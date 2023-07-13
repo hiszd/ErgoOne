@@ -8,11 +8,23 @@ use crate::mods::rgb_key::RGBKey;
 use crate::{key::Default, keyscanning::KeyMatrix, mods::mod_tap::ModTap};
 
 #[rustfmt::skip]
-pub const ERGOONE_0: [&str; 80] = [
+pub const ERGOONE_RSTLNE: [&str; 80] = [
 "df,Fun_Escz",                  "df,Num_1zzz","df,Num_2zzz","df,Num_3zzz","df,Num_4zzz","df,Num_5zzz","rk,0_255_0",          "df,EEEEEEEE","df,EEEEEEEE","df,EEEEEEEE","df,Num_6zzz","df,Num_7zzz","df,Num_8zzz","df,Num_9zzz","df,Num_0zzz","df,Sym_Equz",
 "df,Fun_Tabz",                  "df,Ltr_Qzzz","df,Ltr_Wzzz","df,Ltr_Dzzz","df,Ltr_Fzzz","df,Ltr_Zzzz","rk,255_0_0",          "df,EEEEEEEE","df,EEEEEEEE","df,EEEEEEEE","df,Sym_Scln","df,Ltr_Uzzz","df,Ltr_Kzzz","df,Ltr_Yzzz","df,Ltr_Pzzz","df,Sym_BSla",
 "mt,Fun_Escz,Mod_LCtl",         "df,Ltr_Azzz","df,Ltr_Szzz","df,Ltr_Ezzz","df,Ltr_Rzzz","df,Ltr_Tzzz","df,Sym_Minz",         "df,Fun_Spcz","df,Fun_Entz","df,Sym_Equz","df,Ltr_Hzzz","df,Ltr_Nzzz","df,Ltr_Izzz","df,Ltr_Ozzz","df,Ltr_Lzzz","df,Sym_SQut",
 "tc,Mod_LSft,Mod_LSft,Num_9zzz","df,Ltr_Gzzz","df,Ltr_Xzzz","df,Ltr_Czzz","df,Ltr_Vzzz","df,Sym_FSla","mc,Sym_Minz,Mod_LSft","df,EEEEEEEE","df,EEEEEEEE","df,Fun_Bksp","df,Ltr_Bzzz","df,Ltr_Jzzz","df,Ltr_Mzzz","df,Sym_Coma","df,Sym_Perd","tc,Mod_RSft,Mod_RSft,Num_0zzz",
+"df,Mod_LCtl",                  "df,Mod_LAlt","df,Mod_LCmd","df,Fun_Spcz","df,Sym_LBrk","df,Mod_LCmd","df,EEEEEEEE",         "df,EEEEEEEE","df,EEEEEEEE","df,EEEEEEEE","df,EEEEEEEE","df,Sym_RBrk","df,Arw_Left","df,Arw_Down","df,Arw_Upzz","df,Arw_Rght",
+];
+
+// "tc,Mod_LSft,Mod_LSft,Num_9zzz","df,Ltr_Gzzz","df,Ltr_Xzzz","df,Ltr_Czzz","df,Ltr_Vzzz","df,Sym_FSla","mc,Sym_Minz,Mod_LSft","df,EEEEEEEE","df,EEEEEEEE","df,Fun_Bksp","df,Ltr_Bzzz","df,Ltr_Jzzz","df,Ltr_Mzzz","df,Sym_Coma","df,Sym_Perd","tc,Mod_RSft,Mod_RSft,Num_0zzz",
+
+#[allow(dead_code)]
+#[rustfmt::skip]
+pub const ERGOONE_QWERTY: [&str; 80] = [
+"df,Fun_Escz",                  "df,Num_1zzz","df,Num_2zzz","df,Num_3zzz","df,Num_4zzz","df,Num_5zzz","rk,0_255_0",          "df,EEEEEEEE","df,EEEEEEEE","df,EEEEEEEE","df,Num_6zzz","df,Num_7zzz","df,Num_8zzz","df,Num_9zzz","df,Num_0zzz","df,Sym_Equz",
+"df,Fun_Tabz",                  "df,Ltr_Qzzz","df,Ltr_Wzzz","df,Ltr_Ezzz","df,Ltr_Rzzz","df,Ltr_Tzzz","rk,255_0_0",          "df,EEEEEEEE","df,EEEEEEEE","df,EEEEEEEE","df,Ltr_Yzzz","df,Ltr_Uzzz","df,Ltr_Kzzz","df,Ltr_Yzzz","df,Ltr_Pzzz","df,Sym_BSla",
+"mt,Fun_Escz,Mod_LCtl",         "df,Ltr_Azzz","df,Ltr_Szzz","df,Ltr_Dzzz","df,Ltr_Fzzz","df,Ltr_Gzzz","df,Sym_Minz",         "df,Fun_Spcz","df,Fun_Entz","df,Sym_Equz","df,Ltr_Hzzz","df,Ltr_Jzzz","df,Ltr_Kzzz","df,Ltr_Lzzz","df,Sym_Scln","df,Sym_SQut",
+"df,Mod_LSft",                  "df,Ltr_Zzzz","df,Ltr_Xzzz","df,Ltr_Czzz","df,Ltr_Vzzz","df,Ltr_Bzzz","mc,Sym_Minz,Mod_LSft","df,EEEEEEEE","df,EEEEEEEE","df,Fun_Bksp","df,Ltr_Nzzz","df,Ltr_Mzzz","df,Sym_Coma","df,Sym_Perd","df,Sym_FSla","df,Mod_RSft",
 "df,Mod_LCtl",                  "df,Mod_LAlt","df,Mod_LCmd","df,Fun_Spcz","df,Sym_LBrk","df,Mod_LCmd","df,EEEEEEEE",         "df,EEEEEEEE","df,EEEEEEEE","df,EEEEEEEE","df,EEEEEEEE","df,Sym_RBrk","df,Arw_Left","df,Arw_Down","df,Arw_Upzz","df,Arw_Rght",
 ];
 
