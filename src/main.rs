@@ -10,6 +10,7 @@ mod key_mapping;
 mod keyscanning;
 mod macros;
 mod mods;
+mod util;
 
 use core::sync::atomic::AtomicBool;
 use core::{
@@ -17,6 +18,7 @@ use core::{
     sync::atomic::{AtomicU8, Ordering},
 };
 
+use util::hid_descriptor::ZKEY_DESCRIPTOR;
 use crate::{key_codes::KeyCode, pac::interrupt};
 use cortex_m_rt::entry;
 use defmt::*;
@@ -204,7 +206,7 @@ fn main() -> ! {
                 .manufacturer("HisZd")
                 .product("ErgoOne")
                 .serial_number("000001")
-                .supports_remote_wakeup(true)
+                .supports_remote_wakeup(false)
                 .build(),
         );
         HID_BUS.as_mut().unwrap().force_reset().ok();
