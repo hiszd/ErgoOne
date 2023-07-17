@@ -79,17 +79,16 @@ impl ModTap for Key {
         let [Some(_kc0), Some(kc1), None, None] = self.keycode else {
             return [None; 4];
         };
-        let mut combo: bool = false;
+        // self.previnfo[0] is whether or not a combination was pressed
+        self.previnfo[0] = false;
         if kc1.0.is_modifier() {
             if self.exist_next(ctx.modifiers, ctx.key_queue, kc1.0) {
-                combo = true;
+                self.previnfo[0] = true;
             }
         } else {
             error!("{} is not a modifier", kc1.0);
             return [None; 4];
         }
-
-        self.previnfo[0] = combo;
 
         match kc1.0.is_modifier() {
             true => {
@@ -140,7 +139,7 @@ impl ModTap for Key {
     // when state goed from hold>off never queue key, but pull modifier
     fn mtoff(
         &mut self,
-        _ctx: Context,
+        ctx: Context,
         action: fn(CallbackActions, ARGS),
     ) -> [Option<(KeyCode, Operation)>; 4] {
         match self.prevstate {
@@ -149,7 +148,7 @@ impl ModTap for Key {
                     return [None; 4];
                 };
                 // if there was not a combination of key pressed during the tap then
-                if !self.previnfo[0] {
+                if !self.previnfo[0] && !self.exist_next(ctx.modifiers, ctx.key_queue, kc1.0) {
                     println!("no combo");
                     match kc0.0.is_modifier() {
                         true => error!("{} is a modifier, but shouldn't be", kc0.0),

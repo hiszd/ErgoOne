@@ -5,4 +5,5 @@ pub enum CallbackActions {
     mPull,
     mPush,
     RGBSet,
+    SendString,
 }

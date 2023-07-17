@@ -55,7 +55,7 @@ use crate::keyscanning::{Matrix, Operation};
 use self::actions::CallbackActions;
 use self::keyscanning::KeyQueue;
 
-#[derive(Copy, Clone, PartialEq, PartialOrd)]
+#[derive(Clone, PartialEq, PartialOrd)]
 pub enum ARGS {
     KS {
         code: Option<KeyCode>,
@@ -65,6 +65,9 @@ pub enum ARGS {
         r: u8,
         g: u8,
         b: u8,
+    },
+    STR {
+        s: String<30>,
     },
 }
 
@@ -80,8 +83,8 @@ pub fn action(action: CallbackActions, ops: ARGS) {
                     }
                 }
             }
-            ARGS::RGB { r: _, g: _, b: _ } => {
-                error!("Expected ARGS::KS but got ARGS::RGB");
+            _ => {
+                error!("Expected ARGS::KS but got something else");
             }
         },
         CallbackActions::iPull => match ops {
@@ -92,8 +95,8 @@ pub fn action(action: CallbackActions, ops: ARGS) {
                     }
                 }
             }
-            ARGS::RGB { r: _, g: _, b: _ } => {
-                error!("Expected ARGS::KS but got ARGS::RGB");
+            _ => {
+                error!("Expected ARGS::KS but got something else");
             }
         },
         CallbackActions::mPush => match ops {
@@ -101,8 +104,8 @@ pub fn action(action: CallbackActions, ops: ARGS) {
                 let mm = MODIFIERS.enqueue((code.unwrap(), Operation::SendOn));
                 println!("mpush: {:?} :: {:?}", code.unwrap(), mm);
             },
-            ARGS::RGB { r: _, g: _, b: _ } => {
-                error!("Expected ARGS::KS but got ARGS::RGB");
+            _ => {
+                error!("Expected ARGS::KS but got something else");
             }
         },
         CallbackActions::mPull => unsafe {
@@ -111,8 +114,8 @@ pub fn action(action: CallbackActions, ops: ARGS) {
                     let mm = MODIFIERS.dequeue(code.unwrap());
                     println!("mpull: {:?} :: {:?}", code.unwrap(), mm);
                 }
-                ARGS::RGB { r: _, g: _, b: _ } => {
-                    error!("Expected ARGS::KS but got ARGS::RGB");
+                _ => {
+                    error!("Expected ARGS::KS but got something else");
                 }
             }
         },
@@ -123,8 +126,14 @@ pub fn action(action: CallbackActions, ops: ARGS) {
                 GCOL.store(g, Ordering::Relaxed);
                 BCOL.store(b, Ordering::Relaxed);
             }
-            ARGS::KS { code: _, op: _ } => {
-                error!("Expected ARGS::RGB but got ARGS::KS");
+            _ => {
+                error!("Expected ARGS::RGB but got something else");
+            }
+        },
+        CallbackActions::SendString => match ops {
+            ARGS::STR { s } => {}
+            _ => {
+                error!("Expected ARGS::STR but got something else");
             }
         },
     }
@@ -350,6 +359,7 @@ static mut USB_HID: Option<HIDClass<UsbBus>> = None;
 static mut REPORTSENT: AtomicBool = AtomicBool::new(false);
 static mut READYTOSEND: AtomicBool = AtomicBool::new(false);
 static mut KEY_QUEUE: KeyQueue<6> = KeyQueue::new();
+static mut STRING_QUEUE: KeyQueue<30> = KeyQueue::new();
 static mut MODIFIERS: KeyQueue<6> = KeyQueue::new();
 static mut MODSSY_LAST: [Option<KeyCode>; 6] = [None; 6];
 // TODO create way to handle more than 6 codes per poll
@@ -364,6 +374,14 @@ fn prepare_report() {
             keycode_index += 1;
         }
     };
+
+    unsafe {
+        // if the string queue is not empty then iterate through the queue
+        if !STRING_QUEUE.is_empty() {
+            // pull from the queue and process the keycode
+            return;
+        }
+    }
 
     let mut dq: [Option<KeyCode>; 6] = [None; 6];
     critical_section::with(|_| unsafe {

@@ -152,7 +152,7 @@ impl TapCom for Key {
     // when state goed from hold>off never queue key, but pull modifier
     fn tcoff(
         &mut self,
-        _ctx: Context,
+        ctx: Context,
         action: fn(CallbackActions, ARGS),
     ) -> [Option<(KeyCode, Operation)>; 4] {
         let [Some(kc0), Some(kc1), Some(kc2), None] = self.keycode else {
@@ -161,7 +161,7 @@ impl TapCom for Key {
         match self.prevstate {
             StateType::Tap => {
                 // if there was not a combination of key pressed during the tap then
-                if !self.previnfo[0] {
+                if !self.previnfo[0] && !self.exist_next(ctx.modifiers, ctx.key_queue, kc0.0) {
                     println!("no combo");
                     self.previnfo[1] = true;
                     action(
