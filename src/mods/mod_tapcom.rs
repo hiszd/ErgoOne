@@ -47,7 +47,7 @@ pub trait TapCom {
         ctx: Context,
         action: fn(CallbackActions, ARGS),
     ) -> [Option<(KeyCode, Operation)>; 4];
-    fn exist_next(&self, ms: [Option<KeyCode>; 6], ks: [Option<KeyCode>; 6], key: KeyCode) -> bool;
+    fn exist_next(&self, ks: [Option<KeyCode>; 29], key: KeyCode) -> bool;
 }
 
 impl TapCom for Key {
@@ -80,38 +80,26 @@ impl TapCom for Key {
         let [Some(kc0), Some(_kc1), Some(_kc2), None] = self.keycode else {
             return [None; 4];
         };
-        let mut combo: bool = false;
         // self.stor[0] is the amount of scans that there has been a combo
-        // self.stor[1] is the amount of scans that there has not been a combo
-        if kc0.0.is_modifier() {
-            if self.exist_next(ctx.modifiers, ctx.key_queue, kc0.0) {
-                if self.stor[0] <= u8::MAX {
-                    self.stor[0] += 1;
-                }
-                if self.stor[0] > 0 {
-                    combo = true;
-                    self.stor[1] = 0;
+        // self.stor[1] is the amount of scans that there has NOT been a combo
+        if !self.previnfo[0] {
+            if kc0.0.is_modifier() {
+                // if there is another key pressed
+                if self.exist_next(ctx.key_queue, kc0.0) {
+                    self.previnfo[0] = true;
                 }
             } else {
-                if self.stor[1] <= u8::MAX {
-                    self.stor[1] += 1;
-                }
-                if self.stor[1] > 1 as u8 {
-                    self.stor[0] = 0;
-                }
+                error!("{} is not a modifier", kc0.0);
+                return [None; 4];
             }
-        } else {
-            error!("{} is not a modifier", kc0.0);
-            return [None; 4];
         }
 
-        self.previnfo[0] = combo;
-
         action(
-            CallbackActions::mPush,
+            CallbackActions::Push,
             ARGS::KS {
-                code: Some(kc0.0),
-                op: Some(kc0.1),
+                code: kc0.0,
+                op: kc0.1,
+                st: StateType::Tap,
             },
         );
 
@@ -129,10 +117,11 @@ impl TapCom for Key {
         match kc0.0.is_modifier() {
             true => {
                 action(
-                    CallbackActions::mPush,
+                    CallbackActions::Push,
                     ARGS::KS {
-                        code: Some(kc0.0),
-                        op: Some(kc0.1),
+                        code: kc0.0,
+                        op: kc0.1,
+                        st: StateType::Hold,
                     },
                 );
             }
@@ -161,56 +150,33 @@ impl TapCom for Key {
         match self.prevstate {
             StateType::Tap => {
                 // if there was not a combination of key pressed during the tap then
-                if !self.previnfo[0] && !self.exist_next(ctx.modifiers, ctx.key_queue, kc0.0) {
+                if !self.previnfo[0] && !self.exist_next(ctx.key_queue, kc0.0) {
                     println!("no combo");
                     self.previnfo[1] = true;
                     action(
-                        CallbackActions::mPull,
+                        CallbackActions::Push,
                         ARGS::KS {
-                            code: Some(kc0.0),
-                            op: Some(kc0.1),
+                            code: kc0.0,
+                            op: kc0.1,
+                            st: StateType::Off,
                         },
                     );
-                    match kc1.0.is_modifier() {
-                        true => {
-                            action(
-                                CallbackActions::mPush,
-                                ARGS::KS {
-                                    code: Some(kc1.0),
-                                    op: Some(Operation::SendOff),
-                                },
-                            );
-                        }
-                        false => {
-                            action(
-                                CallbackActions::iPush,
-                                ARGS::KS {
-                                    code: Some(kc1.0),
-                                    op: Some(Operation::SendOff),
-                                },
-                            );
-                        }
-                    }
-                    match kc2.0.is_modifier() {
-                        true => {
-                            action(
-                                CallbackActions::mPush,
-                                ARGS::KS {
-                                    code: Some(kc2.0),
-                                    op: Some(Operation::SendOff),
-                                },
-                            );
-                        }
-                        false => {
-                            action(
-                                CallbackActions::iPush,
-                                ARGS::KS {
-                                    code: Some(kc2.0),
-                                    op: Some(Operation::SendOn),
-                                },
-                            );
-                        }
-                    }
+                    action(
+                        CallbackActions::Push,
+                        ARGS::KS {
+                            code: kc1.0,
+                            op: Operation::SendOff,
+                            st: StateType::Tap,
+                        },
+                    );
+                    action(
+                        CallbackActions::Push,
+                        ARGS::KS {
+                            code: kc2.0,
+                            op: Operation::SendOff,
+                            st: StateType::Tap,
+                        },
+                    );
                     return [
                         Some((kc0.0, kc0.1)),
                         Some((kc1.0, kc1.1)),
@@ -221,10 +187,11 @@ impl TapCom for Key {
                 } else {
                     println!("combo");
                     action(
-                        CallbackActions::mPull,
+                        CallbackActions::Push,
                         ARGS::KS {
-                            code: Some(kc1.0),
-                            op: Some(kc1.1),
+                            code: kc1.0,
+                            op: kc1.1,
+                            st: StateType::Off,
                         },
                     );
                     return [Some((kc1.0, kc1.1)), None, None, None];
@@ -233,56 +200,33 @@ impl TapCom for Key {
             StateType::Hold => {
                 self.previnfo[1] = false;
                 action(
-                    CallbackActions::mPull,
+                    CallbackActions::Push,
                     ARGS::KS {
-                        code: Some(kc0.0),
-                        op: Some(kc0.1),
+                        code: kc0.0,
+                        op: kc0.1,
+                        st: StateType::Off,
                     },
                 );
                 return [Some((kc0.0, kc0.1)), None, None, None];
             }
             StateType::Off => {
                 if self.previnfo[1] {
-                    match kc1.0.is_modifier() {
-                        true => {
-                            action(
-                                CallbackActions::mPull,
-                                ARGS::KS {
-                                    code: Some(kc1.0),
-                                    op: Some(Operation::SendOff),
-                                },
-                            );
-                        }
-                        false => {
-                            action(
-                                CallbackActions::iPull,
-                                ARGS::KS {
-                                    code: Some(kc1.0),
-                                    op: Some(Operation::SendOn),
-                                },
-                            );
-                        }
-                    }
-                    match kc2.0.is_modifier() {
-                        true => {
-                            action(
-                                CallbackActions::mPull,
-                                ARGS::KS {
-                                    code: Some(kc2.0),
-                                    op: Some(Operation::SendOff),
-                                },
-                            );
-                        }
-                        false => {
-                            action(
-                                CallbackActions::iPull,
-                                ARGS::KS {
-                                    code: Some(kc2.0),
-                                    op: Some(Operation::SendOn),
-                                },
-                            );
-                        }
-                    }
+                    action(
+                        CallbackActions::Push,
+                        ARGS::KS {
+                            code: kc1.0,
+                            op: Operation::SendOff,
+                            st: StateType::Off,
+                        },
+                    );
+                    action(
+                        CallbackActions::Push,
+                        ARGS::KS {
+                            code: kc2.0,
+                            op: Operation::SendOff,
+                            st: StateType::Off,
+                        },
+                    );
                     self.previnfo[1] = false;
                 }
                 return [None; 4];
@@ -294,9 +238,8 @@ impl TapCom for Key {
     }
 
     /// check to see if another key exists in the queue after the current one
-    fn exist_next(&self, ms: [Option<KeyCode>; 6], ks: [Option<KeyCode>; 6], key: KeyCode) -> bool {
+    fn exist_next(&self, ks: [Option<KeyCode>; 29], key: KeyCode) -> bool {
         let mut rtrn1 = false;
-        let mut rtrn2 = false;
         // locate key in array
         let ind1: Option<usize> = ks.iter().position(|k| k.is_some() && k.unwrap() == key);
         let mut srt: usize = 0;
@@ -308,18 +251,9 @@ impl TapCom for Key {
                 rtrn1 = true;
             }
         }
-        srt = 0;
-        let ind2: Option<usize> = ms.iter().position(|k| k.is_some() && k.unwrap() == key);
-        if ind2.is_some() {
-            srt = ind2.unwrap() + 1;
-        }
-        for i in srt..ms.len() {
-            if ms[i].is_some() {
-                rtrn2 = true;
-            }
-        }
-        warn!("rtrn1 = {}, rtrn2 = {}", rtrn1, rtrn2);
-        rtrn1 || rtrn2
+        // srt = 0;
+        warn!("rtrn1 = {}", rtrn1);
+        rtrn1
     }
     #[doc = " Perform state change as a result of the scan"]
     fn tcscan(

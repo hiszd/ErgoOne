@@ -47,7 +47,7 @@ pub trait ModTap {
         ctx: Context,
         action: fn(CallbackActions, ARGS),
     ) -> [Option<(KeyCode, Operation)>; 4];
-    fn exist_next(&self, ms: [Option<KeyCode>; 6], ks: [Option<KeyCode>; 6], key: KeyCode) -> bool;
+    fn exist_next(&self, ks: [Option<KeyCode>; 29], key: KeyCode) -> bool;
 }
 
 impl ModTap for Key {
@@ -82,7 +82,7 @@ impl ModTap for Key {
         // self.previnfo[0] is whether or not a combination was pressed
         self.previnfo[0] = false;
         if kc1.0.is_modifier() {
-            if self.exist_next(ctx.modifiers, ctx.key_queue, kc1.0) {
+            if self.exist_next(ctx.key_queue, kc1.0) {
                 self.previnfo[0] = true;
             }
         } else {
@@ -93,10 +93,11 @@ impl ModTap for Key {
         match kc1.0.is_modifier() {
             true => {
                 action(
-                    CallbackActions::mPush,
+                    CallbackActions::Push,
                     ARGS::KS {
-                        code: Some(kc1.0),
-                        op: Some(kc1.1),
+                        code: kc1.0,
+                        op: kc1.1,
+                        st: StateType::Tap,
                     },
                 );
             }
@@ -116,10 +117,11 @@ impl ModTap for Key {
         match kc1.0.is_modifier() {
             true => {
                 action(
-                    CallbackActions::mPush,
+                    CallbackActions::Push,
                     ARGS::KS {
-                        code: Some(kc1.0),
-                        op: Some(kc1.1),
+                        code: kc1.0,
+                        op: kc1.1,
+                        st: StateType::Hold,
                     },
                 );
             }
@@ -148,23 +150,25 @@ impl ModTap for Key {
                     return [None; 4];
                 };
                 // if there was not a combination of key pressed during the tap then
-                if !self.previnfo[0] && !self.exist_next(ctx.modifiers, ctx.key_queue, kc1.0) {
+                if !self.previnfo[0] && !self.exist_next(ctx.key_queue, kc1.0) {
                     println!("no combo");
                     match kc0.0.is_modifier() {
                         true => error!("{} is a modifier, but shouldn't be", kc0.0),
                         false => {
                             action(
-                                CallbackActions::mPull,
+                                CallbackActions::Push,
                                 ARGS::KS {
-                                    code: Some(kc1.0),
-                                    op: Some(kc1.1),
+                                    code: kc1.0,
+                                    op: kc1.1,
+                                    st: StateType::Off,
                                 },
                             );
                             action(
-                                CallbackActions::iPush,
+                                CallbackActions::Push,
                                 ARGS::KS {
-                                    code: Some(kc0.0),
-                                    op: Some(Operation::SendOff),
+                                    code: kc0.0,
+                                    op: Operation::SendOff,
+                                    st: StateType::Tap,
                                 },
                             );
                         }
@@ -173,10 +177,11 @@ impl ModTap for Key {
                     // if there was a combination of keys pressed then do nothing
                 } else {
                     action(
-                        CallbackActions::mPull,
+                        CallbackActions::Push,
                         ARGS::KS {
-                            code: Some(kc1.0),
-                            op: Some(kc1.1),
+                            code: kc1.0,
+                            op: kc1.1,
+                            st: StateType::Off,
                         },
                     );
                     return [None; 4];
@@ -190,10 +195,11 @@ impl ModTap for Key {
                     true => error!("{} is a modifier, but shouldn't be", kc0.0),
                     false => {
                         action(
-                            CallbackActions::mPull,
+                            CallbackActions::Push,
                             ARGS::KS {
-                                code: Some(kc1.0),
-                                op: Some(kc1.1),
+                                code: kc1.0,
+                                op: kc1.1,
+                                st: StateType::Off,
                             },
                         );
                     }
@@ -210,9 +216,8 @@ impl ModTap for Key {
     }
 
     /// check to see if another key exists in the queue after the current one
-    fn exist_next(&self, ms: [Option<KeyCode>; 6], ks: [Option<KeyCode>; 6], key: KeyCode) -> bool {
+    fn exist_next(&self, ks: [Option<KeyCode>; 29], key: KeyCode) -> bool {
         let mut rtrn1 = false;
-        let mut rtrn2 = false;
         // locate key in array
         let ind1: Option<usize> = ks.iter().position(|k| k.is_some() && k.unwrap() == key);
         let mut srt: usize = 0;
@@ -224,18 +229,8 @@ impl ModTap for Key {
                 rtrn1 = true;
             }
         }
-        srt = 0;
-        let ind2: Option<usize> = ms.iter().position(|k| k.is_some() && k.unwrap() == key);
-        if ind2.is_some() {
-            srt = ind2.unwrap() + 1;
-        }
-        for i in srt..ms.len() {
-            if ms[i].is_some() {
-                rtrn2 = true;
-            }
-        }
-        warn!("rtrn1 = {}, rtrn2 = {}", rtrn1, rtrn2);
-        rtrn1 || rtrn2
+        warn!("rtrn1 = {}", rtrn1);
+        rtrn1
     }
     #[doc = " Perform state change as a result of the scan"]
     fn mtscan(

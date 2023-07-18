@@ -215,7 +215,7 @@ impl<const RSIZE: usize, const CSIZE: usize> Matrix<RSIZE, CSIZE> {
 
 #[derive(Copy, Clone)]
 pub struct KeyQueue<const QSIZE: usize> {
-    pub keys: [Option<(KeyCode, Operation)>; QSIZE],
+    pub keys: [Option<(KeyCode, Operation, StateType)>; QSIZE],
 }
 
 impl<const QSIZE: usize> KeyQueue<QSIZE> {
@@ -255,7 +255,7 @@ impl<const QSIZE: usize> KeyQueue<QSIZE> {
     /// returns false if the queue is full
     /// returns false if the key is already in the queue
     /// returns true if the key is not in the queue
-    pub fn enqueue(&mut self, key: (KeyCode, Operation)) -> bool {
+    pub fn enqueue(&mut self, key: (KeyCode, Operation, StateType)) -> bool {
         if self.len() >= QSIZE {
             return false;
         }

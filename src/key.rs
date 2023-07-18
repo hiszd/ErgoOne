@@ -96,22 +96,14 @@ impl Default for Key {
     ) -> [Option<(KeyCode, Operation)>; 4] {
         if self.keycode[0].is_some() {
             let kc0 = self.keycode[0].unwrap();
-            match kc0.0.is_modifier() {
-                true => action(
-                    CallbackActions::mPush,
-                    ARGS::KS {
-                        code: Some(kc0.0),
-                        op: Some(kc0.1),
-                    },
-                ),
-                false => action(
-                    CallbackActions::iPush,
-                    ARGS::KS {
-                        code: Some(kc0.0),
-                        op: Some(kc0.1),
-                    },
-                ),
-            }
+            action(
+                CallbackActions::Push,
+                ARGS::KS {
+                    code: kc0.0,
+                    op: kc0.1,
+                    st: StateType::Tap,
+                },
+            );
         }
         self.keycode
     }
@@ -122,22 +114,14 @@ impl Default for Key {
     ) -> [Option<(KeyCode, Operation)>; 4] {
         if self.keycode[0].is_some() {
             let kc0 = self.keycode[0].unwrap();
-            match kc0.0.is_modifier() {
-                true => action(
-                    CallbackActions::mPush,
-                    ARGS::KS {
-                        code: Some(kc0.0),
-                        op: Some(kc0.1),
-                    },
-                ),
-                false => action(
-                    CallbackActions::iPush,
-                    ARGS::KS {
-                        code: Some(kc0.0),
-                        op: Some(kc0.1),
-                    },
-                ),
-            }
+            action(
+                CallbackActions::Push,
+                ARGS::KS {
+                    code: kc0.0,
+                    op: kc0.1,
+                    st: StateType::Hold,
+                },
+            );
             self.keycode
         } else {
             [None; 4]
@@ -158,22 +142,14 @@ impl Default for Key {
         if self.keycode[0].is_some() {
             let kc0 = self.keycode[0].unwrap();
             if self.state != self.prevstate {
-                match kc0.0.is_modifier() {
-                    true => action(
-                        CallbackActions::mPull,
-                        ARGS::KS {
-                            code: Some(kc0.0),
-                            op: Some(kc0.1),
-                        },
-                    ),
-                    false => action(
-                        CallbackActions::iPull,
-                        ARGS::KS {
-                            code: Some(kc0.0),
-                            op: Some(kc0.1),
-                        },
-                    ),
-                }
+                action(
+                    CallbackActions::Push,
+                    ARGS::KS {
+                        code: kc0.0,
+                        op: kc0.1,
+                        st: StateType::Off,
+                    },
+                );
             }
             self.keycode
         } else {
