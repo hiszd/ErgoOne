@@ -2,6 +2,7 @@ use defmt::error;
 use defmt::println;
 use defmt::warn;
 
+use crate::action;
 use crate::actions::CallbackActions;
 use crate::key::DEBOUNCE_CYCLES;
 use crate::key::HOLD_CYCLES;
@@ -16,37 +17,12 @@ pub trait TapCom {
     where
         Self: Sized,
         Self: TapCom;
-    fn tctap(
-        &mut self,
-        ctx: Context,
-        action: fn(CallbackActions, ARGS),
-    ) -> [Option<(KeyCode, Operation)>; 4];
-    fn tchold(
-        &mut self,
-        _ctx: Context,
-        action: fn(CallbackActions, ARGS),
-    ) -> [Option<(KeyCode, Operation)>; 4];
-    fn tcidle(
-        &mut self,
-        _ctx: Context,
-        action: fn(CallbackActions, ARGS),
-    ) -> [Option<(KeyCode, Operation)>; 4];
-    fn tcoff(
-        &mut self,
-        _ctx: Context,
-        action: fn(CallbackActions, ARGS),
-    ) -> [Option<(KeyCode, Operation)>; 4];
-    fn get_keys(
-        &mut self,
-        ctx: Context,
-        action: fn(CallbackActions, ARGS),
-    ) -> [Option<(KeyCode, Operation)>; 4];
-    fn tcscan(
-        &mut self,
-        is_high: bool,
-        ctx: Context,
-        action: fn(CallbackActions, ARGS),
-    ) -> [Option<(KeyCode, Operation)>; 4];
+    fn tctap(&mut self, ctx: Context) -> [Option<(KeyCode, Operation)>; 4];
+    fn tchold(&mut self, _ctx: Context) -> [Option<(KeyCode, Operation)>; 4];
+    fn tcidle(&mut self, _ctx: Context) -> [Option<(KeyCode, Operation)>; 4];
+    fn tcoff(&mut self, _ctx: Context) -> [Option<(KeyCode, Operation)>; 4];
+    fn get_keys(&mut self, ctx: Context) -> [Option<(KeyCode, Operation)>; 4];
+    fn tcscan(&mut self, is_high: bool, ctx: Context) -> [Option<(KeyCode, Operation)>; 4];
     fn exist_next(&self, ks: [Option<KeyCode>; 29], key: KeyCode) -> bool;
 }
 
@@ -72,11 +48,7 @@ impl TapCom for Key {
     }
     // when state becomes tap enqueue modifier
     // when state becomes hold never queue key
-    fn tctap(
-        &mut self,
-        ctx: Context,
-        action: fn(CallbackActions, ARGS),
-    ) -> [Option<(KeyCode, Operation)>; 4] {
+    fn tctap(&mut self, ctx: Context) -> [Option<(KeyCode, Operation)>; 4] {
         let [Some(kc0), Some(_kc1), Some(_kc2), None] = self.keycode else {
             return [None; 4];
         };
@@ -94,22 +66,20 @@ impl TapCom for Key {
             }
         }
 
-        action(
-            CallbackActions::Push,
-            ARGS::KS {
-                code: kc0.0,
-                op: kc0.1,
-                st: StateType::Tap,
-            },
-        );
-
-        [Some((kc0.0, kc0.1)), None, None, None]
+        if self.prevstate == StateType::Off {
+            action(
+                CallbackActions::Push,
+                ARGS::KS {
+                    code: kc0.0,
+                    op: kc0.1,
+                    st: StateType::Tap,
+                },
+            );
+            return [Some((kc0.0, kc0.1)), None, None, None];
+        }
+        [None; 4]
     }
-    fn tchold(
-        &mut self,
-        _ctx: Context,
-        action: fn(CallbackActions, ARGS),
-    ) -> [Option<(KeyCode, Operation)>; 4] {
+    fn tchold(&mut self, _ctx: Context) -> [Option<(KeyCode, Operation)>; 4] {
         let [Some(kc0), Some(_kc1), Some(_kc2), None] = self.keycode else {
             return [None; 4];
         };
@@ -129,21 +99,13 @@ impl TapCom for Key {
         }
         [Some((kc0.0, kc0.1)), None, None, None]
     }
-    fn tcidle(
-        &mut self,
-        _ctx: Context,
-        _action: fn(CallbackActions, ARGS),
-    ) -> [Option<(KeyCode, Operation)>; 4] {
+    fn tcidle(&mut self, _ctx: Context) -> [Option<(KeyCode, Operation)>; 4] {
         [None; 4]
     }
     // when state goes from tap>off and another key was never pressed enqueue key and pull modifier
     // when state goes from tap>off and another key was pressed never queue key and pull modifier
     // when state goed from hold>off never queue key, but pull modifier
-    fn tcoff(
-        &mut self,
-        ctx: Context,
-        action: fn(CallbackActions, ARGS),
-    ) -> [Option<(KeyCode, Operation)>; 4] {
+    fn tcoff(&mut self, ctx: Context) -> [Option<(KeyCode, Operation)>; 4] {
         let [Some(kc0), Some(kc1), Some(kc2), None] = self.keycode else {
             return [None; 4];
         };
@@ -256,12 +218,7 @@ impl TapCom for Key {
         rtrn1
     }
     #[doc = " Perform state change as a result of the scan"]
-    fn tcscan(
-        &mut self,
-        is_high: bool,
-        ctx: Context,
-        action: fn(CallbackActions, ARGS),
-    ) -> [Option<(KeyCode, Operation)>; 4] {
+    fn tcscan(&mut self, is_high: bool, ctx: Context) -> [Option<(KeyCode, Operation)>; 4] {
         if self.keycode[0].is_none() && self.keycode[1].is_none() {
             return [None; 4];
         }
@@ -285,23 +242,19 @@ impl TapCom for Key {
                 self.prevstate = self.state;
                 self.state = StateType::Tap;
             }
-            return self.get_keys(ctx, action);
+            return self.get_keys(ctx);
         } else if self.cycles_off >= 1 {
             self.prevstate = self.state;
             self.state = StateType::Off;
         }
-        self.get_keys(ctx, action)
+        self.get_keys(ctx)
     }
-    fn get_keys(
-        &mut self,
-        ctx: Context,
-        action: fn(CallbackActions, ARGS),
-    ) -> [Option<(KeyCode, Operation)>; 4] {
+    fn get_keys(&mut self, ctx: Context) -> [Option<(KeyCode, Operation)>; 4] {
         match self.state {
-            StateType::Tap => self.tctap(ctx, action),
-            StateType::Hold => self.tchold(ctx, action),
-            StateType::Idle => self.tcidle(ctx, action),
-            StateType::Off => self.tcoff(ctx, action),
+            StateType::Tap => self.tctap(ctx),
+            StateType::Hold => self.tchold(ctx),
+            StateType::Idle => self.tcidle(ctx),
+            StateType::Off => self.tcoff(ctx),
         }
     }
 }

@@ -1,4 +1,5 @@
 #![allow(unused_imports)]
+use crate::action;
 use crate::actions::CallbackActions;
 use crate::{Operation, ARGS};
 use defmt::export::debug;
@@ -42,37 +43,12 @@ pub trait Default {
     where
         Self: Sized,
         Self: Default;
-    fn tap(
-        &mut self,
-        ctx: Context,
-        action: fn(CallbackActions, ARGS),
-    ) -> [Option<(KeyCode, Operation)>; 4];
-    fn hold(
-        &mut self,
-        ctx: Context,
-        action: fn(CallbackActions, ARGS),
-    ) -> [Option<(KeyCode, Operation)>; 4];
-    fn idle(
-        &self,
-        _ctx: Context,
-        _action: fn(CallbackActions, ARGS),
-    ) -> [Option<(KeyCode, Operation)>; 4];
-    fn off(
-        &mut self,
-        _ctx: Context,
-        action: fn(CallbackActions, ARGS),
-    ) -> [Option<(KeyCode, Operation)>; 4];
-    fn get_keys(
-        &mut self,
-        ctx: Context,
-        action: fn(CallbackActions, ARGS),
-    ) -> [Option<(KeyCode, Operation)>; 4];
-    fn scan(
-        &mut self,
-        is_high: bool,
-        ctx: Context,
-        action: fn(CallbackActions, ARGS),
-    ) -> [Option<(KeyCode, Operation)>; 4];
+    fn tap(&mut self, ctx: Context) -> [Option<(KeyCode, Operation)>; 4];
+    fn hold(&mut self, ctx: Context) -> [Option<(KeyCode, Operation)>; 4];
+    fn idle(&self, _ctx: Context) -> [Option<(KeyCode, Operation)>; 4];
+    fn off(&mut self, _ctx: Context) -> [Option<(KeyCode, Operation)>; 4];
+    fn get_keys(&mut self, ctx: Context) -> [Option<(KeyCode, Operation)>; 4];
+    fn scan(&mut self, is_high: bool, ctx: Context) -> [Option<(KeyCode, Operation)>; 4];
 }
 
 impl Default for Key {
@@ -89,29 +65,23 @@ impl Default for Key {
             typ: "Default",
         }
     }
-    fn tap(
-        &mut self,
-        _ctx: Context,
-        action: fn(CallbackActions, ARGS),
-    ) -> [Option<(KeyCode, Operation)>; 4] {
+    fn tap(&mut self, _ctx: Context) -> [Option<(KeyCode, Operation)>; 4] {
         if self.keycode[0].is_some() {
             let kc0 = self.keycode[0].unwrap();
-            action(
-                CallbackActions::Push,
-                ARGS::KS {
-                    code: kc0.0,
-                    op: kc0.1,
-                    st: StateType::Tap,
-                },
-            );
+            if self.prevstate == StateType::Off {
+                action(
+                    CallbackActions::Push,
+                    ARGS::KS {
+                        code: kc0.0,
+                        op: kc0.1,
+                        st: StateType::Tap,
+                    },
+                );
+            }
         }
         self.keycode
     }
-    fn hold(
-        &mut self,
-        _ctx: Context,
-        action: fn(CallbackActions, ARGS),
-    ) -> [Option<(KeyCode, Operation)>; 4] {
+    fn hold(&mut self, _ctx: Context) -> [Option<(KeyCode, Operation)>; 4] {
         if self.keycode[0].is_some() {
             let kc0 = self.keycode[0].unwrap();
             action(
@@ -127,18 +97,10 @@ impl Default for Key {
             [None; 4]
         }
     }
-    fn idle(
-        &self,
-        _ctx: Context,
-        _action: fn(CallbackActions, ARGS),
-    ) -> [Option<(KeyCode, Operation)>; 4] {
+    fn idle(&self, _ctx: Context) -> [Option<(KeyCode, Operation)>; 4] {
         [None; 4]
     }
-    fn off(
-        &mut self,
-        _ctx: Context,
-        action: fn(CallbackActions, ARGS),
-    ) -> [Option<(KeyCode, Operation)>; 4] {
+    fn off(&mut self, _ctx: Context) -> [Option<(KeyCode, Operation)>; 4] {
         if self.keycode[0].is_some() {
             let kc0 = self.keycode[0].unwrap();
             if self.state != self.prevstate {

@@ -7,7 +7,6 @@ macro_rules! KeyImpl {
             &mut self,
             is_high: bool,
             ctx: Context,
-            action: fn(CallbackActions, ARGS),
         ) -> [Option<(KeyCode, Operation)>; 4] {
             // println!("{}", is_high);
             // if they KeyCode is empty then don't bother processing
@@ -54,26 +53,25 @@ macro_rules! KeyImpl {
                     self.prevstate = self.state;
                     self.state = StateType::Tap;
                 }
-                return self.get_keys(ctx, action);
+                return self.get_keys(ctx);
             // } else if self.cycles_off >= DEBOUNCE_CYCLES.into() {
             } else if self.cycles_off >= 1 {
                 self.prevstate = self.state;
                 self.state = StateType::Off;
             }
-            self.get_keys(ctx, action)
+            self.get_keys(ctx)
         }
         fn get_keys(
             &mut self,
             ctx: Context,
-            action: fn(CallbackActions, ARGS),
         ) -> [Option<(KeyCode, Operation)>; 4] {
             // info!("{:?}", self.state);
             // Match all types of self.state
             match self.state {
-                StateType::Tap => self.tap(ctx, action),
-                StateType::Hold => self.hold(ctx, action),
-                StateType::Idle => self.idle(ctx, action),
-                StateType::Off => self.off(ctx, action),
+                StateType::Tap => self.tap(ctx),
+                StateType::Hold => self.hold(ctx),
+                StateType::Idle => self.idle(ctx),
+                StateType::Off => self.off(ctx),
             }
         }
     };

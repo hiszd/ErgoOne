@@ -1,8 +1,6 @@
 #![allow(dead_code)]
 #![allow(unused_imports)]
 
-// use rp2040_hal::gpio::PinMode::{Input, Output}
-
 use crate::actions::CallbackActions;
 use crate::mods::mod_combo::ModCombo;
 use crate::mods::mod_tap::ModTap;
@@ -164,7 +162,7 @@ impl<const RSIZE: usize, const CSIZE: usize> Matrix<RSIZE, CSIZE> {
         // str.push_str(&strobe).unwrap();
         // self.execute_info(&str)
     }
-    pub fn poll(&mut self, ctx: Context, action: fn(CallbackActions, ARGS)) -> bool {
+    pub fn poll(&mut self, ctx: Context) -> bool {
         self.next_strobe();
         let c = self.cur_strobe;
 
@@ -173,19 +171,19 @@ impl<const RSIZE: usize, const CSIZE: usize> Matrix<RSIZE, CSIZE> {
             let _typ: &str;
             match self.state.matrix[r][c].typ {
                 "Default" => {
-                    codes = self.state.matrix[r][c].scan(self.rows[r].is_high(), ctx, action);
+                    codes = self.state.matrix[r][c].scan(self.rows[r].is_high(), ctx);
                 }
                 "ModTap" => {
-                    codes = self.state.matrix[r][c].mtscan(self.rows[r].is_high(), ctx, action);
+                    codes = self.state.matrix[r][c].mtscan(self.rows[r].is_high(), ctx);
                 }
                 "TapCom" => {
-                    codes = self.state.matrix[r][c].tcscan(self.rows[r].is_high(), ctx, action);
+                    codes = self.state.matrix[r][c].tcscan(self.rows[r].is_high(), ctx);
                 }
                 "ModCombo" => {
-                    codes = self.state.matrix[r][c].mcscan(self.rows[r].is_high(), ctx, action);
+                    codes = self.state.matrix[r][c].mcscan(self.rows[r].is_high(), ctx);
                 }
                 "RGBKey" => {
-                    codes = self.state.matrix[r][c].rkscan(self.rows[r].is_high(), ctx, action);
+                    codes = self.state.matrix[r][c].rkscan(self.rows[r].is_high(), ctx);
                 }
                 _ => {
                     codes = [None; 4];
@@ -240,10 +238,10 @@ impl<const QSIZE: usize> KeyQueue<QSIZE> {
     }
 
     /// remove all instances of a specific KeyCode
-    pub fn dequeue(&mut self, key: KeyCode) -> bool {
+    pub fn dequeue(&mut self, key: (KeyCode, Operation, StateType)) -> bool {
         let mut rtrn: bool = false;
         self.keys.iter_mut().for_each(|k| {
-            if k.is_some() && k.unwrap().0 == key {
+            if k.is_some() && k.unwrap().0 == key.0 && k.unwrap().2 == key.2 {
                 *k = None;
                 rtrn = true;
             }

@@ -18,7 +18,6 @@ use core::{
     sync::atomic::{AtomicU8, Ordering},
 };
 
-// use util::hid_descriptor::ZKEY_DESCRIPTOR;
 use crate::{key_codes::KeyCode, pac::interrupt};
 use cortex_m_rt::entry;
 use defmt::*;
@@ -59,9 +58,19 @@ use self::keyscanning::KeyQueue;
 
 #[derive(Clone, PartialEq, PartialOrd)]
 pub enum ARGS {
-    KS { code: KeyCode, op: Operation, st: StateType },
-    RGB { r: u8, g: u8, b: u8 },
-    STR { s: String<30> },
+    KS {
+        code: KeyCode,
+        op: Operation,
+        st: StateType,
+    },
+    RGB {
+        r: u8,
+        g: u8,
+        b: u8,
+    },
+    STR {
+        s: String<30>,
+    },
 }
 
 /// execute function for key code
@@ -72,7 +81,7 @@ pub fn action(action: CallbackActions, ops: ARGS) {
                 if code != KeyCode::________ {
                     unsafe {
                         let mm = KEY_QUEUE.enqueue((code, op, st));
-                        // println!("push: {:?} :: {:?}", code, mm);
+                        // println!("push: {:?}, {:?} :: {:?}", code, st, mm);
                     }
                 }
             }
@@ -234,12 +243,10 @@ fn main() -> ! {
 
     let mut matrix: Matrix<5, 16> =
         Matrix::new(rows, cols, callback, key_mapping::ERGOONE_RSTLNE.into());
-    let poll1 = matrix.poll(
-        Context {
-            key_queue: unsafe { KEY_QUEUE.get_keys() },
-        },
-        action as fn(CallbackActions, ARGS),
-    );
+    let poll1 = matrix.poll(Context {
+        key_queue: unsafe { ACTIVE_QUEUE.get_keys() },
+    });
+
     if poll1 {
         // let gpio_activity_pin_mask = 0;
         // let disable_interface_mask = 0;
@@ -293,12 +300,9 @@ fn main() -> ! {
     println!("thg = {}", 0 * 1);
     loop {
         delay.delay_us(1000u32);
-        matrix.poll(
-            Context {
-                key_queue: unsafe { KEY_QUEUE.get_keys() },
-            },
-            action as fn(CallbackActions, ARGS),
-        );
+        matrix.poll(Context {
+            key_queue: unsafe { KEY_QUEUE.get_keys() },
+        });
     }
 }
 
@@ -311,28 +315,39 @@ pub struct Context {
     key_queue: [Option<KeyCode>; 29],
 }
 
-fn nkro_push(key: u8, press: bool) {
+fn nkro_push(key: (KeyCode, Operation, StateType)) {
     let mut keybitmap = critical_section::with(|cs| KEYBOARD_REPORT.borrow_ref(cs).keybitmap);
+    let mut k: u8 = key.0.into();
 
     // NOTE: The indexing actually starts from 1 (not 0), so position 0 represents 1
     //       0 in USB HID represents no keys pressed, so it's meaningless in a bitmask
 
     //       Ignore any keys over 231/0xE7
-    if key == 0 || key > 0xE7 {
-        warn!("Invalid key for nkro_bit({}, {}), ignored.", key, press);
+    if k == 0 || k > 0xE7 {
+        warn!(
+            "Invalid key for nkro_push({}, {}), ignored.",
+            key,
+            key.2 == StateType::Tap || key.2 == StateType::Hold
+        );
         return;
     }
 
-    let key = key - 1;
+    k = k - 1;
 
     // Determine position
-    let byte: usize = (key / 8).into();
-    let bit: usize = (key % 8).into();
+    let byte: usize = (k / 8).into();
+    let bit: usize = (k % 8).into();
 
     // Set/Unset
-    if press {
+    if key.2 == StateType::Tap || key.2 == StateType::Hold {
+        unsafe {
+            ACTIVE_QUEUE.enqueue(key);
+        }
         keybitmap[byte] |= 1 << bit;
     } else {
+        unsafe {
+            ACTIVE_QUEUE.dequeue(key);
+        }
         keybitmap[byte] &= !(1 << bit);
     }
     critical_section::with(|cs| {
@@ -345,51 +360,30 @@ static mut HID_BUS: Option<UsbDevice<UsbBus>> = None;
 static mut USB_HID: Option<HIDClass<UsbBus>> = None;
 static mut REPORTSENT: AtomicBool = AtomicBool::new(false);
 static mut READYTOSEND: AtomicBool = AtomicBool::new(false);
+static mut ACTIVE_QUEUE: KeyQueue<29> = KeyQueue::new();
 static mut KEY_QUEUE: KeyQueue<29> = KeyQueue::new();
 // static mut STRING_QUEUE: KeyQueue<30> = KeyQueue::new();
 
 fn prepare_report() {
-    let keybitmap = critical_section::with(|cs| KEYBOARD_REPORT.borrow_ref(cs).keybitmap);
-    let mut dq: [Option<KeyCode>; 29] = [None; 29];
     critical_section::with(|_| unsafe {
         // println!("{}", KEY_QUEUE.keys.iter().find(|k| k.is_some()).is_some());
+
+        // iterate over the queue
         KEY_QUEUE.keys.iter().for_each(|k| {
             if k.is_some() {
-                println!("{:?}", k.unwrap());
+                // println!("{:?}", k.unwrap());
                 let kr = k.unwrap();
-                nkro_push(
-                    kr.0.into(),
-                    kr.2 == StateType::Tap || kr.2 == StateType::Hold,
-                );
-                KEY_QUEUE.dequeue(kr.0);
-                if kr.1 == Operation::SendOff && kr.2 == StateType::Tap || kr.2 == StateType::Hold {
-                    dq[dq.iter().position(|x| x.is_none()).unwrap()] = Some(kr.0);
-                }
+                // Push the key to the report bitmap
+                nkro_push(kr);
+                KEY_QUEUE.dequeue(kr);
+                // Add the key to the pull queue to be pulled if not pressed next time
+                // PULL_QUEUE.enqueue(kr);
+
+                // if kr.1 == Operation::SendOff && kr.2 == StateType::Tap || kr.2 == StateType::Hold {
+                // }
             }
         });
     });
-    unsafe {
-        dq.iter().for_each(|k| {
-            if k.is_some() {
-                let kr = k.unwrap();
-                KEY_QUEUE.dequeue(kr);
-                KEY_QUEUE.enqueue((kr, Operation::SendOn, StateType::Off));
-            }
-        });
-    }
-
-    let repcur = critical_section::with(|cs| KEYBOARD_REPORT.borrow_ref(cs).keybitmap);
-
-    if repcur != keybitmap {
-        println!("keybitmap changed");
-        unsafe {
-            READYTOSEND.store(true, Ordering::Relaxed);
-        }
-    } else {
-        unsafe {
-            READYTOSEND.store(false, Ordering::Relaxed);
-        }
-    }
 }
 
 // fn prepare_report() {
@@ -475,17 +469,21 @@ unsafe fn USBCTRL_IRQ() {
         usb_hid.poll();
     }
 
-    prepare_report();
-
-    let report: KeyboardNkroReport;
-    if READYTOSEND.load(Ordering::Relaxed) {
-        report = critical_section::with(|cs| *KEYBOARD_REPORT.borrow_ref(cs));
-    } else {
-        report = BLANK_REPORT;
+    if REPORTSENT.load(Ordering::Relaxed) {
+        prepare_report();
     }
 
+    // let report: KeyboardNkroReport;
+    // if READYTOSEND.load(Ordering::Relaxed) {
+    // report = critical_section::with(|cs| *KEYBOARD_REPORT.borrow_ref(cs));
+    // } else {
+    // report = BLANK_REPORT;
+    // }
+
+    let report = critical_section::with(|cs| *KEYBOARD_REPORT.borrow_ref(cs));
     match usb_hid.push_input(&report) {
         Ok(_) => {
+            critical_section::with(|cs| KEYBOARD_REPORT.replace(cs, BLANK_REPORT));
             REPORTSENT.store(true, Ordering::Relaxed);
         }
         Err(UsbError::WouldBlock) => {

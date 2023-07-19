@@ -1,3 +1,4 @@
+use crate::action;
 use crate::actions::CallbackActions;
 use crate::key::DEBOUNCE_CYCLES;
 use crate::key::HOLD_CYCLES;
@@ -15,34 +16,24 @@ pub trait RGBKey {
     fn rktap(
         &mut self,
         ctx: Context,
-        action: fn(CallbackActions, ARGS),
     ) -> [Option<(KeyCode, Operation)>; 4];
     fn rkhold(
         &mut self,
         _ctx: Context,
-        action: fn(CallbackActions, ARGS),
     ) -> [Option<(KeyCode, Operation)>; 4];
     fn rkidle(
         &mut self,
         _ctx: Context,
-        action: fn(CallbackActions, ARGS),
     ) -> [Option<(KeyCode, Operation)>; 4];
     fn rkoff(
         &mut self,
         _ctx: Context,
-        action: fn(CallbackActions, ARGS),
     ) -> [Option<(KeyCode, Operation)>; 4];
     fn get_keys(
         &mut self,
         ctx: Context,
-        action: fn(CallbackActions, ARGS),
     ) -> [Option<(KeyCode, Operation)>; 4];
-    fn rkscan(
-        &mut self,
-        is_high: bool,
-        ctx: Context,
-        action: fn(CallbackActions, ARGS),
-    ) -> [Option<(KeyCode, Operation)>; 4];
+    fn rkscan(&mut self, is_high: bool, ctx: Context) -> [Option<(KeyCode, Operation)>; 4];
 }
 
 impl RGBKey for Key {
@@ -67,7 +58,6 @@ impl RGBKey for Key {
     fn rktap(
         &mut self,
         _ctx: Context,
-        action: fn(CallbackActions, ARGS),
     ) -> [Option<(KeyCode, Operation)>; 4] {
         let [Some(_kc0), Some(kc1), None, None] = self.keycode else {
             return [None; 4];
@@ -85,7 +75,6 @@ impl RGBKey for Key {
     fn rkhold(
         &mut self,
         _ctx: Context,
-        _action: fn(CallbackActions, ARGS),
     ) -> [Option<(KeyCode, Operation)>; 4] {
         let [Some(_kc0), Some(kc1), None, None] = self.keycode else {
             return [None; 4];
@@ -95,14 +84,12 @@ impl RGBKey for Key {
     fn rkidle(
         &mut self,
         _ctx: Context,
-        _action: fn(CallbackActions, ARGS),
     ) -> [Option<(KeyCode, Operation)>; 4] {
         [None; 4]
     }
     fn rkoff(
         &mut self,
         _ctx: Context,
-        _action: fn(CallbackActions, ARGS),
     ) -> [Option<(KeyCode, Operation)>; 4] {
         let [Some(_kc0), Some(kc1), None, None] = self.keycode else {
             return [None; 4];
@@ -114,7 +101,6 @@ impl RGBKey for Key {
         &mut self,
         is_high: bool,
         ctx: Context,
-        action: fn(CallbackActions, ARGS),
     ) -> [Option<(KeyCode, Operation)>; 4] {
         let [Some(kc0), Some(kc1), None, None] = self.keycode else {
             return [None; 4];
@@ -164,24 +150,23 @@ impl RGBKey for Key {
                 self.prevstate = self.state;
                 self.state = StateType::Tap;
             }
-            return self.get_keys(ctx, action);
+            return self.get_keys(ctx);
         // } else if self.cycles_off >= DEBOUNCE_CYCLES.into() {
         } else if self.cycles_off >= 1 {
             self.prevstate = self.state;
             self.state = StateType::Off;
         }
-        self.get_keys(ctx, action)
+        self.get_keys(ctx)
     }
     fn get_keys(
         &mut self,
         ctx: Context,
-        action: fn(CallbackActions, ARGS),
     ) -> [Option<(KeyCode, Operation)>; 4] {
         match self.state {
-            StateType::Tap => self.rktap(ctx, action),
-            StateType::Hold => self.rkhold(ctx, action),
-            StateType::Idle => self.rkidle(ctx, action),
-            StateType::Off => self.rkoff(ctx, action),
+            StateType::Tap => self.rktap(ctx),
+            StateType::Hold => self.rkhold(ctx),
+            StateType::Idle => self.rkidle(ctx),
+            StateType::Off => self.rkoff(ctx),
         }
     }
 }

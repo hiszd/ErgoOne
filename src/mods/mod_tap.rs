@@ -2,6 +2,7 @@ use defmt::error;
 use defmt::println;
 use defmt::warn;
 
+use crate::action;
 use crate::actions::CallbackActions;
 use crate::key::DEBOUNCE_CYCLES;
 use crate::key::HOLD_CYCLES;
@@ -19,33 +20,27 @@ pub trait ModTap {
     fn mttap(
         &mut self,
         ctx: Context,
-        action: fn(CallbackActions, ARGS),
     ) -> [Option<(KeyCode, Operation)>; 4];
     fn mthold(
         &mut self,
         _ctx: Context,
-        action: fn(CallbackActions, ARGS),
     ) -> [Option<(KeyCode, Operation)>; 4];
     fn mtidle(
         &mut self,
         _ctx: Context,
-        action: fn(CallbackActions, ARGS),
     ) -> [Option<(KeyCode, Operation)>; 4];
     fn mtoff(
         &mut self,
         _ctx: Context,
-        action: fn(CallbackActions, ARGS),
     ) -> [Option<(KeyCode, Operation)>; 4];
     fn get_keys(
         &mut self,
         ctx: Context,
-        action: fn(CallbackActions, ARGS),
     ) -> [Option<(KeyCode, Operation)>; 4];
     fn mtscan(
         &mut self,
         is_high: bool,
         ctx: Context,
-        action: fn(CallbackActions, ARGS),
     ) -> [Option<(KeyCode, Operation)>; 4];
     fn exist_next(&self, ks: [Option<KeyCode>; 29], key: KeyCode) -> bool;
 }
@@ -74,7 +69,6 @@ impl ModTap for Key {
     fn mttap(
         &mut self,
         ctx: Context,
-        action: fn(CallbackActions, ARGS),
     ) -> [Option<(KeyCode, Operation)>; 4] {
         let [Some(_kc0), Some(kc1), None, None] = self.keycode else {
             return [None; 4];
@@ -108,7 +102,6 @@ impl ModTap for Key {
     fn mthold(
         &mut self,
         _ctx: Context,
-        action: fn(CallbackActions, ARGS),
     ) -> [Option<(KeyCode, Operation)>; 4] {
         let [Some(_kc0), Some(kc1), None, None] = self.keycode else {
             return [None; 4];
@@ -132,7 +125,6 @@ impl ModTap for Key {
     fn mtidle(
         &mut self,
         _ctx: Context,
-        _action: fn(CallbackActions, ARGS),
     ) -> [Option<(KeyCode, Operation)>; 4] {
         [None; 4]
     }
@@ -142,7 +134,6 @@ impl ModTap for Key {
     fn mtoff(
         &mut self,
         ctx: Context,
-        action: fn(CallbackActions, ARGS),
     ) -> [Option<(KeyCode, Operation)>; 4] {
         match self.prevstate {
             StateType::Tap => {
@@ -237,7 +228,6 @@ impl ModTap for Key {
         &mut self,
         is_high: bool,
         ctx: Context,
-        action: fn(CallbackActions, ARGS),
     ) -> [Option<(KeyCode, Operation)>; 4] {
         let [Some(kc0), Some(kc1), None, None] = self.keycode else {
             return [None; 4];
@@ -265,23 +255,22 @@ impl ModTap for Key {
                 self.prevstate = self.state;
                 self.state = StateType::Tap;
             }
-            return self.get_keys(ctx, action);
+            return self.get_keys(ctx);
         } else if self.cycles_off >= 1 {
             self.prevstate = self.state;
             self.state = StateType::Off;
         }
-        self.get_keys(ctx, action)
+        self.get_keys(ctx)
     }
     fn get_keys(
         &mut self,
         ctx: Context,
-        action: fn(CallbackActions, ARGS),
     ) -> [Option<(KeyCode, Operation)>; 4] {
         match self.state {
-            StateType::Tap => self.mttap(ctx, action),
-            StateType::Hold => self.mthold(ctx, action),
-            StateType::Idle => self.mtidle(ctx, action),
-            StateType::Off => self.mtoff(ctx, action),
+            StateType::Tap => self.mttap(ctx),
+            StateType::Hold => self.mthold(ctx),
+            StateType::Idle => self.mtidle(ctx),
+            StateType::Off => self.mtoff(ctx),
         }
     }
 }
