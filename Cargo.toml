@@ -20,6 +20,9 @@ smart-leds = "0.3.0"
 usb-device = { version = "0.2.9", features = ["defmt"] }
 usbd-hid = { version = "0.6.1", features = ["defmt"] }
 critical-section = "1.1.1"
+# kiibohd-usb = { git = "https://github.com/kiibohd/kiibohd-core" }
+kiibohd-usb = { version = "0.1.6", features = ["defmt"] }
+kiibohd-hid-io = { version = "0.1.6", features = ["defmt"] }
 
 # cargo build/run
 [profile.dev]

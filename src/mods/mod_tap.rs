@@ -17,31 +17,12 @@ pub trait ModTap {
     where
         Self: Sized,
         Self: ModTap;
-    fn mttap(
-        &mut self,
-        ctx: Context,
-    ) -> [Option<(KeyCode, Operation)>; 4];
-    fn mthold(
-        &mut self,
-        _ctx: Context,
-    ) -> [Option<(KeyCode, Operation)>; 4];
-    fn mtidle(
-        &mut self,
-        _ctx: Context,
-    ) -> [Option<(KeyCode, Operation)>; 4];
-    fn mtoff(
-        &mut self,
-        _ctx: Context,
-    ) -> [Option<(KeyCode, Operation)>; 4];
-    fn get_keys(
-        &mut self,
-        ctx: Context,
-    ) -> [Option<(KeyCode, Operation)>; 4];
-    fn mtscan(
-        &mut self,
-        is_high: bool,
-        ctx: Context,
-    ) -> [Option<(KeyCode, Operation)>; 4];
+    fn mttap(&mut self, ctx: Context) -> [Option<(KeyCode, Operation)>; 4];
+    fn mthold(&mut self, _ctx: Context) -> [Option<(KeyCode, Operation)>; 4];
+    fn mtidle(&mut self, _ctx: Context) -> [Option<(KeyCode, Operation)>; 4];
+    fn mtoff(&mut self, _ctx: Context) -> [Option<(KeyCode, Operation)>; 4];
+    fn get_keys(&mut self, ctx: Context) -> [Option<(KeyCode, Operation)>; 4];
+    fn mtscan(&mut self, is_high: bool, ctx: Context) -> [Option<(KeyCode, Operation)>; 4];
     fn exist_next(&self, ks: [Option<KeyCode>; 29], key: KeyCode) -> bool;
 }
 
@@ -66,10 +47,7 @@ impl ModTap for Key {
     }
     // when state becomes tap enqueue modifier
     // when state becomes hold never queue key
-    fn mttap(
-        &mut self,
-        ctx: Context,
-    ) -> [Option<(KeyCode, Operation)>; 4] {
+    fn mttap(&mut self, ctx: Context) -> [Option<(KeyCode, Operation)>; 4] {
         let [Some(_kc0), Some(kc1), None, None] = self.keycode else {
             return [None; 4];
         };
@@ -99,10 +77,7 @@ impl ModTap for Key {
         }
         [Some((kc1.0, kc1.1)), None, None, None]
     }
-    fn mthold(
-        &mut self,
-        _ctx: Context,
-    ) -> [Option<(KeyCode, Operation)>; 4] {
+    fn mthold(&mut self, _ctx: Context) -> [Option<(KeyCode, Operation)>; 4] {
         let [Some(_kc0), Some(kc1), None, None] = self.keycode else {
             return [None; 4];
         };
@@ -122,19 +97,13 @@ impl ModTap for Key {
         }
         [Some((kc1.0, kc1.1)), None, None, None]
     }
-    fn mtidle(
-        &mut self,
-        _ctx: Context,
-    ) -> [Option<(KeyCode, Operation)>; 4] {
+    fn mtidle(&mut self, _ctx: Context) -> [Option<(KeyCode, Operation)>; 4] {
         [None; 4]
     }
     // when state goes from tap>off and another key was never pressed enqueue key and pull modifier
     // when state goes from tap>off and another key was pressed never queue key and pull modifier
     // when state goed from hold>off never queue key, but pull modifier
-    fn mtoff(
-        &mut self,
-        ctx: Context,
-    ) -> [Option<(KeyCode, Operation)>; 4] {
+    fn mtoff(&mut self, ctx: Context) -> [Option<(KeyCode, Operation)>; 4] {
         match self.prevstate {
             StateType::Tap => {
                 let [Some(kc0), Some(kc1), None, None] = self.keycode else {
@@ -224,11 +193,7 @@ impl ModTap for Key {
         rtrn1
     }
     #[doc = " Perform state change as a result of the scan"]
-    fn mtscan(
-        &mut self,
-        is_high: bool,
-        ctx: Context,
-    ) -> [Option<(KeyCode, Operation)>; 4] {
+    fn mtscan(&mut self, is_high: bool, ctx: Context) -> [Option<(KeyCode, Operation)>; 4] {
         let [Some(kc0), Some(kc1), None, None] = self.keycode else {
             return [None; 4];
         };
@@ -254,6 +219,9 @@ impl ModTap for Key {
             } else if self.state == StateType::Off || self.state == StateType::Tap {
                 self.prevstate = self.state;
                 self.state = StateType::Tap;
+            } else if self.state == StateType::Hold {
+                self.prevstate = self.state;
+                self.state = StateType::Hold;
             }
             return self.get_keys(ctx);
         } else if self.cycles_off >= 1 {
@@ -262,10 +230,7 @@ impl ModTap for Key {
         }
         self.get_keys(ctx)
     }
-    fn get_keys(
-        &mut self,
-        ctx: Context,
-    ) -> [Option<(KeyCode, Operation)>; 4] {
+    fn get_keys(&mut self, ctx: Context) -> [Option<(KeyCode, Operation)>; 4] {
         match self.state {
             StateType::Tap => self.mttap(ctx),
             StateType::Hold => self.mthold(ctx),

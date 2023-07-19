@@ -13,26 +13,11 @@ pub trait RGBKey {
     where
         Self: Sized,
         Self: RGBKey;
-    fn rktap(
-        &mut self,
-        ctx: Context,
-    ) -> [Option<(KeyCode, Operation)>; 4];
-    fn rkhold(
-        &mut self,
-        _ctx: Context,
-    ) -> [Option<(KeyCode, Operation)>; 4];
-    fn rkidle(
-        &mut self,
-        _ctx: Context,
-    ) -> [Option<(KeyCode, Operation)>; 4];
-    fn rkoff(
-        &mut self,
-        _ctx: Context,
-    ) -> [Option<(KeyCode, Operation)>; 4];
-    fn get_keys(
-        &mut self,
-        ctx: Context,
-    ) -> [Option<(KeyCode, Operation)>; 4];
+    fn rktap(&mut self, ctx: Context) -> [Option<(KeyCode, Operation)>; 4];
+    fn rkhold(&mut self, _ctx: Context) -> [Option<(KeyCode, Operation)>; 4];
+    fn rkidle(&mut self, _ctx: Context) -> [Option<(KeyCode, Operation)>; 4];
+    fn rkoff(&mut self, _ctx: Context) -> [Option<(KeyCode, Operation)>; 4];
+    fn get_keys(&mut self, ctx: Context) -> [Option<(KeyCode, Operation)>; 4];
     fn rkscan(&mut self, is_high: bool, ctx: Context) -> [Option<(KeyCode, Operation)>; 4];
 }
 
@@ -55,10 +40,7 @@ impl RGBKey for Key {
             typ: "RGBKey",
         }
     }
-    fn rktap(
-        &mut self,
-        _ctx: Context,
-    ) -> [Option<(KeyCode, Operation)>; 4] {
+    fn rktap(&mut self, _ctx: Context) -> [Option<(KeyCode, Operation)>; 4] {
         let [Some(_kc0), Some(kc1), None, None] = self.keycode else {
             return [None; 4];
         };
@@ -72,36 +54,23 @@ impl RGBKey for Key {
         );
         [Some((kc1.0, kc1.1)), None, None, None]
     }
-    fn rkhold(
-        &mut self,
-        _ctx: Context,
-    ) -> [Option<(KeyCode, Operation)>; 4] {
+    fn rkhold(&mut self, _ctx: Context) -> [Option<(KeyCode, Operation)>; 4] {
         let [Some(_kc0), Some(kc1), None, None] = self.keycode else {
             return [None; 4];
         };
         [Some((kc1.0, kc1.1)), None, None, None]
     }
-    fn rkidle(
-        &mut self,
-        _ctx: Context,
-    ) -> [Option<(KeyCode, Operation)>; 4] {
+    fn rkidle(&mut self, _ctx: Context) -> [Option<(KeyCode, Operation)>; 4] {
         [None; 4]
     }
-    fn rkoff(
-        &mut self,
-        _ctx: Context,
-    ) -> [Option<(KeyCode, Operation)>; 4] {
+    fn rkoff(&mut self, _ctx: Context) -> [Option<(KeyCode, Operation)>; 4] {
         let [Some(_kc0), Some(kc1), None, None] = self.keycode else {
             return [None; 4];
         };
         [Some((kc1.0, kc1.1)), None, None, None]
     }
     #[doc = " Perform state change as a result of the scan"]
-    fn rkscan(
-        &mut self,
-        is_high: bool,
-        ctx: Context,
-    ) -> [Option<(KeyCode, Operation)>; 4] {
+    fn rkscan(&mut self, is_high: bool, ctx: Context) -> [Option<(KeyCode, Operation)>; 4] {
         let [Some(kc0), Some(kc1), None, None] = self.keycode else {
             return [None; 4];
         };
@@ -149,6 +118,9 @@ impl RGBKey for Key {
                 // if the current state is Off
                 self.prevstate = self.state;
                 self.state = StateType::Tap;
+            } else if self.state == StateType::Hold {
+                self.prevstate = self.state;
+                self.state = StateType::Hold;
             }
             return self.get_keys(ctx);
         // } else if self.cycles_off >= DEBOUNCE_CYCLES.into() {
@@ -158,10 +130,7 @@ impl RGBKey for Key {
         }
         self.get_keys(ctx)
     }
-    fn get_keys(
-        &mut self,
-        ctx: Context,
-    ) -> [Option<(KeyCode, Operation)>; 4] {
+    fn get_keys(&mut self, ctx: Context) -> [Option<(KeyCode, Operation)>; 4] {
         match self.state {
             StateType::Tap => self.rktap(ctx),
             StateType::Hold => self.rkhold(ctx),

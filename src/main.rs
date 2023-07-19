@@ -24,19 +24,19 @@ use defmt::*;
 use defmt_rtt as _;
 use heapless::String;
 use keyscanning::{Col, Row};
+use kiibohd_hid_io::{CommandInterface, HidIoCommandId, KiibohdCommandInterface};
+use kiibohd_usb::KeyState;
 use panic_probe as _;
 use util::hid_descriptor::KeyboardNkroReport;
 
 use critical_section::Mutex;
+use heapless::spsc::{Producer, Queue};
 use usb_device::{
-    class_prelude::{UsbBusAllocator, UsbClass},
-    prelude::{UsbDevice, UsbDeviceBuilder, UsbDeviceState, UsbVidPid},
+    class_prelude::UsbBusAllocator,
+    prelude::UsbDevice,
     UsbError,
 };
-use usbd_hid::hid_class::{
-    HidClassSettings, HidCountryCode, HidProtocol, HidSubClass, ProtocolModeConfig,
-};
-use usbd_hid::{descriptor::SerializedDescriptor, hid_class::HIDClass};
+use usbd_hid::hid_class::HidCountryCode;
 
 use rp2040_hal::{
     clocks::{init_clocks_and_plls, Clock},
@@ -55,6 +55,40 @@ use crate::keyscanning::{Matrix, Operation};
 
 use self::actions::CallbackActions;
 use self::keyscanning::KeyQueue;
+
+// These define the maximum pending items in each queue
+const KBD_QUEUE_SIZE: usize = 10; // This would limit NKRO mode to 10KRO
+const KBD_LED_QUEUE_SIZE: usize = 3;
+const MOUSE_QUEUE_SIZE: usize = 5;
+const CTRL_QUEUE_SIZE: usize = 2;
+
+type HidInterface = kiibohd_usb::HidInterface<
+    'static,
+    UsbBus,
+    KBD_QUEUE_SIZE,
+    KBD_LED_QUEUE_SIZE,
+    MOUSE_QUEUE_SIZE,
+    CTRL_QUEUE_SIZE,
+>;
+
+pub struct HidioInterface<const H: usize> {}
+
+#[allow(dead_code)]
+impl<const H: usize> HidioInterface<H> {
+    fn new() -> Self {
+        Self {}
+    }
+}
+
+impl<const H: usize> KiibohdCommandInterface<H> for HidioInterface<H> {
+    fn h0001_device_name(&self) -> Option<&str> {
+        Some("ErgoOne")
+    }
+
+    fn h0001_firmware_name(&self) -> Option<&str> {
+        Some("ErgoOne")
+    }
+}
 
 #[derive(Clone, PartialEq, PartialOrd)]
 pub enum ARGS {
@@ -77,10 +111,31 @@ pub enum ARGS {
 pub fn action(action: CallbackActions, ops: ARGS) {
     match action {
         CallbackActions::Push => match ops {
-            ARGS::KS { code, op, st } => {
+            ARGS::KS { code, op: _, st } => {
                 if code != KeyCode::________ {
                     unsafe {
-                        let mm = KEY_QUEUE.enqueue((code, op, st));
+                        match st {
+                            StateType::Tap => {}
+                            StateType::Hold => {}
+                            StateType::Off => {}
+                            StateType::Idle => {}
+                        }
+                        critical_section::with(|_| {
+                            let kbd = KBD_PRODUCER.get_mut();
+                            if kbd.is_some() {
+                                match kbd
+                                    .as_mut()
+                                    .unwrap()
+                                    .enqueue(kiibohd_usb::KeyState::Press(code.into()))
+                                {
+                                    Ok(_) => (),
+                                    Err(err) => error!("{}", err),
+                                }
+                            } else {
+                                error!("KBD_PRODUCER is None");
+                            }
+                        })
+                        // let mm = KEY_QUEUE.enqueue((code, op, st));
                         // println!("push: {:?}, {:?} :: {:?}", code, st, mm);
                     }
                 }
@@ -116,6 +171,15 @@ static mut CORE1_STACK: Stack<4096> = Stack::new();
 #[link_section = ".boot2"]
 #[used]
 pub static BOOT_LOADER: [u8; 256] = rp2040_boot2::BOOT_LOADER_W25Q080;
+
+// Setup the queues used to generate the input reports (ctrl, keyboard and mouse)
+static mut CTRL_QUEUE: Queue<kiibohd_usb::CtrlState, CTRL_QUEUE_SIZE> = Queue::new();
+static mut KBD_QUEUE: Queue<kiibohd_usb::KeyState, KBD_QUEUE_SIZE> = Queue::new();
+static mut KBD_LED_QUEUE: Queue<kiibohd_usb::LedState, KBD_LED_QUEUE_SIZE> = Queue::new();
+static mut MOUSE_QUEUE: Queue<kiibohd_usb::MouseState, MOUSE_QUEUE_SIZE> = Queue::new();
+static mut HIDIO_INTF: Mutex<
+    Option<CommandInterface<HidioInterface<256>, 8, 8, 64, 256, 277, 10>>,
+> = Mutex::new(None);
 
 #[entry]
 fn main() -> ! {
@@ -157,28 +221,38 @@ fn main() -> ! {
         )));
         USB_ALLOCATOR.as_ref().unwrap()
     };
+
+    // Setup the interface
+    // NOTE: Ignoring usb_bus setup in this example, use a compliant usb-device UsbBus interface
     unsafe {
-        USB_HID = Some(HIDClass::new_with_settings(
+        let (kbd_producer, kbd_consumer) = KBD_QUEUE.split();
+        let (kbd_led_producer, kbd_led_consumer) = KBD_LED_QUEUE.split();
+        let (mouse_producer, mouse_consumer) = MOUSE_QUEUE.split();
+        let (ctrl_producer, ctrl_consumer) = CTRL_QUEUE.split();
+        KBD_PRODUCER = Mutex::new(Some(kbd_producer));
+        USB_HID = Some(HidInterface::new(
             bus_allocator,
-            KeyboardNkroReport::desc(),
-            1,
-            HidClassSettings {
-                subclass: HidSubClass::NoSubClass,
-                protocol: HidProtocol::Keyboard,
-                config: ProtocolModeConfig::ForceReport,
-                locale: HidCountryCode::US,
-            },
+            HidCountryCode::NotSupported,
+            kbd_consumer,
+            kbd_led_producer,
+            mouse_consumer,
+            ctrl_consumer,
         ));
-        HID_BUS = Some(
-            UsbDeviceBuilder::new(bus_allocator, UsbVidPid(0x16c0, 0x27dd))
-                .manufacturer("HisZd")
-                .product("ErgoOne")
-                .serial_number("000001")
-                .supports_remote_wakeup(false)
-                .build(),
-        );
-        HID_BUS.as_mut().unwrap().force_reset().ok();
+
+        // Basic CommandInterface
+        HIDIO_INTF = Mutex::new(Some(
+            CommandInterface::<HidioInterface<256>, 8, 8, 64, 256, 277, 10>::new(
+                &[
+                    HidIoCommandId::SupportedIds,
+                    HidIoCommandId::GetInfo,
+                    HidIoCommandId::TestPacket,
+                ],
+                HidioInterface::<256>::new(),
+            )
+            .unwrap(),
+        ));
     }
+
     // Enable the USB interrupt
     unsafe {
         pac::NVIC::unmask(rp2040_hal::pac::Interrupt::USBCTRL_IRQ);
@@ -340,11 +414,13 @@ fn nkro_push(key: (KeyCode, Operation, StateType)) {
 
     // Set/Unset
     if key.2 == StateType::Tap || key.2 == StateType::Hold {
+        debug!("Key {} in  ACTION", key);
         unsafe {
             ACTIVE_QUEUE.enqueue(key);
         }
         keybitmap[byte] |= 1 << bit;
     } else {
+        debug!("Key {} out ACTION", key);
         unsafe {
             ACTIVE_QUEUE.dequeue(key);
         }
@@ -355,9 +431,10 @@ fn nkro_push(key: (KeyCode, Operation, StateType)) {
     });
 }
 
+static mut KBD_PRODUCER: Mutex<Option<Producer<'_, KeyState, KBD_QUEUE_SIZE>>> = Mutex::new(None);
 static mut USB_ALLOCATOR: Option<UsbBusAllocator<UsbBus>> = None;
 static mut HID_BUS: Option<UsbDevice<UsbBus>> = None;
-static mut USB_HID: Option<HIDClass<UsbBus>> = None;
+static mut USB_HID: Option<HidInterface> = None;
 static mut REPORTSENT: AtomicBool = AtomicBool::new(false);
 static mut READYTOSEND: AtomicBool = AtomicBool::new(false);
 static mut ACTIVE_QUEUE: KeyQueue<29> = KeyQueue::new();
@@ -462,16 +539,41 @@ const BLANK_REPORT: KeyboardNkroReport = KeyboardNkroReport {
 #[allow(non_snake_case)]
 #[interrupt]
 unsafe fn USBCTRL_IRQ() {
-    let usb_dev = HID_BUS.as_mut().unwrap();
-    let usb_hid = USB_HID.as_mut().unwrap();
+    if let Some(usb_dev) = HID_BUS.as_mut() {
+        if let Some(usb_hid) = USB_HID.as_mut() {
+            if usb_dev.poll(&mut usb_hid.interfaces()) {
+                usb_hid.pull();
+                let hidio_intf = critical_section::with(|_| HIDIO_INTF.get_mut().as_mut());
+                if hidio_intf.is_some() {
+                    let hidio = hidio_intf.unwrap();
+                    usb_hid.pull_hidio(hidio);
+                }
+            }
 
-    if usb_dev.poll(&mut [usb_hid]) {
-        usb_hid.poll();
+            usb_hid.update();
+
+            match usb_hid.push() {
+                Ok(_) => {
+                    // critical_section::with(|cs| KEYBOARD_REPORT.replace(cs, BLANK_REPORT));
+                    REPORTSENT.store(true, Ordering::Relaxed);
+                }
+                Err(UsbError::WouldBlock) => {
+                    REPORTSENT.store(false, Ordering::Relaxed);
+                }
+                Err(UsbError::ParseError) => error!("UsbError::ParseError"),
+                Err(UsbError::BufferOverflow) => error!("UsbError::BufferOverflow"),
+                Err(UsbError::EndpointOverflow) => error!("UsbError::EndpointOverflow"),
+                Err(UsbError::EndpointMemoryOverflow) => error!("UsbError::EndpointMemoryOverflow"),
+                Err(UsbError::InvalidEndpoint) => error!("UsbError::InvalidEndpoint"),
+                Err(UsbError::Unsupported) => error!("UsbError::Unsupported"),
+                Err(UsbError::InvalidState) => error!("UsbError::InvalidState"),
+            }
+        }
     }
 
-    if REPORTSENT.load(Ordering::Relaxed) {
-        prepare_report();
-    }
+    // if REPORTSENT.load(Ordering::Relaxed) {
+    //     prepare_report();
+    // }
 
     // let report: KeyboardNkroReport;
     // if READYTOSEND.load(Ordering::Relaxed) {
@@ -480,23 +582,7 @@ unsafe fn USBCTRL_IRQ() {
     // report = BLANK_REPORT;
     // }
 
-    let report = critical_section::with(|cs| *KEYBOARD_REPORT.borrow_ref(cs));
-    match usb_hid.push_input(&report) {
-        Ok(_) => {
-            critical_section::with(|cs| KEYBOARD_REPORT.replace(cs, BLANK_REPORT));
-            REPORTSENT.store(true, Ordering::Relaxed);
-        }
-        Err(UsbError::WouldBlock) => {
-            REPORTSENT.store(false, Ordering::Relaxed);
-        }
-        Err(UsbError::ParseError) => error!("UsbError::ParseError"),
-        Err(UsbError::BufferOverflow) => error!("UsbError::BufferOverflow"),
-        Err(UsbError::EndpointOverflow) => error!("UsbError::EndpointOverflow"),
-        Err(UsbError::EndpointMemoryOverflow) => error!("UsbError::EndpointMemoryOverflow"),
-        Err(UsbError::InvalidEndpoint) => error!("UsbError::InvalidEndpoint"),
-        Err(UsbError::Unsupported) => error!("UsbError::Unsupported"),
-        Err(UsbError::InvalidState) => error!("UsbError::InvalidState"),
-    }
+    // let report = critical_section::with(|cs| *KEYBOARD_REPORT.borrow_ref(cs));
 
     // macOS doesn't like it when you don't pull this, apparently.
     // TODO: maybe even parse something here
@@ -508,12 +594,12 @@ unsafe fn USBCTRL_IRQ() {
 
     // Wake the host if a key is pressed and the device supports
     // remote wakeup.
-    if !report_is_empty(&report)
-        && usb_dev.state() == UsbDeviceState::Suspend
-        && usb_dev.remote_wakeup_enabled()
-    {
-        usb_dev.bus().remote_wakeup();
-    }
+    // if !report_is_empty(&report)
+    //     && usb_dev.state() == UsbDeviceState::Suspend
+    //     && usb_dev.remote_wakeup_enabled()
+    // {
+    //     usb_dev.bus().remote_wakeup();
+    // }
 }
 
 fn report_is_empty(report: &KeyboardNkroReport) -> bool {

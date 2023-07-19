@@ -203,6 +203,8 @@ impl TapCom for Key {
     fn exist_next(&self, ks: [Option<KeyCode>; 29], key: KeyCode) -> bool {
         let mut rtrn1 = false;
         // locate key in array
+        warn!("key = {}", key);
+        warn!("{}", ks);
         let ind1: Option<usize> = ks.iter().position(|k| k.is_some() && k.unwrap() == key);
         let mut srt: usize = 0;
         if ind1.is_some() {
@@ -214,7 +216,7 @@ impl TapCom for Key {
             }
         }
         // srt = 0;
-        warn!("rtrn1 = {}", rtrn1);
+        // warn!("rtrn1 = {}", rtrn1);
         rtrn1
     }
     #[doc = " Perform state change as a result of the scan"]
@@ -241,6 +243,9 @@ impl TapCom for Key {
             } else if self.state == StateType::Off || self.state == StateType::Tap {
                 self.prevstate = self.state;
                 self.state = StateType::Tap;
+            } else if self.state == StateType::Hold {
+                self.prevstate = self.state;
+                self.state = StateType::Hold;
             }
             return self.get_keys(ctx);
         } else if self.cycles_off >= 1 {

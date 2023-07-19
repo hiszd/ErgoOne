@@ -3,11 +3,7 @@
 macro_rules! KeyImpl {
     ($a:expr) => {
         /// Perform state change as a result of the scan
-        fn scan(
-            &mut self,
-            is_high: bool,
-            ctx: Context,
-        ) -> [Option<(KeyCode, Operation)>; 4] {
+        fn scan(&mut self, is_high: bool, ctx: Context) -> [Option<(KeyCode, Operation)>; 4] {
             // println!("{}", is_high);
             // if they KeyCode is empty then don't bother processing
             if self.keycode[0].is_none() && self.keycode[1].is_none() {
@@ -52,6 +48,9 @@ macro_rules! KeyImpl {
                     // if the current state is Off
                     self.prevstate = self.state;
                     self.state = StateType::Tap;
+                } else if self.state == StateType::Hold {
+                    self.prevstate = self.state;
+                    self.state = StateType::Hold;
                 }
                 return self.get_keys(ctx);
             // } else if self.cycles_off >= DEBOUNCE_CYCLES.into() {
@@ -61,10 +60,7 @@ macro_rules! KeyImpl {
             }
             self.get_keys(ctx)
         }
-        fn get_keys(
-            &mut self,
-            ctx: Context,
-        ) -> [Option<(KeyCode, Operation)>; 4] {
+        fn get_keys(&mut self, ctx: Context) -> [Option<(KeyCode, Operation)>; 4] {
             // info!("{:?}", self.state);
             // Match all types of self.state
             match self.state {
