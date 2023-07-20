@@ -27,15 +27,12 @@ use keyscanning::{Col, Row};
 use kiibohd_hid_io::{CommandInterface, HidIoCommandId, KiibohdCommandInterface};
 use kiibohd_usb::KeyState;
 use panic_probe as _;
+use usb_device::prelude::{UsbDeviceBuilder, UsbVidPid};
 use util::hid_descriptor::KeyboardNkroReport;
 
 use critical_section::Mutex;
 use heapless::spsc::{Producer, Queue};
-use usb_device::{
-    class_prelude::UsbBusAllocator,
-    prelude::UsbDevice,
-    UsbError,
-};
+use usb_device::{class_prelude::UsbBusAllocator, prelude::UsbDevice, UsbError};
 use usbd_hid::hid_class::HidCountryCode;
 
 use rp2040_hal::{
@@ -110,40 +107,59 @@ pub enum ARGS {
 /// execute function for key code
 pub fn action(action: CallbackActions, ops: ARGS) {
     match action {
-        CallbackActions::Push => match ops {
-            ARGS::KS { code, op: _, st } => {
-                if code != KeyCode::________ {
-                    unsafe {
-                        match st {
-                            StateType::Tap => {}
-                            StateType::Hold => {}
-                            StateType::Off => {}
-                            StateType::Idle => {}
-                        }
-                        critical_section::with(|_| {
-                            let kbd = KBD_PRODUCER.get_mut();
-                            if kbd.is_some() {
-                                match kbd
-                                    .as_mut()
-                                    .unwrap()
-                                    .enqueue(kiibohd_usb::KeyState::Press(code.into()))
-                                {
-                                    Ok(_) => (),
-                                    Err(err) => error!("{}", err),
+        CallbackActions::Push => {
+            match ops {
+                ARGS::KS { code, op: _, st } => {
+                    if code != KeyCode::________ {
+                        unsafe {
+                            critical_section::with(|_| {
+                                let kbd = KBD_PRODUCER.get_mut();
+                                if kbd.is_some() {
+                                    match st {
+                                        StateType::Tap => {
+                                            match kbd
+                                                .as_mut()
+                                                .unwrap()
+                                                .enqueue(kiibohd_usb::KeyState::Press(code.into()))
+                                            {
+                                                Ok(_) => (),
+                                                Err(err) => error!("{}", err),
+                                            }
+                                        }
+                                        StateType::Hold => {
+                                            match kbd
+                                                .as_mut()
+                                                .unwrap()
+                                                .enqueue(kiibohd_usb::KeyState::Press(code.into()))
+                                            {
+                                                Ok(_) => (),
+                                                Err(err) => error!("{}", err),
+                                            }
+                                        }
+                                        StateType::Off => {
+                                            match kbd.as_mut().unwrap().enqueue(
+                                                kiibohd_usb::KeyState::Release(code.into()),
+                                            ) {
+                                                Ok(_) => (),
+                                                Err(err) => error!("{}", err),
+                                            }
+                                        }
+                                        StateType::Idle => {}
+                                    }
+                                } else {
+                                    error!("KBD_PRODUCER is None");
                                 }
-                            } else {
-                                error!("KBD_PRODUCER is None");
-                            }
-                        })
-                        // let mm = KEY_QUEUE.enqueue((code, op, st));
-                        // println!("push: {:?}, {:?} :: {:?}", code, st, mm);
+                            })
+                            // let mm = KEY_QUEUE.enqueue((code, op, st));
+                            // println!("push: {:?}, {:?} :: {:?}", code, st, mm);
+                        }
                     }
                 }
+                _ => {
+                    error!("Expected ARGS::KS but got something else");
+                }
             }
-            _ => {
-                error!("Expected ARGS::KS but got something else");
-            }
-        },
+        }
         CallbackActions::RGBSet => match ops {
             ARGS::RGB { r, g, b } => {
                 println!("RGB: {} {} {}", r, g, b);
@@ -211,7 +227,7 @@ fn main() -> ! {
     );
 
     // Initialize USB
-    let bus_allocator = unsafe {
+    unsafe {
         USB_ALLOCATOR = Some(UsbBusAllocator::new(UsbBus::new(
             pac.USBCTRL_REGS,
             pac.USBCTRL_DPRAM,
@@ -219,25 +235,24 @@ fn main() -> ! {
             true,
             &mut pac.RESETS,
         )));
-        USB_ALLOCATOR.as_ref().unwrap()
-    };
+        USB_ALLOCATOR.as_ref().unwrap();
 
-    // Setup the interface
-    // NOTE: Ignoring usb_bus setup in this example, use a compliant usb-device UsbBus interface
-    unsafe {
+        // Setup the interface
+        // NOTE: Ignoring usb_bus setup in this example, use a compliant usb-device UsbBus interface
         let (kbd_producer, kbd_consumer) = KBD_QUEUE.split();
         let (kbd_led_producer, kbd_led_consumer) = KBD_LED_QUEUE.split();
         let (mouse_producer, mouse_consumer) = MOUSE_QUEUE.split();
         let (ctrl_producer, ctrl_consumer) = CTRL_QUEUE.split();
         KBD_PRODUCER = Mutex::new(Some(kbd_producer));
         USB_HID = Some(HidInterface::new(
-            bus_allocator,
-            HidCountryCode::NotSupported,
+            USB_ALLOCATOR.as_ref().unwrap(),
+            HidCountryCode::US,
             kbd_consumer,
             kbd_led_producer,
             mouse_consumer,
             ctrl_consumer,
         ));
+        warn!("USB_HID is setup");
 
         // Basic CommandInterface
         HIDIO_INTF = Mutex::new(Some(
@@ -251,6 +266,17 @@ fn main() -> ! {
             )
             .unwrap(),
         ));
+        warn!("HIDIO_INTF is setup");
+
+        HID_BUS = Some(
+            UsbDeviceBuilder::new(USB_ALLOCATOR.as_ref().unwrap(), UsbVidPid(0x16c0, 0x27dd))
+                .manufacturer("HisZd")
+                .product("ErgoOne")
+                .serial_number("000001")
+                .supports_remote_wakeup(false)
+                .build(),
+        );
+        warn!("HID_BUS is setup");
     }
 
     // Enable the USB interrupt
@@ -377,6 +403,29 @@ fn main() -> ! {
         matrix.poll(Context {
             key_queue: unsafe { KEY_QUEUE.get_keys() },
         });
+        unsafe {
+            if let Some(usb_hid) = USB_HID.as_mut() {
+                usb_hid.update();
+                match usb_hid.push() {
+                    Ok(_) => {
+                        // critical_section::with(|cs| KEYBOARD_REPORT.replace(cs, BLANK_REPORT));
+                        REPORTSENT.store(true, Ordering::Relaxed);
+                    }
+                    Err(UsbError::WouldBlock) => {
+                        REPORTSENT.store(false, Ordering::Relaxed);
+                    }
+                    Err(UsbError::ParseError) => error!("UsbError::ParseError"),
+                    Err(UsbError::BufferOverflow) => error!("UsbError::BufferOverflow"),
+                    Err(UsbError::EndpointOverflow) => error!("UsbError::EndpointOverflow"),
+                    Err(UsbError::EndpointMemoryOverflow) => {
+                        error!("UsbError::EndpointMemoryOverflow")
+                    }
+                    Err(UsbError::InvalidEndpoint) => error!("UsbError::InvalidEndpoint"),
+                    Err(UsbError::Unsupported) => error!("UsbError::Unsupported"),
+                    Err(UsbError::InvalidState) => error!("UsbError::InvalidState"),
+                }
+            }
+        }
     }
 }
 
@@ -548,25 +597,6 @@ unsafe fn USBCTRL_IRQ() {
                     let hidio = hidio_intf.unwrap();
                     usb_hid.pull_hidio(hidio);
                 }
-            }
-
-            usb_hid.update();
-
-            match usb_hid.push() {
-                Ok(_) => {
-                    // critical_section::with(|cs| KEYBOARD_REPORT.replace(cs, BLANK_REPORT));
-                    REPORTSENT.store(true, Ordering::Relaxed);
-                }
-                Err(UsbError::WouldBlock) => {
-                    REPORTSENT.store(false, Ordering::Relaxed);
-                }
-                Err(UsbError::ParseError) => error!("UsbError::ParseError"),
-                Err(UsbError::BufferOverflow) => error!("UsbError::BufferOverflow"),
-                Err(UsbError::EndpointOverflow) => error!("UsbError::EndpointOverflow"),
-                Err(UsbError::EndpointMemoryOverflow) => error!("UsbError::EndpointMemoryOverflow"),
-                Err(UsbError::InvalidEndpoint) => error!("UsbError::InvalidEndpoint"),
-                Err(UsbError::Unsupported) => error!("UsbError::Unsupported"),
-                Err(UsbError::InvalidState) => error!("UsbError::InvalidState"),
             }
         }
     }
