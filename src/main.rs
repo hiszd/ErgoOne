@@ -109,7 +109,7 @@ pub fn action(action: CallbackActions, ops: ARGS) {
     match action {
         CallbackActions::Push => {
             match ops {
-                ARGS::KS { code, op: _, st } => {
+                ARGS::KS { code, op, st } => {
                     if code != KeyCode::________ {
                         unsafe {
                             critical_section::with(|_| {
@@ -124,6 +124,22 @@ pub fn action(action: CallbackActions, ops: ARGS) {
                                             {
                                                 Ok(_) => (),
                                                 Err(err) => error!("{}", err),
+                                            }
+                                            if op == Operation::SendOff {
+                                                match kbd
+                                                    .as_mut()
+                                                    .unwrap()
+                                                    .enqueue(kiibohd_usb::KeyState::Clear)
+                                                {
+                                                    Ok(_) => (),
+                                                    Err(err) => error!("{}", err),
+                                                }
+                                                match kbd.as_mut().unwrap().enqueue(
+                                                    kiibohd_usb::KeyState::Release(code.into()),
+                                                ) {
+                                                    Ok(_) => (),
+                                                    Err(err) => error!("{}", err),
+                                                }
                                             }
                                         }
                                         StateType::Hold => {
@@ -408,7 +424,6 @@ fn main() -> ! {
                 usb_hid.update();
                 match usb_hid.push() {
                     Ok(_) => {
-                        // critical_section::with(|cs| KEYBOARD_REPORT.replace(cs, BLANK_REPORT));
                         REPORTSENT.store(true, Ordering::Relaxed);
                     }
                     Err(UsbError::WouldBlock) => {
