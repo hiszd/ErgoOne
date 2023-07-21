@@ -89,93 +89,72 @@ impl<const H: usize> KiibohdCommandInterface<H> for HidioInterface<H> {
 
 #[derive(Clone, PartialEq, PartialOrd)]
 pub enum ARGS {
-    KS {
-        code: KeyCode,
-        op: Operation,
-        st: StateType,
-    },
-    RGB {
-        r: u8,
-        g: u8,
-        b: u8,
-    },
-    STR {
-        s: String<30>,
-    },
+    KS { code: KeyCode, op: Operation },
+    RGB { r: u8, g: u8, b: u8 },
+    STR { s: String<30> },
 }
 
 /// execute function for key code
 pub fn action(action: CallbackActions, ops: ARGS) {
     match action {
-        CallbackActions::Push => {
-            match ops {
-                ARGS::KS { code, op, st } => {
+        CallbackActions::Press => match ops {
+            ARGS::KS { code, op } => {
+                critical_section::with(|_| {
+                    let kbd = unsafe { KBD_PRODUCER.get_mut() };
                     if code != KeyCode::________ {
-                        unsafe {
-                            critical_section::with(|_| {
-                                let kbd = KBD_PRODUCER.get_mut();
-                                if kbd.is_some() {
-                                    match st {
-                                        StateType::Tap => {
-                                            match kbd
-                                                .as_mut()
-                                                .unwrap()
-                                                .enqueue(kiibohd_usb::KeyState::Press(code.into()))
-                                            {
-                                                Ok(_) => (),
-                                                Err(err) => error!("{}", err),
-                                            }
-                                            if op == Operation::SendOff {
-                                                match kbd
-                                                    .as_mut()
-                                                    .unwrap()
-                                                    .enqueue(kiibohd_usb::KeyState::Clear)
-                                                {
-                                                    Ok(_) => (),
-                                                    Err(err) => error!("{}", err),
-                                                }
-                                                match kbd.as_mut().unwrap().enqueue(
-                                                    kiibohd_usb::KeyState::Release(code.into()),
-                                                ) {
-                                                    Ok(_) => (),
-                                                    Err(err) => error!("{}", err),
-                                                }
-                                            }
-                                        }
-                                        StateType::Hold => {
-                                            match kbd
-                                                .as_mut()
-                                                .unwrap()
-                                                .enqueue(kiibohd_usb::KeyState::Press(code.into()))
-                                            {
-                                                Ok(_) => (),
-                                                Err(err) => error!("{}", err),
-                                            }
-                                        }
-                                        StateType::Off => {
-                                            match kbd.as_mut().unwrap().enqueue(
-                                                kiibohd_usb::KeyState::Release(code.into()),
-                                            ) {
-                                                Ok(_) => (),
-                                                Err(err) => error!("{}", err),
-                                            }
-                                        }
-                                        StateType::Idle => {}
-                                    }
-                                } else {
-                                    error!("KBD_PRODUCER is None");
+                        if kbd.is_some() {
+                            match kbd
+                                .as_mut()
+                                .unwrap()
+                                .enqueue(kiibohd_usb::KeyState::Press(code.into()))
+                            {
+                                Ok(_) => {
+                                    warn!("Key IN  {:?}", code);
+                                    unsafe { ACTIVE_QUEUE.enqueue((code, op)) };
                                 }
-                            })
-                            // let mm = KEY_QUEUE.enqueue((code, op, st));
-                            // println!("push: {:?}, {:?} :: {:?}", code, st, mm);
+                                Err(err) => error!("{}", err),
+                            }
+
+                            if op == Operation::SendOff {
+                                unsafe { RM_QUEUE.enqueue((code, op)) };
+                            }
+                        } else {
+                            error!("KBD_PRODUCER is None");
                         }
                     }
-                }
-                _ => {
-                    error!("Expected ARGS::KS but got something else");
-                }
+                });
             }
-        }
+            _ => {
+                error!("Expected ARGS::KS but got something else");
+            }
+        },
+        CallbackActions::Release => match ops {
+            ARGS::KS { code, op } => {
+                critical_section::with(|_| {
+                    let kbd = unsafe { KBD_PRODUCER.get_mut() };
+                    if code != KeyCode::________ {
+                        if kbd.is_some() {
+                            match kbd
+                                .as_mut()
+                                .unwrap()
+                                .enqueue(kiibohd_usb::KeyState::Release(code.into()))
+                            {
+                                Ok(_) => {
+                                    warn!("Key OUT {:?}", code);
+                                    unsafe { ACTIVE_QUEUE.dequeue((code, op)) };
+                                }
+                                Err(err) => error!("{}", err),
+                            }
+                        } else {
+                            error!("KBD_PRODUCER is None");
+                        }
+                    }
+                });
+            }
+            _ => {
+                error!("Expected ARGS::KS but got something else");
+            }
+        },
         CallbackActions::RGBSet => match ops {
             ARGS::RGB { r, g, b } => {
                 println!("RGB: {} {} {}", r, g, b);
@@ -416,9 +395,26 @@ fn main() -> ! {
     println!("thg = {}", 0 * 1);
     loop {
         delay.delay_us(1000u32);
-        matrix.poll(Context {
-            key_queue: unsafe { KEY_QUEUE.get_keys() },
-        });
+        unsafe {
+            if !RM_QUEUE.is_empty() {
+                let kbd = unsafe { KBD_PRODUCER.get_mut() };
+                RM_QUEUE.keys.iter().for_each(|k| {
+                    if k.is_some() {
+                        match kbd
+                            .as_mut()
+                            .unwrap()
+                            .enqueue(kiibohd_usb::KeyState::Release(k.unwrap().0.into()))
+                        {
+                            Ok(_) => {
+                                warn!("Key REMOVED {:?}", k.unwrap());
+                                RM_QUEUE.dequeue(k.unwrap());
+                            }
+                            Err(err) => error!("{}", err),
+                        }
+                    }
+                })
+            }
+        }
         unsafe {
             if let Some(usb_hid) = USB_HID.as_mut() {
                 usb_hid.update();
@@ -441,6 +437,9 @@ fn main() -> ! {
                 }
             }
         }
+        matrix.poll(Context {
+            key_queue: unsafe { ACTIVE_QUEUE.get_keys() },
+        });
     }
 }
 
@@ -450,49 +449,7 @@ static BCOL: AtomicU8 = AtomicU8::new(0);
 
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub struct Context {
-    key_queue: [Option<KeyCode>; 29],
-}
-
-fn nkro_push(key: (KeyCode, Operation, StateType)) {
-    let mut keybitmap = critical_section::with(|cs| KEYBOARD_REPORT.borrow_ref(cs).keybitmap);
-    let mut k: u8 = key.0.into();
-
-    // NOTE: The indexing actually starts from 1 (not 0), so position 0 represents 1
-    //       0 in USB HID represents no keys pressed, so it's meaningless in a bitmask
-
-    //       Ignore any keys over 231/0xE7
-    if k == 0 || k > 0xE7 {
-        warn!(
-            "Invalid key for nkro_push({}, {}), ignored.",
-            key,
-            key.2 == StateType::Tap || key.2 == StateType::Hold
-        );
-        return;
-    }
-
-    k = k - 1;
-
-    // Determine position
-    let byte: usize = (k / 8).into();
-    let bit: usize = (k % 8).into();
-
-    // Set/Unset
-    if key.2 == StateType::Tap || key.2 == StateType::Hold {
-        debug!("Key {} in  ACTION", key);
-        unsafe {
-            ACTIVE_QUEUE.enqueue(key);
-        }
-        keybitmap[byte] |= 1 << bit;
-    } else {
-        debug!("Key {} out ACTION", key);
-        unsafe {
-            ACTIVE_QUEUE.dequeue(key);
-        }
-        keybitmap[byte] &= !(1 << bit);
-    }
-    critical_section::with(|cs| {
-        KEYBOARD_REPORT.replace(cs, KeyboardNkroReport { leds: 0, keybitmap })
-    });
+    key_queue: [Option<KeyCode>; 10],
 }
 
 static mut KBD_PRODUCER: Mutex<Option<Producer<'_, KeyState, KBD_QUEUE_SIZE>>> = Mutex::new(None);
@@ -501,103 +458,9 @@ static mut HID_BUS: Option<UsbDevice<UsbBus>> = None;
 static mut USB_HID: Option<HidInterface> = None;
 static mut REPORTSENT: AtomicBool = AtomicBool::new(false);
 static mut READYTOSEND: AtomicBool = AtomicBool::new(false);
-static mut ACTIVE_QUEUE: KeyQueue<29> = KeyQueue::new();
-static mut KEY_QUEUE: KeyQueue<29> = KeyQueue::new();
+static mut ACTIVE_QUEUE: KeyQueue<10> = KeyQueue::new();
+static mut RM_QUEUE: KeyQueue<10> = KeyQueue::new();
 // static mut STRING_QUEUE: KeyQueue<30> = KeyQueue::new();
-
-fn prepare_report() {
-    critical_section::with(|_| unsafe {
-        // println!("{}", KEY_QUEUE.keys.iter().find(|k| k.is_some()).is_some());
-
-        // iterate over the queue
-        KEY_QUEUE.keys.iter().for_each(|k| {
-            if k.is_some() {
-                // println!("{:?}", k.unwrap());
-                let kr = k.unwrap();
-                // Push the key to the report bitmap
-                nkro_push(kr);
-                KEY_QUEUE.dequeue(kr);
-                // Add the key to the pull queue to be pulled if not pressed next time
-                // PULL_QUEUE.enqueue(kr);
-
-                // if kr.1 == Operation::SendOff && kr.2 == StateType::Tap || kr.2 == StateType::Hold {
-                // }
-            }
-        });
-    });
-}
-
-// fn prepare_report() {
-//     let mut keybitmap = [0u8; 29];
-//     let mut keycode_index = 0;
-//
-//     let mut push_keycode = |key: u8, press: bool| {
-//         // NOTE: The indexing actually starts from 1 (not 0), so position 0 represents 1
-//         //       0 in USB HID represents no keys pressed, so it's meaningless in a bitmask
-//         //       Ignore any keys over 231/0xE7
-//         if key == 0 || key > 0xE7 {
-//             warn!("Invalid key for nkro_bit({}, {}), ignored.", key, press);
-//             return;
-//         }
-//
-//         let key = key - 1;
-//
-//         // Determine position
-//         let byte: usize = (key / 8).into();
-//         let bit: usize = (key % 8).into();
-//
-//         // Set/Unset
-//         if press {
-//             keybitmap[byte] |= 1 << bit;
-//         } else {
-//             keybitmap[byte] &= !(1 << bit);
-//         }
-//     };
-//
-//     unsafe {
-//         // if the string queue is not empty then iterate through the queue
-//         if !STRING_QUEUE.is_empty() {
-//             // pull from the queue and process the keycode
-//             return;
-//         }
-//     }
-//
-//     let mut dq: [Option<KeyCode>; 29] = [None; 29];
-//     critical_section::with(|_| unsafe {
-//         KEY_QUEUE.keys.iter().for_each(|k| {
-//             if k.is_some() {
-//                 let kr = k.unwrap();
-//                 push_keycode(kr.0.into());
-//                 if kr.1 == Operation::SendOff {
-//                     dq[dq.iter().position(|x| x.is_none()).unwrap()] = Some(kr.0);
-//                 }
-//             }
-//         });
-//     });
-//     unsafe {
-//         dq.iter().for_each(|k| {
-//             if k.is_some() {
-//                 let kr = k.unwrap();
-//                 KEY_QUEUE.dequeue(kr);
-//             }
-//         });
-//     }
-//
-//     critical_section::with(|cs| {
-//         KEYBOARD_REPORT.replace(cs, KeyboardNkroReport { leds: 0, keybitmap })
-//     });
-// }
-
-static KEYBOARD_REPORT: Mutex<RefCell<KeyboardNkroReport>> =
-    Mutex::new(RefCell::new(KeyboardNkroReport {
-        leds: 0,
-        keybitmap: [0u8; 29],
-    }));
-
-const BLANK_REPORT: KeyboardNkroReport = KeyboardNkroReport {
-    leds: 0,
-    keybitmap: [0u8; 29],
-};
 
 /// Handle USB interrupts, used by the host to "poll" the keyboard for new inputs.
 #[allow(non_snake_case)]
@@ -615,36 +478,6 @@ unsafe fn USBCTRL_IRQ() {
             }
         }
     }
-
-    // if REPORTSENT.load(Ordering::Relaxed) {
-    //     prepare_report();
-    // }
-
-    // let report: KeyboardNkroReport;
-    // if READYTOSEND.load(Ordering::Relaxed) {
-    // report = critical_section::with(|cs| *KEYBOARD_REPORT.borrow_ref(cs));
-    // } else {
-    // report = BLANK_REPORT;
-    // }
-
-    // let report = critical_section::with(|cs| *KEYBOARD_REPORT.borrow_ref(cs));
-
-    // macOS doesn't like it when you don't pull this, apparently.
-    // TODO: maybe even parse something here
-    // let mut out: [u8; 64] = [0; 64];
-    // let siz = usb_hid.pull_raw_output(&mut out).unwrap_unchecked();
-    // if siz > 8 {
-    //     println!("outty: {:a}, {:?}", out, siz);
-    // }
-
-    // Wake the host if a key is pressed and the device supports
-    // remote wakeup.
-    // if !report_is_empty(&report)
-    //     && usb_dev.state() == UsbDeviceState::Suspend
-    //     && usb_dev.remote_wakeup_enabled()
-    // {
-    //     usb_dev.bus().remote_wakeup();
-    // }
 }
 
 fn report_is_empty(report: &KeyboardNkroReport) -> bool {

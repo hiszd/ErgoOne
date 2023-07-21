@@ -45,19 +45,17 @@ impl ModCombo for Key {
             return [None; 4];
         };
         action(
-            CallbackActions::Push,
+            CallbackActions::Press,
             ARGS::KS {
                 code: kc1.0,
                 op: kc1.1,
-                st: StateType::Tap,
             },
         );
         action(
-            CallbackActions::Push,
+            CallbackActions::Press,
             ARGS::KS {
                 code: kc0.0,
                 op: kc0.1,
-                st: StateType::Tap,
             },
         );
         [Some((kc0.0, kc0.1)), Some((kc1.0, kc1.1)), None, None]
@@ -77,19 +75,17 @@ impl ModCombo for Key {
         };
         if self.prevstate != StateType::Off {
             action(
-                CallbackActions::Push,
+                CallbackActions::Release,
                 ARGS::KS {
                     code: kc0.0,
                     op: kc0.1,
-                    st: StateType::Off,
                 },
             );
             action(
-                CallbackActions::Push,
+                CallbackActions::Release,
                 ARGS::KS {
                     code: kc1.0,
                     op: kc1.1,
-                    st: StateType::Off,
                 },
             );
         }

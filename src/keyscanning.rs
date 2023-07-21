@@ -213,7 +213,7 @@ impl<const RSIZE: usize, const CSIZE: usize> Matrix<RSIZE, CSIZE> {
 
 #[derive(Copy, Clone)]
 pub struct KeyQueue<const QSIZE: usize> {
-    pub keys: [Option<(KeyCode, Operation, StateType)>; QSIZE],
+    pub keys: [Option<(KeyCode, Operation)>; QSIZE],
 }
 
 impl<const QSIZE: usize> KeyQueue<QSIZE> {
@@ -238,10 +238,10 @@ impl<const QSIZE: usize> KeyQueue<QSIZE> {
     }
 
     /// remove all instances of a specific KeyCode
-    pub fn dequeue(&mut self, key: (KeyCode, Operation, StateType)) -> bool {
+    pub fn dequeue(&mut self, key: (KeyCode, Operation)) -> bool {
         let mut rtrn: bool = false;
         self.keys.iter_mut().for_each(|k| {
-            if k.is_some() && k.unwrap().0 == key.0 && k.unwrap().2 == key.2 {
+            if k.is_some() && k.unwrap().0 == key.0 {
                 *k = None;
                 rtrn = true;
             }
@@ -253,7 +253,7 @@ impl<const QSIZE: usize> KeyQueue<QSIZE> {
     /// returns false if the queue is full
     /// returns false if the key is already in the queue
     /// returns true if the key is not in the queue
-    pub fn enqueue(&mut self, key: (KeyCode, Operation, StateType)) -> bool {
+    pub fn enqueue(&mut self, key: (KeyCode, Operation)) -> bool {
         if self.len() >= QSIZE {
             return false;
         }

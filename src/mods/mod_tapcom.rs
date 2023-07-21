@@ -23,7 +23,7 @@ pub trait TapCom {
     fn tcoff(&mut self, _ctx: Context) -> [Option<(KeyCode, Operation)>; 4];
     fn get_keys(&mut self, ctx: Context) -> [Option<(KeyCode, Operation)>; 4];
     fn tcscan(&mut self, is_high: bool, ctx: Context) -> [Option<(KeyCode, Operation)>; 4];
-    fn exist_next(&self, ks: [Option<KeyCode>; 29], key: KeyCode) -> bool;
+    fn exist_next(&self, ctx: Context, key: KeyCode) -> bool;
 }
 
 impl TapCom for Key {
@@ -37,8 +37,8 @@ impl TapCom for Key {
             prevstate: StateType::Off,
             keycode: [
                 Some((KC0, Operation::SendOn)),
-                Some((KC1, Operation::SendOff)),
-                Some((KC2, Operation::SendOff)),
+                Some((KC1, Operation::SendOn)),
+                Some((KC2, Operation::SendOn)),
                 None,
             ],
             previnfo: [false; 6],
@@ -52,12 +52,13 @@ impl TapCom for Key {
         let [Some(kc0), Some(_kc1), Some(_kc2), None] = self.keycode else {
             return [None; 4];
         };
+        // DEPRECATED
         // self.stor[0] is the amount of scans that there has been a combo
         // self.stor[1] is the amount of scans that there has NOT been a combo
         if !self.previnfo[0] {
             if kc0.0.is_modifier() {
                 // if there is another key pressed
-                if self.exist_next(ctx.key_queue, kc0.0) {
+                if self.exist_next(ctx, kc0.0) {
                     self.previnfo[0] = true;
                 }
             } else {
@@ -68,11 +69,10 @@ impl TapCom for Key {
 
         if self.prevstate == StateType::Off {
             action(
-                CallbackActions::Push,
+                CallbackActions::Press,
                 ARGS::KS {
                     code: kc0.0,
                     op: kc0.1,
-                    st: StateType::Tap,
                 },
             );
             return [Some((kc0.0, kc0.1)), None, None, None];
@@ -87,11 +87,10 @@ impl TapCom for Key {
         match kc0.0.is_modifier() {
             true => {
                 action(
-                    CallbackActions::Push,
+                    CallbackActions::Press,
                     ARGS::KS {
                         code: kc0.0,
                         op: kc0.1,
-                        st: StateType::Hold,
                     },
                 );
             }
@@ -112,31 +111,29 @@ impl TapCom for Key {
         match self.prevstate {
             StateType::Tap => {
                 // if there was not a combination of key pressed during the tap then
-                if !self.previnfo[0] && !self.exist_next(ctx.key_queue, kc0.0) {
+                if !self.previnfo[0] && !self.exist_next(ctx, kc0.0) {
                     println!("no combo");
                     self.previnfo[1] = true;
+                    self.stor[4] = 0;
                     action(
-                        CallbackActions::Push,
+                        CallbackActions::Release,
                         ARGS::KS {
                             code: kc0.0,
                             op: kc0.1,
-                            st: StateType::Off,
                         },
                     );
                     action(
-                        CallbackActions::Push,
+                        CallbackActions::Press,
                         ARGS::KS {
                             code: kc1.0,
-                            op: Operation::SendOff,
-                            st: StateType::Tap,
+                            op: Operation::SendOn,
                         },
                     );
                     action(
-                        CallbackActions::Push,
+                        CallbackActions::Press,
                         ARGS::KS {
                             code: kc2.0,
-                            op: Operation::SendOff,
-                            st: StateType::Tap,
+                            op: Operation::SendOn,
                         },
                     );
                     return [
@@ -147,49 +144,52 @@ impl TapCom for Key {
                     ];
                     // if there was a combination of keys pressed then do nothing
                 } else {
+                    println!("{}", ctx.key_queue);
                     println!("combo");
                     action(
-                        CallbackActions::Push,
+                        CallbackActions::Release,
                         ARGS::KS {
                             code: kc1.0,
                             op: kc1.1,
-                            st: StateType::Off,
                         },
                     );
+                    self.previnfo[0] = false;
                     return [Some((kc1.0, kc1.1)), None, None, None];
                 }
             }
             StateType::Hold => {
                 self.previnfo[1] = false;
                 action(
-                    CallbackActions::Push,
+                    CallbackActions::Release,
                     ARGS::KS {
                         code: kc0.0,
                         op: kc0.1,
-                        st: StateType::Off,
                     },
                 );
                 return [Some((kc0.0, kc0.1)), None, None, None];
             }
             StateType::Off => {
                 if self.previnfo[1] {
-                    action(
-                        CallbackActions::Push,
-                        ARGS::KS {
-                            code: kc1.0,
-                            op: Operation::SendOff,
-                            st: StateType::Off,
-                        },
-                    );
-                    action(
-                        CallbackActions::Push,
-                        ARGS::KS {
-                            code: kc2.0,
-                            op: Operation::SendOff,
-                            st: StateType::Off,
-                        },
-                    );
-                    self.previnfo[1] = false;
+                    if self.stor[4] == 1 {
+                        action(
+                            CallbackActions::Release,
+                            ARGS::KS {
+                                code: kc1.0,
+                                op: Operation::SendOn,
+                            },
+                        );
+                        action(
+                            CallbackActions::Release,
+                            ARGS::KS {
+                                code: kc2.0,
+                                op: Operation::SendOn,
+                            },
+                        );
+                        self.previnfo[1] = false;
+                        self.stor[4] += 1;
+                    } else {
+                        self.stor[4] += 1;
+                    }
                 }
                 return [None; 4];
             }
@@ -200,23 +200,29 @@ impl TapCom for Key {
     }
 
     /// check to see if another key exists in the queue after the current one
-    fn exist_next(&self, ks: [Option<KeyCode>; 29], key: KeyCode) -> bool {
+    fn exist_next(&self, ctx: Context, key: KeyCode) -> bool {
         let mut rtrn1 = false;
         // locate key in array
-        warn!("key = {}", key);
-        warn!("{}", ks);
-        let ind1: Option<usize> = ks.iter().position(|k| k.is_some() && k.unwrap() == key);
+        let ind1: Option<usize> = ctx
+            .key_queue
+            .iter()
+            .position(|k| k.is_some() && k.unwrap() == key);
         let mut srt: usize = 0;
         if ind1.is_some() {
             srt = ind1.unwrap();
         }
-        for i in srt..ks.len() {
-            if ks[i].is_some() {
-                rtrn1 = true;
+        for i in srt..ctx.key_queue.len() {
+            if ctx.key_queue[i].is_some() {
+                if ctx.key_queue[i].unwrap() != key {
+                    rtrn1 = true;
+                    warn!("rtrn1 = {}, key = {}", rtrn1, ctx.key_queue[i].unwrap());
+                    break;
+                }
             }
         }
-        // srt = 0;
-        // warn!("rtrn1 = {}", rtrn1);
+        if !rtrn1 {
+            warn!("rtrn1 = false, key = ''");
+        }
         rtrn1
     }
     #[doc = " Perform state change as a result of the scan"]

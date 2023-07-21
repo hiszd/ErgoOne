@@ -70,11 +70,10 @@ impl Default for Key {
             let kc0 = self.keycode[0].unwrap();
             if self.prevstate == StateType::Off {
                 action(
-                    CallbackActions::Push,
+                    CallbackActions::Press,
                     ARGS::KS {
                         code: kc0.0,
                         op: kc0.1,
-                        st: StateType::Tap,
                     },
                 );
             }
@@ -85,11 +84,10 @@ impl Default for Key {
         if self.keycode[0].is_some() {
             let kc0 = self.keycode[0].unwrap();
             action(
-                CallbackActions::Push,
+                CallbackActions::Press,
                 ARGS::KS {
                     code: kc0.0,
                     op: kc0.1,
-                    st: StateType::Hold,
                 },
             );
             self.keycode
@@ -105,11 +103,10 @@ impl Default for Key {
             let kc0 = self.keycode[0].unwrap();
             if self.state != self.prevstate {
                 action(
-                    CallbackActions::Push,
+                    CallbackActions::Release,
                     ARGS::KS {
                         code: kc0.0,
                         op: kc0.1,
-                        st: StateType::Off,
                     },
                 );
             }

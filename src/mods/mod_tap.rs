@@ -23,7 +23,7 @@ pub trait ModTap {
     fn mtoff(&mut self, _ctx: Context) -> [Option<(KeyCode, Operation)>; 4];
     fn get_keys(&mut self, ctx: Context) -> [Option<(KeyCode, Operation)>; 4];
     fn mtscan(&mut self, is_high: bool, ctx: Context) -> [Option<(KeyCode, Operation)>; 4];
-    fn exist_next(&self, ks: [Option<KeyCode>; 29], key: KeyCode) -> bool;
+    fn exist_next(&self, ctx: Context, key: KeyCode) -> bool;
 }
 
 impl ModTap for Key {
@@ -35,7 +35,7 @@ impl ModTap for Key {
             state: StateType::Off,
             prevstate: StateType::Off,
             keycode: [
-                Some((KC1, Operation::SendOff)),
+                Some((KC1, Operation::SendOn)),
                 Some((KC2, Operation::SendOn)),
                 None,
                 None,
@@ -54,7 +54,7 @@ impl ModTap for Key {
         // self.previnfo[0] is whether or not a combination was pressed
         self.previnfo[0] = false;
         if kc1.0.is_modifier() {
-            if self.exist_next(ctx.key_queue, kc1.0) {
+            if self.exist_next(ctx, kc1.0) {
                 self.previnfo[0] = true;
             }
         } else {
@@ -65,11 +65,10 @@ impl ModTap for Key {
         match kc1.0.is_modifier() {
             true => {
                 action(
-                    CallbackActions::Push,
+                    CallbackActions::Press,
                     ARGS::KS {
                         code: kc1.0,
                         op: kc1.1,
-                        st: StateType::Tap,
                     },
                 );
             }
@@ -85,11 +84,10 @@ impl ModTap for Key {
         match kc1.0.is_modifier() {
             true => {
                 action(
-                    CallbackActions::Push,
+                    CallbackActions::Press,
                     ARGS::KS {
                         code: kc1.0,
                         op: kc1.1,
-                        st: StateType::Hold,
                     },
                 );
             }
@@ -104,62 +102,50 @@ impl ModTap for Key {
     // when state goes from tap>off and another key was pressed never queue key and pull modifier
     // when state goed from hold>off never queue key, but pull modifier
     fn mtoff(&mut self, ctx: Context) -> [Option<(KeyCode, Operation)>; 4] {
+        let [Some(kc0), Some(kc1), None, None] = self.keycode else {
+            return [None; 4];
+        };
         match self.prevstate {
             StateType::Tap => {
-                let [Some(kc0), Some(kc1), None, None] = self.keycode else {
-                    return [None; 4];
-                };
                 // if there was not a combination of key pressed during the tap then
-                if !self.previnfo[0] && !self.exist_next(ctx.key_queue, kc1.0) {
+                if !self.previnfo[0] && !self.exist_next(ctx, kc1.0) {
                     println!("no combo");
                     match kc0.0.is_modifier() {
                         true => error!("{} is a modifier, but shouldn't be", kc0.0),
                         false => {
                             action(
-                                CallbackActions::Push,
+                                CallbackActions::Release,
                                 ARGS::KS {
                                     code: kc1.0,
                                     op: kc1.1,
-                                    st: StateType::Off,
                                 },
                             );
-                            action(
-                                CallbackActions::Push,
-                                ARGS::KS {
-                                    code: kc0.0,
-                                    op: Operation::SendOff,
-                                    st: StateType::Tap,
-                                },
-                            );
+                            self.previnfo[4] = true;
+                            self.stor[4] = 0;
                         }
                     }
-                    return [Some((kc0.0, kc0.1)), None, None, None];
+                    return [Some((kc1.0, kc1.1)), None, None, None];
                     // if there was a combination of keys pressed then do nothing
                 } else {
                     action(
-                        CallbackActions::Push,
+                        CallbackActions::Release,
                         ARGS::KS {
                             code: kc1.0,
                             op: kc1.1,
-                            st: StateType::Off,
                         },
                     );
-                    return [None; 4];
+                    return [Some((kc1.0, kc1.1)), None, None, None];
                 }
             }
             StateType::Hold => {
-                let [Some(kc0), Some(kc1), None, None] = self.keycode else {
-                    return [None; 4];
-                };
                 match kc0.0.is_modifier() {
                     true => error!("{} is a modifier, but shouldn't be", kc0.0),
                     false => {
                         action(
-                            CallbackActions::Push,
+                            CallbackActions::Release,
                             ARGS::KS {
                                 code: kc1.0,
                                 op: kc1.1,
-                                st: StateType::Off,
                             },
                         );
                     }
@@ -167,7 +153,34 @@ impl ModTap for Key {
                 return [Some((kc1.0, kc1.1)), None, None, None];
             }
             StateType::Off => {
-                return [None; 4];
+                let mut rtrn: [Option<(KeyCode, Operation)>; 4] = [None; 4];
+                if self.prevstate == StateType::Off && self.previnfo[4] {
+                    if self.stor[4] == 1 {
+                        action(
+                            CallbackActions::Press,
+                            ARGS::KS {
+                                code: kc0.0,
+                                op: Operation::SendOn,
+                            },
+                        );
+                        rtrn = [Some((kc0.0, kc0.1)), None, None, None];
+                        self.stor[4] += 1;
+                    } else if self.stor[4] == 2 {
+                        action(
+                            CallbackActions::Release,
+                            ARGS::KS {
+                                code: kc0.0,
+                                op: Operation::SendOn,
+                            },
+                        );
+                        self.previnfo[4] = false;
+                        rtrn = [Some((kc0.0, kc0.1)), None, None, None];
+                        self.stor[4] += 1;
+                    } else {
+                        self.stor[4] += 1;
+                    }
+                }
+                rtrn
             }
             _ => {
                 return [None; 4];
@@ -176,20 +189,29 @@ impl ModTap for Key {
     }
 
     /// check to see if another key exists in the queue after the current one
-    fn exist_next(&self, ks: [Option<KeyCode>; 29], key: KeyCode) -> bool {
+    fn exist_next(&self, ctx: Context, key: KeyCode) -> bool {
         let mut rtrn1 = false;
         // locate key in array
-        let ind1: Option<usize> = ks.iter().position(|k| k.is_some() && k.unwrap() == key);
+        let ind1: Option<usize> = ctx
+            .key_queue
+            .iter()
+            .position(|k| k.is_some() && k.unwrap() == key);
         let mut srt: usize = 0;
         if ind1.is_some() {
             srt = ind1.unwrap();
         }
-        for i in srt..ks.len() {
-            if ks[i].is_some() {
-                rtrn1 = true;
+        for i in srt..ctx.key_queue.len() {
+            if ctx.key_queue[i].is_some() {
+                if ctx.key_queue[i].unwrap() != key {
+                    rtrn1 = true;
+                    warn!("rtrn1 = {}, key = {}", rtrn1, ctx.key_queue[i].unwrap());
+                    break;
+                }
             }
         }
-        warn!("rtrn1 = {}", rtrn1);
+        if !rtrn1 {
+            warn!("rtrn1 = false, key = ''");
+        }
         rtrn1
     }
     #[doc = " Perform state change as a result of the scan"]
