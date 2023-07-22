@@ -15,7 +15,6 @@ use crate::key::Default;
 use crate::{
     key::Key,
     key_codes::KeyCode,
-    // mods::mod_tap::ModTap,
 };
 use crate::{Context, ARGS};
 
@@ -112,7 +111,6 @@ impl<const RSIZE: usize, const CSIZE: usize> Matrix<RSIZE, CSIZE> {
         let mut new = Matrix {
             rows,
             cols,
-            // state: KeyMatrix::new([[Key::new(KeyCode::________, None); CSIZE]; RSIZE]),
             state: keymap,
             callback,
             wait_cycles: 2,
@@ -157,10 +155,6 @@ impl<const RSIZE: usize, const CSIZE: usize> Matrix<RSIZE, CSIZE> {
 
         // Set new strobe as high
         self.cols[self.cur_strobe].set_high();
-        // let mut str: String<10> = "strobing ".into();
-        // let strobe: String<10> = String::from(self.cur_strobe as u32);
-        // str.push_str(&strobe).unwrap();
-        // self.execute_info(&str)
     }
     pub fn poll(&mut self, ctx: Context) -> bool {
         self.next_strobe();

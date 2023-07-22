@@ -1,3 +1,5 @@
+use defmt::debug;
+
 use crate::action;
 use crate::actions::CallbackActions;
 use crate::key::DEBOUNCE_CYCLES;
@@ -58,6 +60,8 @@ impl ModCombo for Key {
                 op: kc0.1,
             },
         );
+        self.previnfo[1] = true;
+        self.stor[4] = 0;
         [Some((kc0.0, kc0.1)), Some((kc1.0, kc1.1)), None, None]
     }
     fn mchold(&mut self, _ctx: Context) -> [Option<(KeyCode, Operation)>; 4] {
@@ -73,23 +77,33 @@ impl ModCombo for Key {
         let [Some(kc0), Some(kc1), None, None] = self.keycode else {
             return [None; 4];
         };
-        if self.prevstate != StateType::Off {
-            action(
-                CallbackActions::Release,
-                ARGS::KS {
-                    code: kc0.0,
-                    op: kc0.1,
-                },
-            );
-            action(
-                CallbackActions::Release,
-                ARGS::KS {
-                    code: kc1.0,
-                    op: kc1.1,
-                },
-            );
+        if self.previnfo[1] {
+            if self.stor[4] == 1 {
+                debug!("Almost Done");
+                debug!("Done");
+                action(
+                    CallbackActions::Release,
+                    ARGS::KS {
+                        code: kc0.0,
+                        op: kc0.1,
+                    },
+                );
+                action(
+                    CallbackActions::Release,
+                    ARGS::KS {
+                        code: kc1.0,
+                        op: kc1.1,
+                    },
+                );
+                self.stor[4] += 1;
+            } else if self.stor[4] == 2 {
+                self.previnfo[1] = false;
+            } else {
+                self.stor[4] += 1;
+            }
+            return [Some((kc0.0, kc0.1)), Some((kc1.0, kc1.1)), None, None];
         }
-        [Some((kc0.0, kc0.1)), Some((kc1.0, kc1.1)), None, None]
+        [None; 4]
     }
     #[doc = " Perform state change as a result of the scan"]
     fn mcscan(&mut self, is_high: bool, ctx: Context) -> [Option<(KeyCode, Operation)>; 4] {
