@@ -10,13 +10,9 @@ mod key_mapping;
 mod keyscanning;
 mod macros;
 mod mods;
-mod util;
 
 use core::sync::atomic::AtomicBool;
-use core::{
-    cell::RefCell,
-    sync::atomic::{AtomicU8, Ordering},
-};
+use core::sync::atomic::{AtomicU8, Ordering};
 
 use crate::{key_codes::KeyCode, pac::interrupt};
 use cortex_m_rt::entry;
@@ -28,7 +24,6 @@ use kiibohd_hid_io::{CommandInterface, HidIoCommandId, KiibohdCommandInterface};
 use kiibohd_usb::KeyState;
 use panic_probe as _;
 use usb_device::prelude::{UsbDeviceBuilder, UsbVidPid};
-use util::hid_descriptor::KeyboardNkroReport;
 
 use critical_section::Mutex;
 use heapless::spsc::{Producer, Queue};
@@ -47,8 +42,8 @@ use rp2040_hal::{
 };
 use ws2812_pio::Ws2812;
 
+use crate::keyscanning::Matrix;
 use crate::keyscanning::StateType;
-use crate::keyscanning::{Matrix, Operation};
 
 use self::actions::CallbackActions;
 use self::keyscanning::KeyQueue;
@@ -89,7 +84,7 @@ impl<const H: usize> KiibohdCommandInterface<H> for HidioInterface<H> {
 
 #[derive(Clone, PartialEq, PartialOrd)]
 pub enum ARGS {
-    KS { code: KeyCode, op: Operation },
+    KS { code: KeyCode },
     RGB { r: u8, g: u8, b: u8 },
     STR { s: String<30> },
 }
@@ -98,7 +93,7 @@ pub enum ARGS {
 pub fn action(action: CallbackActions, ops: ARGS) {
     match action {
         CallbackActions::Press => match ops {
-            ARGS::KS { code, op } => {
+            ARGS::KS { code } => {
                 critical_section::with(|_| {
                     let kbd = unsafe { KBD_PRODUCER.get_mut() };
                     if code != KeyCode::________ {
@@ -110,13 +105,9 @@ pub fn action(action: CallbackActions, ops: ARGS) {
                             {
                                 Ok(_) => {
                                     warn!("Key IN  {:?}", code);
-                                    unsafe { ACTIVE_QUEUE.enqueue((code, op)) };
+                                    unsafe { ACTIVE_QUEUE.enqueue(code) };
                                 }
                                 Err(err) => error!("{}", err),
-                            }
-
-                            if op == Operation::SendOff {
-                                unsafe { RM_QUEUE.enqueue((code, op)) };
                             }
                         } else {
                             error!("KBD_PRODUCER is None");
@@ -129,7 +120,7 @@ pub fn action(action: CallbackActions, ops: ARGS) {
             }
         },
         CallbackActions::Release => match ops {
-            ARGS::KS { code, op } => {
+            ARGS::KS { code } => {
                 critical_section::with(|_| {
                     let kbd = unsafe { KBD_PRODUCER.get_mut() };
                     if code != KeyCode::________ {
@@ -141,7 +132,7 @@ pub fn action(action: CallbackActions, ops: ARGS) {
                             {
                                 Ok(_) => {
                                     warn!("Key OUT {:?}", code);
-                                    unsafe { ACTIVE_QUEUE.dequeue((code, op)) };
+                                    unsafe { ACTIVE_QUEUE.dequeue(code) };
                                 }
                                 Err(err) => error!("{}", err),
                             }
@@ -396,26 +387,6 @@ fn main() -> ! {
     loop {
         delay.delay_us(1000u32);
         unsafe {
-            if !RM_QUEUE.is_empty() {
-                let kbd = unsafe { KBD_PRODUCER.get_mut() };
-                RM_QUEUE.keys.iter().for_each(|k| {
-                    if k.is_some() {
-                        match kbd
-                            .as_mut()
-                            .unwrap()
-                            .enqueue(kiibohd_usb::KeyState::Release(k.unwrap().0.into()))
-                        {
-                            Ok(_) => {
-                                warn!("Key REMOVED {:?}", k.unwrap());
-                                RM_QUEUE.dequeue(k.unwrap());
-                            }
-                            Err(err) => error!("{}", err),
-                        }
-                    }
-                })
-            }
-        }
-        unsafe {
             if let Some(usb_hid) = USB_HID.as_mut() {
                 usb_hid.update();
                 match usb_hid.push() {
@@ -457,9 +428,7 @@ static mut USB_ALLOCATOR: Option<UsbBusAllocator<UsbBus>> = None;
 static mut HID_BUS: Option<UsbDevice<UsbBus>> = None;
 static mut USB_HID: Option<HidInterface> = None;
 static mut REPORTSENT: AtomicBool = AtomicBool::new(false);
-static mut READYTOSEND: AtomicBool = AtomicBool::new(false);
 static mut ACTIVE_QUEUE: KeyQueue<10> = KeyQueue::new();
-static mut RM_QUEUE: KeyQueue<10> = KeyQueue::new();
 // static mut STRING_QUEUE: KeyQueue<30> = KeyQueue::new();
 
 /// Handle USB interrupts, used by the host to "poll" the keyboard for new inputs.
@@ -478,11 +447,4 @@ unsafe fn USBCTRL_IRQ() {
             }
         }
     }
-}
-
-fn report_is_empty(report: &KeyboardNkroReport) -> bool {
-    report
-        .keybitmap
-        .iter()
-        .any(|key| *key != key_codes::KeyCode::________ as u8)
 }

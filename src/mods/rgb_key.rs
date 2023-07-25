@@ -4,7 +4,6 @@ use crate::key::DEBOUNCE_CYCLES;
 use crate::key::HOLD_CYCLES;
 use crate::keyscanning::StateType;
 use crate::Context;
-use crate::Operation;
 use crate::ARGS;
 use crate::{key::Key, key_codes::KeyCode};
 
@@ -13,12 +12,12 @@ pub trait RGBKey {
     where
         Self: Sized,
         Self: RGBKey;
-    fn rktap(&mut self, ctx: Context) -> [Option<(KeyCode, Operation)>; 4];
-    fn rkhold(&mut self, _ctx: Context) -> [Option<(KeyCode, Operation)>; 4];
-    fn rkidle(&mut self, _ctx: Context) -> [Option<(KeyCode, Operation)>; 4];
-    fn rkoff(&mut self, _ctx: Context) -> [Option<(KeyCode, Operation)>; 4];
-    fn get_keys(&mut self, ctx: Context) -> [Option<(KeyCode, Operation)>; 4];
-    fn rkscan(&mut self, is_high: bool, ctx: Context) -> [Option<(KeyCode, Operation)>; 4];
+    fn rktap(&mut self, ctx: Context) -> [Option<KeyCode>; 4];
+    fn rkhold(&mut self, _ctx: Context) -> [Option<KeyCode>; 4];
+    fn rkidle(&mut self, _ctx: Context) -> [Option<KeyCode>; 4];
+    fn rkoff(&mut self, _ctx: Context) -> [Option<KeyCode>; 4];
+    fn get_keys(&mut self, ctx: Context) -> [Option<KeyCode>; 4];
+    fn rkscan(&mut self, is_high: bool, ctx: Context) -> [Option<KeyCode>; 4];
 }
 
 impl RGBKey for Key {
@@ -30,8 +29,8 @@ impl RGBKey for Key {
             state: StateType::Off,
             prevstate: StateType::Off,
             keycode: [
-                Some((KeyCode::EEEEEEEE, Operation::SendOn)),
-                Some((KeyCode::EEEEEEEE, Operation::SendOn)),
+                Some(KeyCode::EEEEEEEE),
+                Some(KeyCode::EEEEEEEE),
                 None,
                 None,
             ],
@@ -40,7 +39,7 @@ impl RGBKey for Key {
             typ: "RGBKey",
         }
     }
-    fn rktap(&mut self, _ctx: Context) -> [Option<(KeyCode, Operation)>; 4] {
+    fn rktap(&mut self, _ctx: Context) -> [Option<KeyCode>; 4] {
         let [Some(_kc0), Some(kc1), None, None] = self.keycode else {
             return [None; 4];
         };
@@ -52,31 +51,31 @@ impl RGBKey for Key {
                 b: self.stor[2],
             },
         );
-        [Some((kc1.0, kc1.1)), None, None, None]
+        [Some(kc1), None, None, None]
     }
-    fn rkhold(&mut self, _ctx: Context) -> [Option<(KeyCode, Operation)>; 4] {
+    fn rkhold(&mut self, _ctx: Context) -> [Option<KeyCode>; 4] {
         let [Some(_kc0), Some(kc1), None, None] = self.keycode else {
             return [None; 4];
         };
-        [Some((kc1.0, kc1.1)), None, None, None]
+        [Some(kc1), None, None, None]
     }
-    fn rkidle(&mut self, _ctx: Context) -> [Option<(KeyCode, Operation)>; 4] {
+    fn rkidle(&mut self, _ctx: Context) -> [Option<KeyCode>; 4] {
         [None; 4]
     }
-    fn rkoff(&mut self, _ctx: Context) -> [Option<(KeyCode, Operation)>; 4] {
+    fn rkoff(&mut self, _ctx: Context) -> [Option<KeyCode>; 4] {
         let [Some(_kc0), Some(kc1), None, None] = self.keycode else {
             return [None; 4];
         };
-        [Some((kc1.0, kc1.1)), None, None, None]
+        [Some(kc1), None, None, None]
     }
     #[doc = " Perform state change as a result of the scan"]
-    fn rkscan(&mut self, is_high: bool, ctx: Context) -> [Option<(KeyCode, Operation)>; 4] {
+    fn rkscan(&mut self, is_high: bool, ctx: Context) -> [Option<KeyCode>; 4] {
         let [Some(kc0), Some(kc1), None, None] = self.keycode else {
             return [None; 4];
         };
         // println!("{}", is_high);
         // if they KeyCode is empty then don't bother processing
-        if kc0.0 == KeyCode::________ && kc1.0 == KeyCode::________ {
+        if kc0 == KeyCode::________ && kc1 == KeyCode::________ {
             return [None; 4];
         }
         //     ____________________________
@@ -130,7 +129,7 @@ impl RGBKey for Key {
         }
         self.get_keys(ctx)
     }
-    fn get_keys(&mut self, ctx: Context) -> [Option<(KeyCode, Operation)>; 4] {
+    fn get_keys(&mut self, ctx: Context) -> [Option<KeyCode>; 4] {
         match self.state {
             StateType::Tap => self.rktap(ctx),
             StateType::Hold => self.rkhold(ctx),

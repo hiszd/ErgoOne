@@ -8,7 +8,6 @@ use crate::key::DEBOUNCE_CYCLES;
 use crate::key::HOLD_CYCLES;
 use crate::keyscanning::StateType;
 use crate::Context;
-use crate::Operation;
 use crate::ARGS;
 use crate::{key::Key, key_codes::KeyCode};
 
@@ -17,12 +16,12 @@ pub trait TapCom {
     where
         Self: Sized,
         Self: TapCom;
-    fn tctap(&mut self, ctx: Context) -> [Option<(KeyCode, Operation)>; 4];
-    fn tchold(&mut self, _ctx: Context) -> [Option<(KeyCode, Operation)>; 4];
-    fn tcidle(&mut self, _ctx: Context) -> [Option<(KeyCode, Operation)>; 4];
-    fn tcoff(&mut self, _ctx: Context) -> [Option<(KeyCode, Operation)>; 4];
-    fn get_keys(&mut self, ctx: Context) -> [Option<(KeyCode, Operation)>; 4];
-    fn tcscan(&mut self, is_high: bool, ctx: Context) -> [Option<(KeyCode, Operation)>; 4];
+    fn tctap(&mut self, ctx: Context) -> [Option<KeyCode>; 4];
+    fn tchold(&mut self, _ctx: Context) -> [Option<KeyCode>; 4];
+    fn tcidle(&mut self, _ctx: Context) -> [Option<KeyCode>; 4];
+    fn tcoff(&mut self, _ctx: Context) -> [Option<KeyCode>; 4];
+    fn get_keys(&mut self, ctx: Context) -> [Option<KeyCode>; 4];
+    fn tcscan(&mut self, is_high: bool, ctx: Context) -> [Option<KeyCode>; 4];
     fn exist_next(&self, ctx: Context, key: KeyCode) -> bool;
 }
 
@@ -36,9 +35,9 @@ impl TapCom for Key {
             state: StateType::Off,
             prevstate: StateType::Off,
             keycode: [
-                Some((KC0, Operation::SendOn)),
-                Some((KC1, Operation::SendOn)),
-                Some((KC2, Operation::SendOn)),
+                Some(KC0),
+                Some(KC1),
+                Some(KC2),
                 None,
             ],
             previnfo: [false; 6],
@@ -48,7 +47,7 @@ impl TapCom for Key {
     }
     // when state becomes tap enqueue modifier
     // when state becomes hold never queue key
-    fn tctap(&mut self, ctx: Context) -> [Option<(KeyCode, Operation)>; 4] {
+    fn tctap(&mut self, ctx: Context) -> [Option<KeyCode>; 4] {
         let [Some(kc0), Some(_kc1), Some(_kc2), None] = self.keycode else {
             return [None; 4];
         };
@@ -56,13 +55,13 @@ impl TapCom for Key {
         // self.stor[0] is the amount of scans that there has been a combo
         // self.stor[1] is the amount of scans that there has NOT been a combo
         if !self.previnfo[0] {
-            if kc0.0.is_modifier() {
+            if kc0.is_modifier() {
                 // if there is another key pressed
-                if self.exist_next(ctx, kc0.0) {
+                if self.exist_next(ctx, kc0) {
                     self.previnfo[0] = true;
                 }
             } else {
-                error!("{} is not a modifier", kc0.0);
+                error!("{} is not a modifier", kc0);
                 return [None; 4];
             }
         }
@@ -71,75 +70,70 @@ impl TapCom for Key {
             action(
                 CallbackActions::Press,
                 ARGS::KS {
-                    code: kc0.0,
-                    op: kc0.1,
+                    code: kc0,
                 },
             );
-            return [Some((kc0.0, kc0.1)), None, None, None];
+            return [Some(kc0), None, None, None];
         }
         [None; 4]
     }
-    fn tchold(&mut self, _ctx: Context) -> [Option<(KeyCode, Operation)>; 4] {
+    fn tchold(&mut self, _ctx: Context) -> [Option<KeyCode>; 4] {
         let [Some(kc0), Some(_kc1), Some(_kc2), None] = self.keycode else {
             return [None; 4];
         };
         self.previnfo[0] = true;
-        match kc0.0.is_modifier() {
+        match kc0.is_modifier() {
             true => {
                 action(
                     CallbackActions::Press,
                     ARGS::KS {
-                        code: kc0.0,
-                        op: kc0.1,
+                        code: kc0,
                     },
                 );
             }
-            false => error!("{} is not a modifier", kc0.0),
+            false => error!("{} is not a modifier", kc0),
         }
-        [Some((kc0.0, kc0.1)), None, None, None]
+        [Some(kc0), None, None, None]
     }
-    fn tcidle(&mut self, _ctx: Context) -> [Option<(KeyCode, Operation)>; 4] {
+    fn tcidle(&mut self, _ctx: Context) -> [Option<KeyCode>; 4] {
         [None; 4]
     }
     // when state goes from tap>off and another key was never pressed enqueue key and pull modifier
     // when state goes from tap>off and another key was pressed never queue key and pull modifier
     // when state goed from hold>off never queue key, but pull modifier
-    fn tcoff(&mut self, ctx: Context) -> [Option<(KeyCode, Operation)>; 4] {
+    fn tcoff(&mut self, ctx: Context) -> [Option<KeyCode>; 4] {
         let [Some(kc0), Some(kc1), Some(kc2), None] = self.keycode else {
             return [None; 4];
         };
         match self.prevstate {
             StateType::Tap => {
                 // if there was not a combination of key pressed during the tap then
-                if !self.previnfo[0] && !self.exist_next(ctx, kc0.0) {
+                if !self.previnfo[0] && !self.exist_next(ctx, kc0) {
                     println!("no combo");
                     self.previnfo[1] = true;
                     self.stor[4] = 0;
                     action(
                         CallbackActions::Release,
                         ARGS::KS {
-                            code: kc0.0,
-                            op: kc0.1,
+                            code: kc0,
                         },
                     );
                     action(
                         CallbackActions::Press,
                         ARGS::KS {
-                            code: kc1.0,
-                            op: Operation::SendOn,
+                            code: kc1,
                         },
                     );
                     action(
                         CallbackActions::Press,
                         ARGS::KS {
-                            code: kc2.0,
-                            op: Operation::SendOn,
+                            code: kc2,
                         },
                     );
                     return [
-                        Some((kc0.0, kc0.1)),
-                        Some((kc1.0, kc1.1)),
-                        Some((kc2.0, kc2.1)),
+                        Some(kc0),
+                        Some(kc1),
+                        Some(kc2),
                         None,
                     ];
                     // if there was a combination of keys pressed then do nothing
@@ -149,12 +143,11 @@ impl TapCom for Key {
                     action(
                         CallbackActions::Release,
                         ARGS::KS {
-                            code: kc1.0,
-                            op: kc1.1,
+                            code: kc1,
                         },
                     );
                     self.previnfo[0] = false;
-                    return [Some((kc1.0, kc1.1)), None, None, None];
+                    return [Some(kc1), None, None, None];
                 }
             }
             StateType::Hold => {
@@ -162,11 +155,10 @@ impl TapCom for Key {
                 action(
                     CallbackActions::Release,
                     ARGS::KS {
-                        code: kc0.0,
-                        op: kc0.1,
+                        code: kc0,
                     },
                 );
-                return [Some((kc0.0, kc0.1)), None, None, None];
+                return [Some(kc0), None, None, None];
             }
             StateType::Off => {
                 if self.previnfo[1] {
@@ -174,15 +166,13 @@ impl TapCom for Key {
                         action(
                             CallbackActions::Release,
                             ARGS::KS {
-                                code: kc1.0,
-                                op: Operation::SendOn,
+                                code: kc1,
                             },
                         );
                         action(
                             CallbackActions::Release,
                             ARGS::KS {
-                                code: kc2.0,
-                                op: Operation::SendOn,
+                                code: kc2,
                             },
                         );
                         self.previnfo[1] = false;
@@ -226,7 +216,7 @@ impl TapCom for Key {
         rtrn1
     }
     #[doc = " Perform state change as a result of the scan"]
-    fn tcscan(&mut self, is_high: bool, ctx: Context) -> [Option<(KeyCode, Operation)>; 4] {
+    fn tcscan(&mut self, is_high: bool, ctx: Context) -> [Option<KeyCode>; 4] {
         if self.keycode[0].is_none() && self.keycode[1].is_none() {
             return [None; 4];
         }
@@ -260,7 +250,7 @@ impl TapCom for Key {
         }
         self.get_keys(ctx)
     }
-    fn get_keys(&mut self, ctx: Context) -> [Option<(KeyCode, Operation)>; 4] {
+    fn get_keys(&mut self, ctx: Context) -> [Option<KeyCode>; 4] {
         match self.state {
             StateType::Tap => self.tctap(ctx),
             StateType::Hold => self.tchold(ctx),

@@ -12,17 +12,8 @@ use rp2040_hal::gpio::DynPin;
 use usbd_hid::descriptor::KeyboardReport;
 
 use crate::key::Default;
-use crate::{
-    key::Key,
-    key_codes::KeyCode,
-};
+use crate::{key::Key, key_codes::KeyCode};
 use crate::{Context, ARGS};
-
-#[derive(Copy, Clone, PartialEq, PartialOrd, Debug, Format)]
-pub enum Operation {
-    SendOn,
-    SendOff,
-}
 
 #[derive(Copy, Clone, PartialEq, PartialOrd, Debug, Format)]
 pub enum StateType {
@@ -161,7 +152,7 @@ impl<const RSIZE: usize, const CSIZE: usize> Matrix<RSIZE, CSIZE> {
         let c = self.cur_strobe;
 
         for r in 0..RSIZE {
-            let codes: [Option<(KeyCode, Operation)>; 4];
+            let codes: [Option<KeyCode>; 4];
             let _typ: &str;
             match self.state.matrix[r][c].typ {
                 "Default" => {
@@ -192,8 +183,8 @@ impl<const RSIZE: usize, const CSIZE: usize> Matrix<RSIZE, CSIZE> {
                     self.state.matrix[r][c].prevstate,
                     // [KeyCode::________, KeyCode::________],
                     [
-                        codes[0].unwrap_or((KeyCode::________, Operation::SendOn)).0,
-                        codes[1].unwrap_or((KeyCode::________, Operation::SendOn)).0,
+                        codes[0].unwrap_or(KeyCode::________),
+                        codes[1].unwrap_or(KeyCode::________),
                     ],
                 );
             }
@@ -207,7 +198,7 @@ impl<const RSIZE: usize, const CSIZE: usize> Matrix<RSIZE, CSIZE> {
 
 #[derive(Copy, Clone)]
 pub struct KeyQueue<const QSIZE: usize> {
-    pub keys: [Option<(KeyCode, Operation)>; QSIZE],
+    pub keys: [Option<KeyCode>; QSIZE],
 }
 
 impl<const QSIZE: usize> KeyQueue<QSIZE> {
@@ -232,10 +223,10 @@ impl<const QSIZE: usize> KeyQueue<QSIZE> {
     }
 
     /// remove all instances of a specific KeyCode
-    pub fn dequeue(&mut self, key: (KeyCode, Operation)) -> bool {
+    pub fn dequeue(&mut self, key: KeyCode) -> bool {
         let mut rtrn: bool = false;
         self.keys.iter_mut().for_each(|k| {
-            if k.is_some() && k.unwrap().0 == key.0 {
+            if k.is_some() && k.unwrap() == key {
                 *k = None;
                 rtrn = true;
             }
@@ -247,15 +238,11 @@ impl<const QSIZE: usize> KeyQueue<QSIZE> {
     /// returns false if the queue is full
     /// returns false if the key is already in the queue
     /// returns true if the key is not in the queue
-    pub fn enqueue(&mut self, key: (KeyCode, Operation)) -> bool {
+    pub fn enqueue(&mut self, key: KeyCode) -> bool {
         if self.len() >= QSIZE {
             return false;
         }
-        if self
-            .keys
-            .iter()
-            .any(|k| k.is_some() && k.unwrap().0 == key.0)
-        {
+        if self.keys.iter().any(|k| k.is_some() && k.unwrap() == key) {
             false
         } else {
             for i in 0..QSIZE {
@@ -274,7 +261,7 @@ impl<const QSIZE: usize> KeyQueue<QSIZE> {
         let mut keys: [u8; QSIZE] = [0x00; QSIZE];
         self.keys.iter().enumerate().for_each(|(i, k)| {
             if k.is_some() {
-                keys[i] = k.unwrap().0.into();
+                keys[i] = k.unwrap().into();
             } else {
                 keys[i] = 0x00;
             }
@@ -291,7 +278,7 @@ impl<const QSIZE: usize> KeyQueue<QSIZE> {
         let mut keys: [Option<KeyCode>; QSIZE] = [None; QSIZE];
         self.keys.iter().enumerate().for_each(|(i, k)| {
             if let Some(k) = k {
-                keys[i] = Some(k.0);
+                keys[i] = Some(*k);
             }
         });
         keys

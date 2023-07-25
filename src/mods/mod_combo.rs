@@ -6,7 +6,6 @@ use crate::key::DEBOUNCE_CYCLES;
 use crate::key::HOLD_CYCLES;
 use crate::keyscanning::StateType;
 use crate::Context;
-use crate::Operation;
 use crate::ARGS;
 use crate::{key::Key, key_codes::KeyCode};
 
@@ -15,12 +14,12 @@ pub trait ModCombo {
     where
         Self: Sized,
         Self: ModCombo;
-    fn mctap(&mut self, ctx: Context) -> [Option<(KeyCode, Operation)>; 4];
-    fn mchold(&mut self, _ctx: Context) -> [Option<(KeyCode, Operation)>; 4];
-    fn mcidle(&mut self, _ctx: Context) -> [Option<(KeyCode, Operation)>; 4];
-    fn mcoff(&mut self, _ctx: Context) -> [Option<(KeyCode, Operation)>; 4];
-    fn get_keys(&mut self, ctx: Context) -> [Option<(KeyCode, Operation)>; 4];
-    fn mcscan(&mut self, is_high: bool, ctx: Context) -> [Option<(KeyCode, Operation)>; 4];
+    fn mctap(&mut self, ctx: Context) -> [Option<KeyCode>; 4];
+    fn mchold(&mut self, _ctx: Context) -> [Option<KeyCode>; 4];
+    fn mcidle(&mut self, _ctx: Context) -> [Option<KeyCode>; 4];
+    fn mcoff(&mut self, _ctx: Context) -> [Option<KeyCode>; 4];
+    fn get_keys(&mut self, ctx: Context) -> [Option<KeyCode>; 4];
+    fn mcscan(&mut self, is_high: bool, ctx: Context) -> [Option<KeyCode>; 4];
 }
 
 impl ModCombo for Key {
@@ -32,8 +31,8 @@ impl ModCombo for Key {
             state: StateType::Off,
             prevstate: StateType::Off,
             keycode: [
-                Some((KC1, Operation::SendOn)),
-                Some((KC2, Operation::SendOn)),
+                Some(KC1),
+                Some(KC2),
                 None,
                 None,
             ],
@@ -42,38 +41,36 @@ impl ModCombo for Key {
             typ: "ModCombo",
         }
     }
-    fn mctap(&mut self, _ctx: Context) -> [Option<(KeyCode, Operation)>; 4] {
+    fn mctap(&mut self, _ctx: Context) -> [Option<KeyCode>; 4] {
         let [Some(kc0), Some(kc1), None, None] = self.keycode else {
             return [None; 4];
         };
         action(
             CallbackActions::Press,
             ARGS::KS {
-                code: kc1.0,
-                op: kc1.1,
+                code: kc1,
             },
         );
         action(
             CallbackActions::Press,
             ARGS::KS {
-                code: kc0.0,
-                op: kc0.1,
+                code: kc0,
             },
         );
         self.previnfo[1] = true;
         self.stor[4] = 0;
-        [Some((kc0.0, kc0.1)), Some((kc1.0, kc1.1)), None, None]
+        [Some(kc0), Some(kc1), None, None]
     }
-    fn mchold(&mut self, _ctx: Context) -> [Option<(KeyCode, Operation)>; 4] {
+    fn mchold(&mut self, _ctx: Context) -> [Option<KeyCode>; 4] {
         let [Some(kc0), Some(kc1), None, None] = self.keycode else {
             return [None; 4];
         };
-        [Some((kc0.0, kc0.1)), Some((kc1.0, kc1.1)), None, None]
+        [Some(kc0), Some(kc1), None, None]
     }
-    fn mcidle(&mut self, _ctx: Context) -> [Option<(KeyCode, Operation)>; 4] {
+    fn mcidle(&mut self, _ctx: Context) -> [Option<KeyCode>; 4] {
         [None; 4]
     }
-    fn mcoff(&mut self, _ctx: Context) -> [Option<(KeyCode, Operation)>; 4] {
+    fn mcoff(&mut self, _ctx: Context) -> [Option<KeyCode>; 4] {
         let [Some(kc0), Some(kc1), None, None] = self.keycode else {
             return [None; 4];
         };
@@ -84,15 +81,13 @@ impl ModCombo for Key {
                 action(
                     CallbackActions::Release,
                     ARGS::KS {
-                        code: kc0.0,
-                        op: kc0.1,
+                        code: kc0,
                     },
                 );
                 action(
                     CallbackActions::Release,
                     ARGS::KS {
-                        code: kc1.0,
-                        op: kc1.1,
+                        code: kc1,
                     },
                 );
                 self.stor[4] += 1;
@@ -101,18 +96,18 @@ impl ModCombo for Key {
             } else {
                 self.stor[4] += 1;
             }
-            return [Some((kc0.0, kc0.1)), Some((kc1.0, kc1.1)), None, None];
+            return [Some(kc0), Some(kc1), None, None];
         }
         [None; 4]
     }
     #[doc = " Perform state change as a result of the scan"]
-    fn mcscan(&mut self, is_high: bool, ctx: Context) -> [Option<(KeyCode, Operation)>; 4] {
+    fn mcscan(&mut self, is_high: bool, ctx: Context) -> [Option<KeyCode>; 4] {
         let [Some(kc0), Some(kc1), None, None] = self.keycode else {
             return [None; 4];
         };
         // println!("{}", is_high);
         // if they KeyCode is empty then don't bother processing
-        if kc0.0 == KeyCode::________ && kc1.0 == KeyCode::________ {
+        if kc0 == KeyCode::________ && kc1 == KeyCode::________ {
             return [None; 4];
         }
         //     ____________________________
@@ -166,7 +161,7 @@ impl ModCombo for Key {
         }
         self.get_keys(ctx)
     }
-    fn get_keys(&mut self, ctx: Context) -> [Option<(KeyCode, Operation)>; 4] {
+    fn get_keys(&mut self, ctx: Context) -> [Option<KeyCode>; 4] {
         match self.state {
             StateType::Tap => self.mctap(ctx),
             StateType::Hold => self.mchold(ctx),

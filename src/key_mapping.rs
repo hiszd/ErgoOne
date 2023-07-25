@@ -16,8 +16,6 @@ pub const ERGOONE_RSTLNE: [&str; 80] = [
 "df,Mod_LCtl",                  "df,Mod_LAlt","df,Mod_LCmd","df,Fun_Spcz","df,Sym_LBrk","df,Mod_LCmd","df,EEEEEEEE",         "df,Fun_Home","df,Fun_PgUp","df,EEEEEEEE","df,Mod_LAlt","df,Sym_RBrk","df,Arw_Left","df,Arw_Down","df,Arw_Upzz","df,Arw_Rght",
 ];
 
-// "tc,Mod_LSft,Mod_LSft,Num_9zzz","df,Ltr_Gzzz","df,Ltr_Xzzz","df,Ltr_Czzz","df,Ltr_Vzzz","df,Sym_FSla","mc,Sym_Minz,Mod_LSft","df,EEEEEEEE","df,EEEEEEEE","df,Fun_Bksp","df,Ltr_Bzzz","df,Ltr_Jzzz","df,Ltr_Mzzz","df,Sym_Coma","df,Sym_Perd","tc,Mod_RSft,Mod_RSft,Num_0zzz",
-
 #[allow(dead_code)]
 #[rustfmt::skip]
 pub const ERGOONE_QWERTY: [&str; 80] = [
