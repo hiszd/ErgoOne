@@ -82,11 +82,16 @@ impl<const H: usize> KiibohdCommandInterface<H> for HidioInterface<H> {
     }
 }
 
+static mut KBD_LAYER: AtomicU8 = AtomicU8::new(0);
+
 #[derive(Clone, PartialEq, PartialOrd)]
 pub enum ARGS {
     KS { code: KeyCode },
     RGB { r: u8, g: u8, b: u8 },
     STR { s: String<30> },
+    LYR { l: usize },
+    BLN { b: bool },
+    NON {},
 }
 
 /// execute function for key code
@@ -161,6 +166,37 @@ pub fn action(action: CallbackActions, ops: ARGS) {
             ARGS::STR { s: _ } => {}
             _ => {
                 error!("Expected ARGS::STR but got something else");
+            }
+        },
+        CallbackActions::SetLayer => match ops {
+            ARGS::LYR { l } => {
+                println!("Layer: {}", l);
+                unsafe { KBD_LAYER.store(l as u8, Ordering::Relaxed) };
+            }
+            _ => {
+                error!("Expected ARGS::LYR but got something else");
+            }
+        },
+        CallbackActions::IncLayer => match ops {
+            ARGS::NON {} => {
+                unsafe {
+                    let l = KBD_LAYER.load(Ordering::Relaxed);
+                    KBD_LAYER.store((l + 1) as u8, Ordering::Relaxed);
+                };
+            }
+            _ => {
+                error!("Expected ARGS::LYR but got something else");
+            }
+        },
+        CallbackActions::DecLayer => match ops {
+            ARGS::NON {} => {
+                unsafe {
+                    let l = KBD_LAYER.load(Ordering::Relaxed);
+                    KBD_LAYER.store((l - 1) as u8, Ordering::Relaxed);
+                };
+            }
+            _ => {
+                error!("Expected ARGS::LYR but got something else");
             }
         },
     }
@@ -327,8 +363,15 @@ fn main() -> ! {
         info!("{}, c1: {}, c2: {}", str, keycodes[0], keycodes[1]);
     }
 
-    let mut matrix: Matrix<5, 16> =
-        Matrix::new(rows, cols, callback, key_mapping::ERGOONE_RSTLNE.into());
+    let mut matrix: Matrix<5, 16> = Matrix::new(
+        rows,
+        cols,
+        callback,
+        [
+            key_mapping::ERGOONE_RSTLNE.into(),
+            key_mapping::ERGOONE_1.into(),
+        ],
+    );
     let poll1 = matrix.poll(Context {
         key_queue: unsafe { ACTIVE_QUEUE.get_keys() },
     });
@@ -411,6 +454,7 @@ fn main() -> ! {
         matrix.poll(Context {
             key_queue: unsafe { ACTIVE_QUEUE.get_keys() },
         });
+        matrix.set_layer(unsafe { KBD_LAYER.load(Ordering::Relaxed) as usize });
     }
 }
 

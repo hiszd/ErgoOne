@@ -2,6 +2,7 @@
 #![allow(unused_imports)]
 
 use crate::actions::CallbackActions;
+use crate::mods::layer_hold::LayerHold;
 use crate::mods::mod_combo::ModCombo;
 use crate::mods::mod_tap::ModTap;
 use crate::mods::mod_tapcom::TapCom;
@@ -153,6 +154,56 @@ impl<const RSIZE: usize, const CSIZE: usize> Matrix<RSIZE, CSIZE> {
         self.cols[self.cur_strobe].set_high();
     }
 
+    pub fn keyscan(
+        &mut self,
+        row: usize,
+        col: usize,
+        layer: usize,
+        ctx: Context,
+    ) -> [Option<KeyCode>; 4] {
+        let mut codes: [Option<KeyCode>; 4];
+        match self.state[layer].matrix[row][col].typ {
+            "Default" => {
+                codes = self.state[self.layer_active].matrix[row][col]
+                    .scan(self.rows[row].is_high(), ctx);
+            }
+            "ModTap" => {
+                codes = self.state[self.layer_active].matrix[row][col]
+                    .mdtscan(self.rows[row].is_high(), ctx);
+            }
+            "TapCom" => {
+                codes = self.state[self.layer_active].matrix[row][col]
+                    .tpcscan(self.rows[row].is_high(), ctx);
+            }
+            "ModCombo" => {
+                codes = self.state[self.layer_active].matrix[row][col]
+                    .mdcscan(self.rows[row].is_high(), ctx);
+            }
+            "RGBKey" => {
+                codes = self.state[self.layer_active].matrix[row][col]
+                    .rgkscan(self.rows[row].is_high(), ctx);
+            }
+            "LayerHold" => {
+                codes = self.state[self.layer_active].matrix[row][col]
+                    .lyhscan(self.rows[row].is_high(), ctx);
+            }
+            "Transparent" => {
+                codes = [None; 4];
+                if self.layer_active > 0 {
+                    codes = self.keyscan(row, col, self.layer_active - 1, ctx);
+                }
+            }
+            _ => {
+                codes = [None; 4];
+                error!(
+                    "Unknown key type {}",
+                    self.state[self.layer_active].matrix[row][col].typ
+                );
+            }
+        }
+        codes
+    }
+
     pub fn poll(&mut self, ctx: Context) -> bool {
         self.next_strobe();
         let c = self.cur_strobe;
@@ -163,35 +214,7 @@ impl<const RSIZE: usize, const CSIZE: usize> Matrix<RSIZE, CSIZE> {
             if self.state[self.layer_active].matrix[r][c].keycode[0] != Some(KeyCode::________)
                 || self.state[0].matrix[r][c].keycode[0] != None
             {
-                match self.state[self.layer_active].matrix[r][c].typ {
-                    "Default" => {
-                        codes = self.state[self.layer_active].matrix[r][c]
-                            .scan(self.rows[r].is_high(), ctx);
-                    }
-                    "ModTap" => {
-                        codes = self.state[self.layer_active].matrix[r][c]
-                            .mtscan(self.rows[r].is_high(), ctx);
-                    }
-                    "TapCom" => {
-                        codes = self.state[self.layer_active].matrix[r][c]
-                            .tcscan(self.rows[r].is_high(), ctx);
-                    }
-                    "ModCombo" => {
-                        codes = self.state[self.layer_active].matrix[r][c]
-                            .mcscan(self.rows[r].is_high(), ctx);
-                    }
-                    "RGBKey" => {
-                        codes = self.state[self.layer_active].matrix[r][c]
-                            .rkscan(self.rows[r].is_high(), ctx);
-                    }
-                    _ => {
-                        codes = [None; 4];
-                        error!(
-                            "Unknown key type {}",
-                            self.state[self.layer_active].matrix[r][c].typ
-                        );
-                    }
-                }
+                codes = self.keyscan(r, c, self.layer_active, ctx);
                 if self.state[self.layer_active].matrix[r][c].state
                     != self.state[self.layer_active].matrix[r][c].prevstate
                 {

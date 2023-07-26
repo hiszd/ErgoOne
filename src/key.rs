@@ -39,7 +39,7 @@ pub struct Key {
 }
 
 pub trait Default {
-    fn new(KC1: KeyCode, KC2: Option<KeyCode>) -> Self
+    fn new(KC1: KeyCode) -> Self
     where
         Self: Sized,
         Self: Default;
@@ -52,7 +52,7 @@ pub trait Default {
 }
 
 impl Default for Key {
-    fn new(KC1: KeyCode, _KC2: Option<KeyCode>) -> Self {
+    fn new(KC1: KeyCode) -> Self {
         Key {
             cycles: 0,
             raw_state: false,

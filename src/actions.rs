@@ -4,4 +4,7 @@ pub enum CallbackActions {
     Release,
     RGBSet,
     SendString,
+    SetLayer,
+    IncLayer,
+    DecLayer,
 }

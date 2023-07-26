@@ -1,3 +1,4 @@
+use defmt::debug;
 use heapless::Vec;
 
 use crate::action;
@@ -9,81 +10,69 @@ use crate::Context;
 use crate::ARGS;
 use crate::{key::Key, key_codes::KeyCode};
 
-pub trait RGBKey {
-    fn rgknew(s: &str) -> Self
+pub trait LayerHold {
+    fn lyhnew(s: &str) -> Self
     where
         Self: Sized,
-        Self: RGBKey;
-    fn rgktap(&mut self, ctx: Context) -> [Option<KeyCode>; 4];
-    fn rgkhold(&mut self, _ctx: Context) -> [Option<KeyCode>; 4];
-    fn rgkidle(&mut self, _ctx: Context) -> [Option<KeyCode>; 4];
-    fn rgkoff(&mut self, _ctx: Context) -> [Option<KeyCode>; 4];
+        Self: LayerHold;
+    fn lyhtap(&mut self, ctx: Context) -> [Option<KeyCode>; 4];
+    fn lyhhold(&mut self, _ctx: Context) -> [Option<KeyCode>; 4];
+    fn lyhidle(&mut self, _ctx: Context) -> [Option<KeyCode>; 4];
+    fn lyhoff(&mut self, _ctx: Context) -> [Option<KeyCode>; 4];
     fn get_keys(&mut self, ctx: Context) -> [Option<KeyCode>; 4];
-    fn rgkscan(&mut self, is_high: bool, ctx: Context) -> [Option<KeyCode>; 4];
+    fn lyhscan(&mut self, is_high: bool, ctx: Context) -> [Option<KeyCode>; 4];
 }
 
-impl RGBKey for Key {
-    fn rgknew(s: &str) -> Self {
-        let sr = s.split("_").map(|x| x.trim()).collect::<Vec<&str, 3>>();
+impl LayerHold for Key {
+    fn lyhnew(s: &str) -> Self {
+        let sr = s.split(",").map(|s| s.trim()).collect::<Vec<&str, 2>>();
+        debug!("sr: {:?}", sr);
         Key {
             cycles: 0,
             raw_state: false,
             cycles_off: 0,
             state: StateType::Off,
             prevstate: StateType::Off,
-            keycode: [Some(KeyCode::EEEEEEEE), Some(KeyCode::EEEEEEEE), None, None],
+            keycode: [None; 4],
             previnfo: [false; 6],
-            stor: [
-                sr[0].parse().unwrap(),
-                sr[1].parse().unwrap(),
-                sr[2].parse().unwrap(),
-                0,
-                0,
-                0,
-            ],
-            typ: "RGBKey",
+            stor: [sr[0].parse().unwrap(), sr[1].parse().unwrap(), 0, 0, 0, 0],
+            typ: "LayerHold",
         }
     }
-    fn rgktap(&mut self, _ctx: Context) -> [Option<KeyCode>; 4] {
-        let [Some(_kc0), Some(kc1), None, None] = self.keycode else {
-            return [None; 4];
-        };
-        action(
-            CallbackActions::RGBSet,
-            ARGS::RGB {
-                r: self.stor[0],
-                g: self.stor[1],
-                b: self.stor[2],
-            },
-        );
-        [Some(kc1), None, None, None]
-    }
-    fn rgkhold(&mut self, _ctx: Context) -> [Option<KeyCode>; 4] {
-        let [Some(_kc0), Some(kc1), None, None] = self.keycode else {
-            return [None; 4];
-        };
-        [Some(kc1), None, None, None]
-    }
-    fn rgkidle(&mut self, _ctx: Context) -> [Option<KeyCode>; 4] {
+    fn lyhtap(&mut self, _ctx: Context) -> [Option<KeyCode>; 4] {
+        if self.prevstate != StateType::Tap {
+            debug!("Tap");
+            action(
+                CallbackActions::SetLayer,
+                ARGS::LYR {
+                    l: self.stor[0].into(),
+                },
+            );
+            self.previnfo[0] = true;
+        }
         [None; 4]
     }
-    fn rgkoff(&mut self, _ctx: Context) -> [Option<KeyCode>; 4] {
-        let [Some(_kc0), Some(kc1), None, None] = self.keycode else {
-            return [None; 4];
-        };
-        [Some(kc1), None, None, None]
+    fn lyhhold(&mut self, _ctx: Context) -> [Option<KeyCode>; 4] {
+        [None; 4]
+    }
+    fn lyhidle(&mut self, _ctx: Context) -> [Option<KeyCode>; 4] {
+        [None; 4]
+    }
+    fn lyhoff(&mut self, _ctx: Context) -> [Option<KeyCode>; 4] {
+        if self.prevstate != StateType::Off {
+            debug!("Off: {}, {}", self.previnfo[0], self.prevstate);
+            action(
+                CallbackActions::SetLayer,
+                ARGS::LYR {
+                    l: self.stor[1].into(),
+                },
+            );
+            self.previnfo[0] = false;
+        }
+        [None; 4]
     }
     #[doc = " Perform state change as a result of the scan"]
-    fn rgkscan(&mut self, is_high: bool, ctx: Context) -> [Option<KeyCode>; 4] {
-        let [Some(kc0), Some(kc1), None, None] = self.keycode else {
-            return [None; 4];
-        };
-        // println!("{}", is_high);
-        // if they KeyCode is empty then don't bother processing
-        if kc0 == KeyCode::________ && kc1 == KeyCode::________ {
-            return [None; 4];
-        }
-        //     ____________________________
+    fn lyhscan(&mut self, is_high: bool, ctx: Context) -> [Option<KeyCode>; 4] {
         //    |                            |
         //    |       Cycle Counters       |
         //    |                            |
@@ -136,10 +125,10 @@ impl RGBKey for Key {
     }
     fn get_keys(&mut self, ctx: Context) -> [Option<KeyCode>; 4] {
         match self.state {
-            StateType::Tap => self.rgktap(ctx),
-            StateType::Hold => self.rgkhold(ctx),
-            StateType::Idle => self.rgkidle(ctx),
-            StateType::Off => self.rgkoff(ctx),
+            StateType::Tap => self.lyhtap(ctx),
+            StateType::Hold => self.lyhhold(ctx),
+            StateType::Idle => self.lyhidle(ctx),
+            StateType::Off => self.lyhoff(ctx),
         }
     }
 }
