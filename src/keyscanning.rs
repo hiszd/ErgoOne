@@ -78,7 +78,8 @@ impl<const RSIZE: usize, const CSIZE: usize> KeyMatrix<RSIZE, CSIZE> {
 pub struct Matrix<const RSIZE: usize, const CSIZE: usize> {
     rows: [Row; RSIZE],
     cols: [Col; CSIZE],
-    state: KeyMatrix<RSIZE, CSIZE>,
+    layer_active: usize,
+    state: [KeyMatrix<RSIZE, CSIZE>; 2],
     callback:
         fn(row: usize, col: usize, state: StateType, prevstate: StateType, keycodes: [KeyCode; 2]),
     wait_cycles: u16,
@@ -97,7 +98,7 @@ impl<const RSIZE: usize, const CSIZE: usize> Matrix<RSIZE, CSIZE> {
             prevstate: StateType,
             keycodes: [KeyCode; 2],
         ),
-        keymap: KeyMatrix<RSIZE, CSIZE>,
+        keymap: [KeyMatrix<RSIZE, CSIZE>; 2],
     ) -> Self {
         let mut new = Matrix {
             rows,
@@ -106,12 +107,14 @@ impl<const RSIZE: usize, const CSIZE: usize> Matrix<RSIZE, CSIZE> {
             callback,
             wait_cycles: 2,
             cycles: 0,
+            layer_active: 0,
             cur_strobe: (CSIZE - 1),
         };
         new.cols[new.cur_strobe].set_high();
         new.clear();
         new
     }
+
     fn execute_callback(
         &self,
         row: usize,
@@ -122,11 +125,13 @@ impl<const RSIZE: usize, const CSIZE: usize> Matrix<RSIZE, CSIZE> {
     ) {
         (self.callback)(row, col, state, prevstate, keycodes);
     }
+
     fn clear(&mut self) {
         for r in self.cols.iter_mut() {
             r.set_low();
         }
     }
+
     fn next_strobe(&mut self) {
         // Unset current strobe
         self.cols[self.cur_strobe].set_low();
@@ -147,6 +152,7 @@ impl<const RSIZE: usize, const CSIZE: usize> Matrix<RSIZE, CSIZE> {
         // Set new strobe as high
         self.cols[self.cur_strobe].set_high();
     }
+
     pub fn poll(&mut self, ctx: Context) -> bool {
         self.next_strobe();
         let c = self.cur_strobe;
@@ -154,45 +160,67 @@ impl<const RSIZE: usize, const CSIZE: usize> Matrix<RSIZE, CSIZE> {
         for r in 0..RSIZE {
             let codes: [Option<KeyCode>; 4];
             let _typ: &str;
-            match self.state.matrix[r][c].typ {
-                "Default" => {
-                    codes = self.state.matrix[r][c].scan(self.rows[r].is_high(), ctx);
+            if self.state[self.layer_active].matrix[r][c].keycode[0] != Some(KeyCode::________)
+                || self.state[0].matrix[r][c].keycode[0] != None
+            {
+                match self.state[self.layer_active].matrix[r][c].typ {
+                    "Default" => {
+                        codes = self.state[self.layer_active].matrix[r][c]
+                            .scan(self.rows[r].is_high(), ctx);
+                    }
+                    "ModTap" => {
+                        codes = self.state[self.layer_active].matrix[r][c]
+                            .mtscan(self.rows[r].is_high(), ctx);
+                    }
+                    "TapCom" => {
+                        codes = self.state[self.layer_active].matrix[r][c]
+                            .tcscan(self.rows[r].is_high(), ctx);
+                    }
+                    "ModCombo" => {
+                        codes = self.state[self.layer_active].matrix[r][c]
+                            .mcscan(self.rows[r].is_high(), ctx);
+                    }
+                    "RGBKey" => {
+                        codes = self.state[self.layer_active].matrix[r][c]
+                            .rkscan(self.rows[r].is_high(), ctx);
+                    }
+                    _ => {
+                        codes = [None; 4];
+                        error!(
+                            "Unknown key type {}",
+                            self.state[self.layer_active].matrix[r][c].typ
+                        );
+                    }
                 }
-                "ModTap" => {
-                    codes = self.state.matrix[r][c].mtscan(self.rows[r].is_high(), ctx);
+                if self.state[self.layer_active].matrix[r][c].state
+                    != self.state[self.layer_active].matrix[r][c].prevstate
+                {
+                    self.execute_callback(
+                        r + 1,
+                        c + 1,
+                        self.state[self.layer_active].matrix[r][c].state,
+                        self.state[self.layer_active].matrix[r][c].prevstate,
+                        // [KeyCode::________, KeyCode::________],
+                        [
+                            codes[0].unwrap_or(KeyCode::________),
+                            codes[1].unwrap_or(KeyCode::________),
+                        ],
+                    );
                 }
-                "TapCom" => {
-                    codes = self.state.matrix[r][c].tcscan(self.rows[r].is_high(), ctx);
-                }
-                "ModCombo" => {
-                    codes = self.state.matrix[r][c].mcscan(self.rows[r].is_high(), ctx);
-                }
-                "RGBKey" => {
-                    codes = self.state.matrix[r][c].rkscan(self.rows[r].is_high(), ctx);
-                }
-                _ => {
-                    codes = [None; 4];
-                    error!("Unknown key type {}", self.state.matrix[r][c].typ);
-                }
-            }
-            if self.state.matrix[r][c].state != self.state.matrix[r][c].prevstate {
-                self.execute_callback(
-                    r + 1,
-                    c + 1,
-                    self.state.matrix[r][c].state,
-                    self.state.matrix[r][c].prevstate,
-                    // [KeyCode::________, KeyCode::________],
-                    [
-                        codes[0].unwrap_or(KeyCode::________),
-                        codes[1].unwrap_or(KeyCode::________),
-                    ],
-                );
             }
         }
-        if self.state.matrix[0][0].raw_state {
+        if self.state[self.layer_active].matrix[0][0].raw_state {
             return true;
         }
         false
+    }
+
+    pub fn set_layer(&mut self, layer: usize) {
+        self.layer_active = layer;
+    }
+
+    pub fn get_layer(&self) -> usize {
+        self.layer_active
     }
 }
 
