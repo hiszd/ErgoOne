@@ -45,7 +45,7 @@ impl LayerHold for Key {
             action(
                 CallbackActions::SetLayer,
                 ARGS::LYR {
-                    l: self.stor[0].into(),
+                    l: 1,
                 },
             );
             self.previnfo[0] = true;
@@ -59,12 +59,12 @@ impl LayerHold for Key {
         [None; 4]
     }
     fn lyhoff(&mut self, _ctx: Context) -> [Option<KeyCode>; 4] {
-        if self.prevstate != StateType::Off {
+        if self.previnfo[0] {
             debug!("Off: {}, {}", self.previnfo[0], self.prevstate);
             action(
                 CallbackActions::SetLayer,
                 ARGS::LYR {
-                    l: self.stor[1].into(),
+                    l: 0,
                 },
             );
             self.previnfo[0] = false;
@@ -116,7 +116,6 @@ impl LayerHold for Key {
                 self.state = StateType::Hold;
             }
             return self.get_keys(ctx);
-        // } else if self.cycles_off >= DEBOUNCE_CYCLES.into() {
         } else if self.cycles_off >= 1 {
             self.prevstate = self.state;
             self.state = StateType::Off;

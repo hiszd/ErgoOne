@@ -336,16 +336,20 @@ fn main() -> ! {
     fn callback(
         row: usize,
         col: usize,
+        layer: usize,
         state: StateType,
         prevstate: StateType,
         keycodes: [KeyCode; 2],
     ) {
         let rowstr: String<2> = String::from(row as u32);
         let colstr: String<2> = String::from(col as u32);
-        let mut str: String<35> = String::from("row: ");
+        let laystr: String<2> = String::from(layer as u32);
+        let mut str: String<40> = String::from("row: ");
         str.push_str(rowstr.as_str()).unwrap();
         str.push_str(", col: ").unwrap();
         str.push_str(colstr.as_str()).unwrap();
+        str.push_str(", lay: ").unwrap();
+        str.push_str(laystr.as_str()).unwrap();
         str.push_str(match prevstate {
             StateType::Tap => " p: Tap",
             StateType::Hold => " p: Hold",

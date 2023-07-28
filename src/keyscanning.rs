@@ -82,7 +82,7 @@ pub struct Matrix<const RSIZE: usize, const CSIZE: usize> {
     layer_active: usize,
     state: [KeyMatrix<RSIZE, CSIZE>; 2],
     callback:
-        fn(row: usize, col: usize, state: StateType, prevstate: StateType, keycodes: [KeyCode; 2]),
+        fn(row: usize, col: usize, layer: usize, state: StateType, prevstate: StateType, keycodes: [KeyCode; 2]),
     wait_cycles: u16,
     cycles: u16,
     cur_strobe: usize,
@@ -95,6 +95,7 @@ impl<const RSIZE: usize, const CSIZE: usize> Matrix<RSIZE, CSIZE> {
         callback: fn(
             row: usize,
             col: usize,
+            layer: usize,
             state: StateType,
             prevstate: StateType,
             keycodes: [KeyCode; 2],
@@ -120,11 +121,12 @@ impl<const RSIZE: usize, const CSIZE: usize> Matrix<RSIZE, CSIZE> {
         &self,
         row: usize,
         col: usize,
+        layer: usize,
         state: StateType,
         prevstate: StateType,
         keycodes: [KeyCode; 2],
     ) {
-        (self.callback)(row, col, state, prevstate, keycodes);
+        (self.callback)(row, col, layer, state, prevstate, keycodes);
     }
 
     fn clear(&mut self) {
@@ -160,44 +162,48 @@ impl<const RSIZE: usize, const CSIZE: usize> Matrix<RSIZE, CSIZE> {
         col: usize,
         layer: usize,
         ctx: Context,
-    ) -> [Option<KeyCode>; 4] {
-        let mut codes: [Option<KeyCode>; 4];
+    ) -> ([Option<KeyCode>; 4], usize) {
+        let mut codes: ([Option<KeyCode>; 4], usize);
+        let mut lay: usize = layer;
+        codes = ([None; 4], lay);
         match self.state[layer].matrix[row][col].typ {
             "Default" => {
-                codes = self.state[self.layer_active].matrix[row][col]
+                codes.0 = self.state[layer].matrix[row][col]
                     .scan(self.rows[row].is_high(), ctx);
             }
             "ModTap" => {
-                codes = self.state[self.layer_active].matrix[row][col]
+                codes.0 = self.state[layer].matrix[row][col]
                     .mdtscan(self.rows[row].is_high(), ctx);
             }
             "TapCom" => {
-                codes = self.state[self.layer_active].matrix[row][col]
+                codes.0 = self.state[layer].matrix[row][col]
                     .tpcscan(self.rows[row].is_high(), ctx);
             }
             "ModCombo" => {
-                codes = self.state[self.layer_active].matrix[row][col]
+                codes.0 = self.state[layer].matrix[row][col]
                     .mdcscan(self.rows[row].is_high(), ctx);
             }
             "RGBKey" => {
-                codes = self.state[self.layer_active].matrix[row][col]
+                codes.0 = self.state[layer].matrix[row][col]
                     .rgkscan(self.rows[row].is_high(), ctx);
             }
             "LayerHold" => {
-                codes = self.state[self.layer_active].matrix[row][col]
+                codes.0 = self.state[layer].matrix[row][col]
                     .lyhscan(self.rows[row].is_high(), ctx);
             }
             "Transparent" => {
-                codes = [None; 4];
+                codes.0 = [None; 4];
                 if self.layer_active > 0 {
-                    codes = self.keyscan(row, col, self.layer_active - 1, ctx);
+                    lay = lay - 1;
+                    codes = self.keyscan(row, col, layer - 1, ctx);
                 }
+                codes.1 = lay;
             }
             _ => {
-                codes = [None; 4];
+                codes.0 = [None; 4];
                 error!(
                     "Unknown key type {}",
-                    self.state[self.layer_active].matrix[row][col].typ
+                    self.state[layer].matrix[row][col].typ
                 );
             }
         }
@@ -209,7 +215,7 @@ impl<const RSIZE: usize, const CSIZE: usize> Matrix<RSIZE, CSIZE> {
         let c = self.cur_strobe;
 
         for r in 0..RSIZE {
-            let codes: [Option<KeyCode>; 4];
+            let codes: ([Option<KeyCode>; 4], usize);
             let _typ: &str;
             if self.state[self.layer_active].matrix[r][c].keycode[0] != Some(KeyCode::________)
                 || self.state[0].matrix[r][c].keycode[0] != None
@@ -221,12 +227,13 @@ impl<const RSIZE: usize, const CSIZE: usize> Matrix<RSIZE, CSIZE> {
                     self.execute_callback(
                         r + 1,
                         c + 1,
+                        codes.1,
                         self.state[self.layer_active].matrix[r][c].state,
                         self.state[self.layer_active].matrix[r][c].prevstate,
                         // [KeyCode::________, KeyCode::________],
                         [
-                            codes[0].unwrap_or(KeyCode::________),
-                            codes[1].unwrap_or(KeyCode::________),
+                            codes.0[0].unwrap_or(KeyCode::________),
+                            codes.0[1].unwrap_or(KeyCode::________),
                         ],
                     );
                 }
