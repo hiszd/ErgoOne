@@ -36,43 +36,39 @@ pub const ERGOONE_QWERTY: [&str; 80] = [
 "dft,Mod_LCtl",                  "dft,Mod_LAlt","dft,Mod_LCmd","dft,Fun_Spcz","dft,Sym_LBrk","dft,Mod_LCmd","dft,EEEEEEEE",         "dft,EEEEEEEE","dft,EEEEEEEE","dft,EEEEEEEE","dft,EEEEEEEE","dft,Sym_RBrk","dft,Arw_Left","dft,Arw_Down","dft,Arw_Upzz","dft,Arw_Rght",
 ];
 
-// TODO use enum or lookup function to get the parsing function for these key strings from the
-// modules themselves instead of writing the parsing functions here
 impl<const RSIZE: usize, const CSIZE: usize> From<[&str; RSIZE * CSIZE]>
-    for KeyMatrix<RSIZE, CSIZE>
+  for KeyMatrix<RSIZE, CSIZE>
 {
-    fn from(v: [&str; RSIZE * CSIZE]) -> Self {
-        let mut m: [[Key; CSIZE]; RSIZE] = [[Default::new(KeyCode::EEEEEEEE); CSIZE]; RSIZE];
-        let mut r: usize = 0;
-        let mut c: usize = 0;
-        v.iter().enumerate().for_each(|(i, sel)| {
-            if i == (CSIZE * (r + 1)) {
-                r += 1;
-                c = 0;
-            }
-            if sel.len() > 0 {
-                // TODO use split and join with trim to remove whitespace instead of slicing the
-                // string and then parsing it
-                if sel.starts_with("dft,") {
-                    m[r][c] = Default::new(sel[4..].into());
-                } else if sel.starts_with("mdt,") {
-                    m[r][c] = ModTap::mdtnew(&sel[4..]);
-                } else if sel.starts_with("tpc,") {
-                    m[r][c] = TapCom::tpcnew(&sel[4..]);
-                } else if sel.starts_with("mdc,") {
-                    m[r][c] = ModCombo::mdcnew(&sel[4..]);
-                } else if sel.starts_with("rgk,") {
-                    m[r][c] = RGBKey::rgknew(&sel[4..]);
-                } else if sel.starts_with("lyh,") {
-                    m[r][c] = LayerHold::lyhnew(&sel[4..]);
-                } else if sel.starts_with("transparent") {
-                    m[r][c] = Transparent::tptnew();
-                } else {
-                    m[r][c] = Default::new("EEEEEEEE".into());
-                }
-            }
-            c += 1;
-        });
-        KeyMatrix::new(m)
-    }
+  fn from(v: [&str; RSIZE * CSIZE]) -> Self {
+    let mut m: [[Key; CSIZE]; RSIZE] = [[Default::new(KeyCode::EEEEEEEE); CSIZE]; RSIZE];
+    let mut r: usize = 0;
+    let mut c: usize = 0;
+    v.iter().enumerate().for_each(|(i, sel)| {
+      if i == (CSIZE * (r + 1)) {
+        r += 1;
+        c = 0;
+      }
+      if sel.len() > 0 {
+        if sel.starts_with("dft,") {
+          m[r][c] = Default::new(sel[4..].into());
+        } else if sel.starts_with("mdt,") {
+          m[r][c] = ModTap::mdtnew(&sel[4..]);
+        } else if sel.starts_with("tpc,") {
+          m[r][c] = TapCom::tpcnew(&sel[4..]);
+        } else if sel.starts_with("mdc,") {
+          m[r][c] = ModCombo::mdcnew(&sel[4..]);
+        } else if sel.starts_with("rgk,") {
+          m[r][c] = RGBKey::rgknew(&sel[4..]);
+        } else if sel.starts_with("lyh,") {
+          m[r][c] = LayerHold::lyhnew(&sel[4..]);
+        } else if sel.starts_with("transparent") {
+          m[r][c] = Transparent::tptnew();
+        } else {
+          m[r][c] = Default::new("EEEEEEEE".into());
+        }
+      }
+      c += 1;
+    });
+    KeyMatrix::new(m)
+  }
 }
