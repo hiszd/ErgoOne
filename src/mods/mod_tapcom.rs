@@ -116,7 +116,7 @@ impl TapCom for Key {
       }
       StateType::Off => {
         if self.previnfo[1] {
-          if self.stor[4] == 1 {
+          if self.stor[4] == 2 {
             action(CallbackActions::Release, ARGS::KS { code: kc1 });
             action(CallbackActions::Release, ARGS::KS { code: kc2 });
             self.previnfo[1] = false;
