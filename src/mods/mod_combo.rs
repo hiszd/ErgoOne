@@ -80,8 +80,10 @@ impl ModCombo for Key {
 
       return [Some(kc0), Some(kc1), None, None];
     } else {
-      action(CallbackActions::Release, ARGS::KS { code: kc0 });
-      action(CallbackActions::Release, ARGS::KS { code: kc1 });
+      if self.prevstate == StateType::Tap {
+        action(CallbackActions::Release, ARGS::KS { code: kc0 });
+        action(CallbackActions::Release, ARGS::KS { code: kc1 });
+      }
     }
     [None; 4]
   }
