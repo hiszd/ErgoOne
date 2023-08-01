@@ -43,19 +43,22 @@ impl ModCombo for Key {
     let [Some(kc0), Some(kc1), None, None] = self.keycode else {
             return [None; 4];
         };
-    action(CallbackActions::Press, ARGS::KS { code: kc1 });
-    action(CallbackActions::Press, ARGS::KS { code: kc0 });
-    self.previnfo[1] = true;
+    if kc0.is_modifier() {
+      self.previnfo[1] = true;
+      action(CallbackActions::Press, ARGS::KS { code: kc0 });
+    } else {
+      action(CallbackActions::Press, ARGS::KS { code: kc0 });
+      action(CallbackActions::Press, ARGS::KS { code: kc1 });
+    }
+    if self.previnfo[1] && self.prevstate == StateType::Tap {
+      action(CallbackActions::Press, ARGS::KS { code: kc1 });
+    }
+
     self.stor[4] = 0;
     [Some(kc0), Some(kc1), None, None]
   }
 
-  fn mdchold(&mut self, _ctx: Context) -> [Option<KeyCode>; 4] {
-    let [Some(kc0), Some(kc1), None, None] = self.keycode else {
-            return [None; 4];
-        };
-    [Some(kc0), Some(kc1), None, None]
-  }
+  fn mdchold(&mut self, _ctx: Context) -> [Option<KeyCode>; 4] { [None; 4] }
 
   fn mdcidle(&mut self, _ctx: Context) -> [Option<KeyCode>; 4] { [None; 4] }
 
@@ -65,17 +68,20 @@ impl ModCombo for Key {
         };
     if self.previnfo[1] {
       if self.stor[4] == 1 {
-        debug!("Almost Done");
-        debug!("Done");
         action(CallbackActions::Release, ARGS::KS { code: kc0 });
-        action(CallbackActions::Release, ARGS::KS { code: kc1 });
         self.stor[4] += 1;
       } else if self.stor[4] == 2 {
+        action(CallbackActions::Release, ARGS::KS { code: kc1 });
         self.previnfo[1] = false;
+        self.stor[4] += 1;
       } else {
         self.stor[4] += 1;
       }
+
       return [Some(kc0), Some(kc1), None, None];
+    } else {
+      action(CallbackActions::Release, ARGS::KS { code: kc0 });
+      action(CallbackActions::Release, ARGS::KS { code: kc1 });
     }
     [None; 4]
   }
