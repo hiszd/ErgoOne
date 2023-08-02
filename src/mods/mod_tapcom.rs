@@ -134,6 +134,7 @@ impl TapCom for Key {
   }
 
   fn exist_next(&self, ctx: Context, key: KeyCode) -> bool {
+      // TODO: check if key is the comparable opposite of the one pressed(lshift to rshift, etc...)
     let mut rtrn1 = false;
     // locate key in array
     let ind1: Option<usize> = ctx
