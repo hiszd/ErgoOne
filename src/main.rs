@@ -73,6 +73,7 @@ impl<const H: usize> KiibohdCommandInterface<H> for HidioInterface<H> {
 }
 
 static mut KBD_LAYER: AtomicU8 = AtomicU8::new(0);
+static mut SENDINGSTRING: AtomicBool = AtomicBool::new(false);
 
 #[derive(Clone, PartialEq, PartialOrd)]
 pub enum ARGS {
@@ -89,26 +90,28 @@ pub fn action(action: CallbackActions, ops: ARGS) {
   match action {
     CallbackActions::Press => match ops {
       ARGS::KS { code } => {
-        critical_section::with(|_| {
-          let kbd = unsafe { KBD_PRODUCER.get_mut() };
-          if code != KeyCode::________ {
-            if kbd.is_some() {
-              match kbd
-                .as_mut()
-                .unwrap()
-                .enqueue(kiibohd_usb::KeyState::Press(code.into()))
-              {
-                Ok(_) => {
-                  warn!("Key IN  {:?}", code);
-                  unsafe { ACTIVE_QUEUE.enqueue(code) };
+        if unsafe { !SENDINGSTRING.load(Ordering::Relaxed) } {
+          critical_section::with(|_| {
+            let kbd = unsafe { KBD_PRODUCER.get_mut() };
+            if code != KeyCode::________ {
+              if kbd.is_some() {
+                match kbd
+                  .as_mut()
+                  .unwrap()
+                  .enqueue(kiibohd_usb::KeyState::Press(code.into()))
+                {
+                  Ok(_) => {
+                    warn!("Key IN  {:?}", code);
+                    unsafe { ACTIVE_QUEUE.enqueue(code) };
+                  }
+                  Err(err) => error!("{}", err),
                 }
-                Err(err) => error!("{}", err),
+              } else {
+                error!("KBD_PRODUCER is None");
               }
-            } else {
-              error!("KBD_PRODUCER is None");
             }
-          }
-        });
+          });
+        }
       }
       _ => {
         error!("Expected ARGS::KS but got something else");
@@ -152,8 +155,33 @@ pub fn action(action: CallbackActions, ops: ARGS) {
         error!("Expected ARGS::RGB but got something else");
       }
     },
+    // TODO: add support for sending strings
     CallbackActions::SendString => match ops {
-      ARGS::STR { s: _ } => {}
+      ARGS::STR { s: strng } => {
+        // start sending string and block other keys sending until complete
+        unsafe { SENDINGSTRING.store(true, Ordering::Relaxed) };
+        strng.chars().for_each(|e| {
+          let kbd = unsafe { KBD_PRODUCER.get_mut() };
+          let code = KeyCode::from_char(e);
+          if code != KeyCode::________ {
+            if kbd.is_some() {
+              match kbd
+                .as_mut()
+                .unwrap()
+                .enqueue(kiibohd_usb::KeyState::Release(code.into()))
+              {
+                Ok(_) => {
+                  warn!("Key OUT {:?}", code);
+                  unsafe { ACTIVE_QUEUE.dequeue(code) };
+                }
+                Err(err) => error!("{}", err),
+              }
+            } else {
+              error!("KBD_PRODUCER is None");
+            }
+          }
+        })
+      }
       _ => {
         error!("Expected ARGS::STR but got something else");
       }
