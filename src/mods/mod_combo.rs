@@ -36,6 +36,7 @@ impl ModCombo for Key {
       previnfo: [false; 6],
       stor: [0; 6],
       typ: "ModCombo",
+      strng: "",
     }
   }
 

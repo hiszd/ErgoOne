@@ -4,9 +4,11 @@ use crate::mods::layer_hold::LayerHold;
 use crate::mods::mod_combo::ModCombo;
 use crate::mods::mod_tapcom::TapCom;
 use crate::mods::rgb_key::RGBKey;
+use crate::mods::sendstring::SendString;
 use crate::mods::transparent::Transparent;
 use crate::{key::Default, keyscanning::KeyMatrix, mods::mod_tap::ModTap};
 
+// TODO: find a better way to nest functionality
 #[rustfmt::skip]
 pub const ERGOONE_RSTLNE: [&str; 80] = [
 "dft,Sym_Tild",                  "dft,Num_1zzz","dft,Num_2zzz","dft,Num_3zzz","dft,Num_4zzz","dft,Num_5zzz","rgk,0_255_0",          "dft,EEEEEEEE","dft,EEEEEEEE","dft,EEEEEEEE","dft,Num_6zzz","dft,Num_7zzz","dft,Num_8zzz","dft,Num_9zzz","dft,Num_0zzz","dft,Sym_Equz",
@@ -22,8 +24,8 @@ pub const ERGOONE_1: [&str; 80] = [
 "transparent",                   "dft,Fun_F1zz","dft,Fun_F2zz","dft,Fun_F3zz","dft,Fun_F4zz","dft,Fun_F5zz","transparent",          "transparent", "transparent", "transparent", "dft,Fun_F6zz","dft,Fun_F7zz","dft,Fun_F8zz","dft,Fun_F9zz","dft,Fun_F10z","dft,Fun_F11z",
 "transparent",                   "transparent", "dft,Arw_Upzz","transparent", "transparent", "transparent", "transparent",          "transparent", "transparent", "transparent", "transparent", "dft,Num_7zzz","dft,Num_8zzz","dft,Num_9zzz","transparent", "dft,Fun_F12z",
 "transparent",                   "dft,Arw_Left","dft,Arw_Down","dft,Arw_Rght","transparent", "transparent", "transparent",          "transparent", "transparent", "transparent", "transparent", "dft,Num_4zzz","dft,Num_5zzz","dft,Num_6zzz","transparent", "transparent", 
-"transparent",                   "transparent", "transparent", "transparent", "transparent", "transparent", "transparent",          "transparent", "transparent", "transparent", "transparent", "dft,Num_1zzz","dft,Num_2zzz","dft,Num_3zzz","transparent", "transparent", 
-"transparent",                   "transparent", "transparent", "transparent", "transparent", "transparent", "transparent",          "transparent", "transparent", "transparent", "transparent", "dft,Num_0zzz","transparent", "transparent", "transparent", "transparent", 
+"transparent",                   "transparent", "transparent", "transparent", "transparent", "transparent", "transparent",          "transparent", "transparent", "dft,Fun_Delz","transparent", "dft,Num_1zzz","dft,Num_2zzz","dft,Num_3zzz","transparent", "transparent", 
+"transparent",                   "transparent", "transparent", "transparent", "transparent", "sst,H@ck3r345","transparent",         "transparent", "transparent", "transparent", "transparent", "dft,Num_0zzz","transparent", "transparent", "transparent", "transparent", 
 ];
 
 #[allow(dead_code)]
@@ -36,10 +38,10 @@ pub const ERGOONE_QWERTY: [&str; 80] = [
 "dft,Mod_LCtl",                  "dft,Mod_LAlt","dft,Mod_LCmd","dft,Fun_Spcz","dft,Sym_LBrk","dft,Mod_LCmd","dft,EEEEEEEE",         "dft,EEEEEEEE","dft,EEEEEEEE","dft,EEEEEEEE","dft,EEEEEEEE","dft,Sym_RBrk","dft,Arw_Left","dft,Arw_Down","dft,Arw_Upzz","dft,Arw_Rght",
 ];
 
-impl<const RSIZE: usize, const CSIZE: usize> From<[&str; RSIZE * CSIZE]>
+impl<const RSIZE: usize, const CSIZE: usize> From<[&'static str; RSIZE * CSIZE]>
   for KeyMatrix<RSIZE, CSIZE>
 {
-  fn from(v: [&str; RSIZE * CSIZE]) -> Self {
+  fn from(v: [&'static str; RSIZE * CSIZE]) -> Self {
     let mut m: [[Key; CSIZE]; RSIZE] = [[Default::new(KeyCode::EEEEEEEE); CSIZE]; RSIZE];
     let mut r: usize = 0;
     let mut c: usize = 0;
@@ -63,6 +65,8 @@ impl<const RSIZE: usize, const CSIZE: usize> From<[&str; RSIZE * CSIZE]>
           m[r][c] = LayerHold::lyhnew(&sel[4..]);
         } else if sel.starts_with("transparent") {
           m[r][c] = Transparent::tptnew();
+        } else if sel.starts_with("sst,") {
+          m[r][c] = SendString::sstnew(&sel[4..]);
         } else {
           m[r][c] = Default::new("EEEEEEEE".into());
         }

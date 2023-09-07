@@ -34,6 +34,8 @@ pub struct Key {
   pub stor: [u8; 6],
   /// holds a &str of the type of the key
   pub typ: &'static str,
+  /// holds a &str for sending
+  pub strng: &'static str,
 }
 
 pub trait Default {
@@ -61,6 +63,7 @@ impl Default for Key {
       previnfo: [false; 6],
       stor: [0; 6],
       typ: "Default",
+      strng: "",
     }
   }
 

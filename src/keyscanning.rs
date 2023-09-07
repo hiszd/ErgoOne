@@ -12,6 +12,7 @@ use crate::mods::mod_combo::ModCombo;
 use crate::mods::mod_tap::ModTap;
 use crate::mods::mod_tapcom::TapCom;
 use crate::mods::rgb_key::RGBKey;
+use crate::mods::sendstring::SendString;
 use crate::{key::Key, key_codes::KeyCode};
 use crate::{Context, ARGS};
 
@@ -176,6 +177,9 @@ impl<const RSIZE: usize, const CSIZE: usize> Matrix<RSIZE, CSIZE> {
       }
       "LayerHold" => {
         codes.0 = self.state[layer].matrix[row][col].lyhscan(self.rows[row].is_high(), ctx);
+      }
+      "SendString" => {
+        codes.0 = self.state[layer].matrix[row][col].sstscan(self.rows[row].is_high(), ctx);
       }
       "Transparent" => {
         codes.0 = [None; 4];

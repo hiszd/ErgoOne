@@ -1,6 +1,3 @@
-use defmt::debug;
-use heapless::Vec;
-
 use crate::action;
 use crate::actions::CallbackActions;
 use crate::key::DEBOUNCE_CYCLES;
@@ -10,61 +7,71 @@ use crate::Context;
 use crate::ARGS;
 use crate::{key::Key, key_codes::KeyCode};
 
-pub trait LayerHold {
-  fn lyhnew(s: &str) -> Self
+pub trait SendString {
+  fn sstnew(s: &'static str) -> Self
   where
     Self: Sized,
-    Self: LayerHold;
-  fn lyhtap(&mut self, ctx: Context) -> [Option<KeyCode>; 4];
-  fn lyhhold(&mut self, _ctx: Context) -> [Option<KeyCode>; 4];
-  fn lyhidle(&mut self, _ctx: Context) -> [Option<KeyCode>; 4];
-  fn lyhoff(&mut self, _ctx: Context) -> [Option<KeyCode>; 4];
+    Self: SendString;
+  fn ssttap(&mut self, ctx: Context) -> [Option<KeyCode>; 4];
+  fn ssthold(&mut self, _ctx: Context) -> [Option<KeyCode>; 4];
+  fn sstidle(&mut self, _ctx: Context) -> [Option<KeyCode>; 4];
+  fn sstoff(&mut self, _ctx: Context) -> [Option<KeyCode>; 4];
   fn get_keys(&mut self, ctx: Context) -> [Option<KeyCode>; 4];
-  fn lyhscan(&mut self, is_high: bool, ctx: Context) -> [Option<KeyCode>; 4];
+  fn sstscan(&mut self, is_high: bool, ctx: Context) -> [Option<KeyCode>; 4];
 }
 
-impl LayerHold for Key {
-  fn lyhnew(s: &str) -> Self {
-    let sr = s.split(",").map(|s| s.trim()).collect::<Vec<&str, 2>>();
-    debug!("sr: {:?}", sr);
+impl SendString for Key {
+  fn sstnew(s: &'static str) -> Self {
     Key {
       cycles: 0,
       raw_state: false,
       cycles_off: 0,
       state: StateType::Off,
       prevstate: StateType::Off,
-      keycode: [None; 4],
+      keycode: [Some(KeyCode::EEEEEEEE), Some(KeyCode::EEEEEEEE), None, None],
       previnfo: [false; 6],
-      stor: [sr[0].parse().unwrap(), sr[1].parse().unwrap(), 0, 0, 0, 0],
-      typ: "LayerHold",
-      strng: "",
+      stor: [0; 6],
+      typ: "SendString",
+      strng: s,
     }
   }
 
-  fn lyhtap(&mut self, _ctx: Context) -> [Option<KeyCode>; 4] {
-    if self.prevstate != StateType::Tap {
-      debug!("Tap");
-      action(CallbackActions::SetLayer, ARGS::LYR { l: 1 });
-      self.previnfo[0] = true;
-    }
-    [None; 4]
+  fn ssttap(&mut self, _ctx: Context) -> [Option<KeyCode>; 4] {
+    let [Some(_kc0), Some(kc1), None, None] = self.keycode else {
+      return [None; 4];
+    };
+    action(CallbackActions::SendString, ARGS::STR {
+        s: self.strng.into(),
+    });
+    [Some(kc1), None, None, None]
   }
 
-  fn lyhhold(&mut self, _ctx: Context) -> [Option<KeyCode>; 4] { [None; 4] }
-
-  fn lyhidle(&mut self, _ctx: Context) -> [Option<KeyCode>; 4] { [None; 4] }
-
-  fn lyhoff(&mut self, _ctx: Context) -> [Option<KeyCode>; 4] {
-    if self.previnfo[0] {
-      debug!("Off: {}, {}", self.previnfo[0], self.prevstate);
-      action(CallbackActions::SetLayer, ARGS::LYR { l: 0 });
-      self.previnfo[0] = false;
-    }
-    [None; 4]
+  fn ssthold(&mut self, _ctx: Context) -> [Option<KeyCode>; 4] {
+    let [Some(_kc0), Some(kc1), None, None] = self.keycode else {
+      return [None; 4];
+    };
+    [Some(kc1), None, None, None]
   }
 
-  #[doc = " Perform state change as a result of the scan"]
-  fn lyhscan(&mut self, is_high: bool, ctx: Context) -> [Option<KeyCode>; 4] {
+  fn sstidle(&mut self, _ctx: Context) -> [Option<KeyCode>; 4] { [None; 4] }
+
+  fn sstoff(&mut self, _ctx: Context) -> [Option<KeyCode>; 4] {
+    let [Some(_kc0), Some(kc1), None, None] = self.keycode else {
+      return [None; 4];
+    };
+    [Some(kc1), None, None, None]
+  }
+
+  fn sstscan(&mut self, is_high: bool, ctx: Context) -> [Option<KeyCode>; 4] {
+    let [Some(kc0), Some(kc1), None, None] = self.keycode else {
+      return [None; 4];
+    };
+    // println!("{}", is_high);
+    // if they KeyCode is empty then don't bother processing
+    if kc0 == KeyCode::________ && kc1 == KeyCode::________ {
+      return [None; 4];
+    }
+    //     ____________________________
     //    |                            |
     //    |       Cycle Counters       |
     //    |                            |
@@ -105,6 +112,7 @@ impl LayerHold for Key {
         self.state = StateType::Hold;
       }
       return self.get_keys(ctx);
+    // } else if self.cycles_off >= DEBOUNCE_CYCLES.into() {
     } else if self.cycles_off >= 1 {
       self.prevstate = self.state;
       self.state = StateType::Off;
@@ -114,10 +122,10 @@ impl LayerHold for Key {
 
   fn get_keys(&mut self, ctx: Context) -> [Option<KeyCode>; 4] {
     match self.state {
-      StateType::Tap => self.lyhtap(ctx),
-      StateType::Hold => self.lyhhold(ctx),
-      StateType::Idle => self.lyhidle(ctx),
-      StateType::Off => self.lyhoff(ctx),
+      StateType::Tap => self.ssttap(ctx),
+      StateType::Hold => self.ssthold(ctx),
+      StateType::Idle => self.sstidle(ctx),
+      StateType::Off => self.sstoff(ctx),
     }
   }
 }

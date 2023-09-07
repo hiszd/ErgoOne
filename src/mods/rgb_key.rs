@@ -42,6 +42,7 @@ impl RGBKey for Key {
         0,
       ],
       typ: "RGBKey",
+      strng: "",
     }
   }
 
