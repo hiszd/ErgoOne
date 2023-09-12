@@ -19,7 +19,7 @@ use critical_section::Mutex;
 use defmt::*;
 use defmt_rtt as _;
 use heapless::spsc::{Producer, Queue};
-use heapless::String;
+use heapless::{String, Vec};
 use keyscanning::{Col, Row};
 use kiibohd_hid_io::{CommandInterface, HidIoCommandId, KiibohdCommandInterface};
 use kiibohd_usb::KeyState;
@@ -40,7 +40,7 @@ use usbd_hid::hid_class::HidCountryCode;
 use ws2812_pio::Ws2812;
 
 use self::actions::CallbackActions;
-use self::keyscanning::KeyQueue;
+use self::keyscanning::{KeyQueue, KeyQueueDouble};
 use crate::keyscanning::Matrix;
 use crate::keyscanning::StateType;
 use crate::{key_codes::KeyCode, pac::interrupt};
@@ -439,6 +439,28 @@ fn main() -> ! {
   info!("Loop starting!");
   println!("thg = {}", 0 * 1);
   loop {
+    // if SENDINGSTRING is true then queue the next key
+    if unsafe { SENDINGSTRING.load(Ordering::Relaxed) } {
+      let kbd = unsafe { KBD_PRODUCER.get_mut() };
+      let codes = unsafe { STRING_QUEUE.pop().unwrap() };
+      if codes.0.is_some() {
+        if kbd.is_some() {
+          match kbd
+            .as_mut()
+            .unwrap()
+            .enqueue(kiibohd_usb::KeyState::Press(codes.0.unwrap().into()))
+          {
+            Ok(_) => {
+              warn!("Key OUT {:?}", codes.0.unwrap());
+            }
+            Err(err) => error!("{}", err),
+          }
+        } else {
+          error!("KBD_PRODUCER is None");
+        }
+      }
+    }
+    // Delay by 1ms
     delay.delay_us(1000u32);
     unsafe {
       if let Some(usb_hid) = USB_HID.as_mut() {
@@ -484,7 +506,7 @@ static mut HID_BUS: Option<UsbDevice<UsbBus>> = None;
 static mut USB_HID: Option<HidInterface> = None;
 static mut REPORTSENT: AtomicBool = AtomicBool::new(false);
 static mut ACTIVE_QUEUE: KeyQueue<10> = KeyQueue::new();
-// static mut STRING_QUEUE: KeyQueue<30> = KeyQueue::new();
+static mut STRING_QUEUE: KeyQueueDouble<30> = KeyQueueDouble::new();
 
 /// Handle USB interrupts, used by the host to "poll" the keyboard for new inputs.
 #[allow(non_snake_case)]
