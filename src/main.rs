@@ -163,19 +163,24 @@ pub fn action(action: CallbackActions, ops: ARGS) {
         strng.chars().for_each(|e| {
           let kbd = unsafe { KBD_PRODUCER.get_mut() };
           let code = KeyCode::from_char(e);
-          if code != KeyCode::________ {
+          if code.1 != 0 {
             if kbd.is_some() {
-              match kbd
-                .as_mut()
-                .unwrap()
-                .enqueue(kiibohd_usb::KeyState::Release(code.into()))
-              {
-                Ok(_) => {
-                  warn!("Key OUT {:?}", code);
-                  unsafe { ACTIVE_QUEUE.dequeue(code) };
+              code.0.iter().for_each(|x| {
+                if x.is_some() {
+                  let code = x.unwrap();
+                  match kbd
+                    .as_mut()
+                    .unwrap()
+                    .enqueue(kiibohd_usb::KeyState::Press(code.into()))
+                  {
+                    Ok(_) => {
+                      warn!("Key OUT {:?}", code);
+                      unsafe { ACTIVE_QUEUE.dequeue(code) };
+                    }
+                    Err(err) => error!("{}", err),
+                  }
                 }
-                Err(err) => error!("{}", err),
-              }
+              });
             } else {
               error!("KBD_PRODUCER is None");
             }
