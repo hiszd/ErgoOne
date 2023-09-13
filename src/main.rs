@@ -40,7 +40,7 @@ use usbd_hid::hid_class::HidCountryCode;
 use ws2812_pio::Ws2812;
 
 use self::actions::CallbackActions;
-use self::keyscanning::{KeyQueue, KeyQueueDouble};
+use self::keyscanning::{KeyQueue, KeyQueueMulti};
 use crate::keyscanning::Matrix;
 use crate::keyscanning::StateType;
 use crate::{key_codes::KeyCode, pac::interrupt};
@@ -175,7 +175,7 @@ pub fn action(action: CallbackActions, ops: ARGS) {
                   {
                     Ok(_) => {
                       warn!("Key OUT {:?}", code);
-                      unsafe { ACTIVE_QUEUE.dequeue(code) };
+                      unsafe { STRING_QUEUE.push(code) };
                     }
                     Err(err) => error!("{}", err),
                   }
@@ -511,7 +511,7 @@ static mut HID_BUS: Option<UsbDevice<UsbBus>> = None;
 static mut USB_HID: Option<HidInterface> = None;
 static mut REPORTSENT: AtomicBool = AtomicBool::new(false);
 static mut ACTIVE_QUEUE: KeyQueue<10> = KeyQueue::new();
-static mut STRING_QUEUE: KeyQueueDouble<30> = KeyQueueDouble::new();
+static mut STRING_QUEUE: KeyQueueMulti<30> = KeyQueueMulti::new();
 
 /// Handle USB interrupts, used by the host to "poll" the keyboard for new inputs.
 #[allow(non_snake_case)]

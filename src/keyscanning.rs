@@ -317,13 +317,13 @@ impl<const QSIZE: usize> KeyQueue<QSIZE> {
 }
 
 #[derive(Clone)]
-pub struct KeyQueueDouble<const QSIZE: usize> {
-  pub keys: Vec<Option<(Option<KeyCode>, Option<KeyCode>)>, QSIZE>,
+pub struct KeyQueueMulti<const QSIZE: usize> {
+  pub keys: Vec<[Option<KeyCode>;4], QSIZE>,
 }
 
-impl<const QSIZE: usize> KeyQueueDouble<QSIZE> {
+impl<const QSIZE: usize> KeyQueueMulti<QSIZE> {
   pub const fn new() -> Self {
-    KeyQueueDouble {
+    KeyQueueMulti {
       keys: Vec::new(),
     }
   }
