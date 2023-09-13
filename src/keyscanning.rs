@@ -318,74 +318,51 @@ impl<const QSIZE: usize> KeyQueue<QSIZE> {
 
 #[derive(Clone)]
 pub struct KeyQueueMulti<const QSIZE: usize> {
-  pub keys: Vec<[Option<KeyCode>;4], QSIZE>,
+  keys: Vec<[Option<KeyCode>; 4], QSIZE>,
+  pub len: usize,
+  currentKey: [Option<KeyCode>; 4],
 }
 
 impl<const QSIZE: usize> KeyQueueMulti<QSIZE> {
   pub const fn new() -> Self {
     KeyQueueMulti {
       keys: Vec::new(),
+      len: 0,
+      currentKey: [None; 4],
     }
   }
 
-  pub fn len(&self) -> usize { self.keys.iter().filter(|k| k.is_some()).count() }
+  pub fn is_empty(&self) -> bool { self.len == 0 }
 
-  pub fn is_empty(&self) -> bool { self.keys.iter().all(|k| k.is_none()) }
+  pub fn clear(&mut self) { self.keys = self.keys.iter().map(|k| [None; 4]).collect(); }
 
-  pub fn clear(&mut self) {
-    self.keys = self
-      .keys
-      .iter()
-      .map(|k| {
-        None
-      })
-      .collect();
-  }
-
-  pub fn pop(&mut self) -> Option<(Option<KeyCode>, Option<KeyCode>)> {
-    let k = self
-      .keys
-      .iter_mut()
-      .enumerate()
-      .find(|(i, k)| k.is_some())
-      .unwrap();
-    self.keys[k.0] = None;
-    *k.1
-  }
-
-  pub fn push(&mut self, codes: (KeyCode, KeyCode)) -> usize {
-    let k = self
-      .keys
-      .iter_mut()
-      .enumerate()
-      .find(|(i, k)| k.is_none())
-      .unwrap();
-    self.keys[k.0] = Some((Some(codes.0), Some(codes.1)));
-    k.0
-  }
-
-  pub fn get_hidcodes(&self) -> [u8; QSIZE] {
-    let mut keys: Vec<u8, QSIZE> = Vec::new();
-    self.keys.iter().enumerate().for_each(|(i, k)| {
-      if k.is_some() {
-        keys.push(k.unwrap().0.unwrap().into());
-        keys.push(k.unwrap().1.unwrap().into());
+  pub fn pop(&mut self) -> bool {
+    if self.len != 0 {
+      for (i, _) in self.keys.iter().enumerate() {
+        if i == 0 {
+          continue;
+        } else if i == 3 {
+          self.keys[i - 1] = self.keys[i];
+          self.keys[i] = [None; 4];
+        } else {
+          self.keys[i - 1] = self.keys[i];
+        }
       }
-    });
-    keys.into_array().unwrap()
-  }
-
-  pub fn get_keys(&self) -> [Option<KeyCode>; QSIZE] {
-    if self.len() == 0 {
-      return [None; QSIZE];
+      true
+    } else {
+      false
     }
-    let mut keys: Vec<Option<KeyCode>, QSIZE> = Vec::new();
-    self.keys.iter().enumerate().for_each(|(i, k)| {
-      if let Some(k) = k {
-        keys.push(Some(k.0.unwrap()));
-        keys.push(Some(k.1.unwrap()));
-      }
-    });
-    keys.into_array().unwrap()
   }
+
+  pub fn push(&mut self, codes: [Option<KeyCode>; 4]) -> usize {
+    self.keys[self.len + 1] = codes;
+    self.len += 1;
+    self.len
+  }
+
+  pub fn get(&self) -> &[Option<KeyCode>; 4] {
+    &self.currentKey
+  }
+
+  pub fn get_keys(&self) -> [[Option<KeyCode>; 4]; QSIZE] { self.keys.into_array().unwrap() }
 }

@@ -164,26 +164,7 @@ pub fn action(action: CallbackActions, ops: ARGS) {
           let kbd = unsafe { KBD_PRODUCER.get_mut() };
           let code = KeyCode::from_char(e);
           if code.1 != 0 {
-            if kbd.is_some() {
-              code.0.iter().for_each(|x| {
-                if x.is_some() {
-                  let code = x.unwrap();
-                  match kbd
-                    .as_mut()
-                    .unwrap()
-                    .enqueue(kiibohd_usb::KeyState::Press(code.into()))
-                  {
-                    Ok(_) => {
-                      warn!("Key OUT {:?}", code);
-                      unsafe { STRING_QUEUE.push(code) };
-                    }
-                    Err(err) => error!("{}", err),
-                  }
-                }
-              });
-            } else {
-              error!("KBD_PRODUCER is None");
-            }
+            unsafe { STRING_QUEUE.push(code.0) };
           }
         })
       }
@@ -493,6 +474,7 @@ fn main() -> ! {
       key_queue: unsafe { ACTIVE_QUEUE.get_keys() },
     });
     matrix.set_layer(unsafe { KBD_LAYER.load(Ordering::Relaxed) as usize });
+    unsafe { POLLCOMPLETE.store(false, Ordering::Relaxed) };
   }
 }
 
@@ -512,6 +494,7 @@ static mut USB_HID: Option<HidInterface> = None;
 static mut REPORTSENT: AtomicBool = AtomicBool::new(false);
 static mut ACTIVE_QUEUE: KeyQueue<10> = KeyQueue::new();
 static mut STRING_QUEUE: KeyQueueMulti<30> = KeyQueueMulti::new();
+static mut POLLCOMPLETE: AtomicBool = AtomicBool::new(false);
 
 /// Handle USB interrupts, used by the host to "poll" the keyboard for new inputs.
 #[allow(non_snake_case)]
@@ -526,6 +509,7 @@ unsafe fn USBCTRL_IRQ() {
           let hidio = hidio_intf.unwrap();
           usb_hid.pull_hidio(hidio);
         }
+        unsafe { POLLCOMPLETE.store(true, Ordering::Relaxed) }
       }
     }
   }
