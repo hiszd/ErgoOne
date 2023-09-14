@@ -338,16 +338,15 @@ impl<const QSIZE: usize> KeyQueueMulti<QSIZE> {
   pub fn clear(&mut self) { self.keys = self.keys.iter().map(|_| None).collect(); }
 
   // pop():
-  // take currentKey and return it
-  // copy the next item from keys into currentKey
-  // shift keys over to fill space
-  pub fn pop(&mut self) -> Option<[Option<KeyCode>; 4]> {
-    let key = self.currentKey;
-    let codes = self.keys.clone();
+  // in the order of currentKey <- keys[0] <- keys[1] ...
+  // shift everything left
+  // the last element just becomes None
+  // if there are no more elements in the queue then currentKey becomes None also
+  pub fn pop(&mut self) -> () {
     // if there are more elements than just the current one
     if self.len > 1 {
-      for (i, curkey) in codes.iter().enumerate() {
-        if curkey.is_some() {
+      for i in 0..self.keys.len() {
+        if self.keys[i].is_some() {
           if i == 0 {
             self.currentKey = Some(self.keys[i].unwrap());
             self.keys[i] = None;
@@ -357,37 +356,39 @@ impl<const QSIZE: usize> KeyQueueMulti<QSIZE> {
           } else {
             self.keys[i - 1] = self.keys[i];
           }
+        } else {
+          break;
         }
       }
     } else {
       self.currentKey = None;
     }
-    println!("\n");
-    info!("currentKey: {:?}", self.currentKey);
-    info!("keys: {:?}", self.keys);
-    println!("\n");
-    key
+    self.len -= 1;
+    println!("pop  length: {}, vec.len: {}", self.len, self.keys.len());
+    // println!("\n");
+    // info!("currentKey: {:?}", self.currentKey);
+    // info!("keys: {:?}", self.keys);
+    // println!("\n");
   }
 
   // push(keys):
-  // receive keys and if currentKey = None then fill currentKey
+  // push codes to self.keys
   pub fn push(&mut self, codes: [Option<KeyCode>; 4]) -> usize {
-    if self.len == 0 {
-      self.currentKey = Some(codes);
+    if self.len < QSIZE {
+      self.keys.push(Some(codes)).unwrap();
+      self.len += 1;
+      // println!("\n");
+      // info!("currentKey: {:?}", self.currentKey);
+      // info!("keys: {:?}", self.keys);
+      // println!("\n");
+      println!("push length: {}, vec.len: {}", self.len, self.keys.len());
     } else {
-      self.keys[self.len - 1] = Some(codes);
+      error!("queue is full");
     }
-    self.len += 1;
-    println!("\n");
-    info!("currentKey: {:?}", self.currentKey);
-    info!("keys: {:?}", self.keys);
-    println!("\n");
     self.len
   }
 
   pub fn get(&self) -> Option<&[Option<KeyCode>; 4]> { self.currentKey.as_ref() }
 
-  pub fn get_keys(&self) -> Vec<Option<[Option<KeyCode>; 4]>, QSIZE> {
-    self.keys.clone()
-  }
+  pub fn get_keys(&self) -> Vec<Option<[Option<KeyCode>; 4]>, QSIZE> { self.keys.clone() }
 }

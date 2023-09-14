@@ -46,7 +46,7 @@ use crate::keyscanning::StateType;
 use crate::{key_codes::KeyCode, pac::interrupt};
 
 // These define the maximum pending items in each queue
-const KBD_QUEUE_SIZE: usize = 10; // This would limit NKRO mode to 10KRO
+const KBD_QUEUE_SIZE: usize = 20; // This would limit NKRO mode to 10KRO
 const KBD_LED_QUEUE_SIZE: usize = 3;
 const MOUSE_QUEUE_SIZE: usize = 5;
 const CTRL_QUEUE_SIZE: usize = 2;
@@ -425,28 +425,12 @@ fn main() -> ! {
   println!("thg = {}", 0 * 1);
   loop {
     // if SENDINGSTRING is true then queue the next key set
-    if unsafe { SENDINGSTRING.load(Ordering::Relaxed) } {
-      let kbd = unsafe { KBD_PRODUCER.get_mut() };
-      let codes = unsafe { STRING_QUEUE.get() };
-      if codes.is_some() {
-        if kbd.is_some() {
-          for set in codes.unwrap().iter() {
-            match kbd
-              .as_mut()
-              .unwrap()
-              .enqueue(kiibohd_usb::KeyState::Press(set.unwrap().into()))
-            {
-              Ok(_) => {
-                warn!("Key OUT {:?}", set);
-              }
-              Err(err) => error!("{}", err),
-            }
-          }
-        } else {
-          error!("KBD_PRODUCER is None");
-        }
-      }
+    let sending_string = unsafe { SENDINGSTRING.load(Ordering::Relaxed) };
+    if sending_string && unsafe { REPORTSENT.load(Ordering::Relaxed) } {
+      info!("sending string");
+      string_sender(true);
     }
+    unsafe { REPORTSENT.store(false, Ordering::Relaxed) };
     // Delay by 1ms
     delay.delay_us(1000u32);
     unsafe {
@@ -455,6 +439,9 @@ fn main() -> ! {
         match usb_hid.push() {
           Ok(_) => {
             REPORTSENT.store(true, Ordering::Relaxed);
+            if sending_string {
+              string_sender(false);
+            }
           }
           Err(UsbError::WouldBlock) => {
             REPORTSENT.store(false, Ordering::Relaxed);
@@ -476,6 +463,55 @@ fn main() -> ! {
     });
     matrix.set_layer(unsafe { KBD_LAYER.load(Ordering::Relaxed) as usize });
     unsafe { POLLCOMPLETE.store(false, Ordering::Relaxed) };
+  }
+}
+
+fn string_sender(press: bool) {
+  let kbd = unsafe { KBD_PRODUCER.get_mut() };
+  let codes = unsafe { STRING_QUEUE.get() };
+  if codes.is_some() {
+    if kbd.is_some() {
+      if press {
+        for set in codes.unwrap().iter() {
+          if set.is_some() {
+            match kbd
+              .as_mut()
+              .unwrap()
+              .enqueue(kiibohd_usb::KeyState::Press(set.unwrap().into()))
+            {
+              Ok(_) => {
+                warn!("Key IN  {:?}", set);
+              }
+              Err(err) => error!("{}", err),
+            }
+          } else {
+            break;
+          }
+        }
+      } else {
+        for set in codes.unwrap().iter() {
+          if set.is_some() {
+            match kbd
+              .as_mut()
+              .unwrap()
+              .enqueue(kiibohd_usb::KeyState::Release(set.unwrap().into()))
+            {
+              Ok(_) => {
+                unsafe { STRING_QUEUE.pop() };
+                warn!("Key OUT {:?}", set);
+              }
+              Err(err) => error!("{}", err),
+            }
+          } else {
+            break;
+          }
+        }
+      }
+    } else {
+      error!("KBD_PRODUCER is None");
+    }
+  } else {
+    unsafe { SENDINGSTRING.store(false, Ordering::Relaxed) };
   }
 }
 
