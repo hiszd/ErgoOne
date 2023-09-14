@@ -19,7 +19,7 @@ use critical_section::Mutex;
 use defmt::*;
 use defmt_rtt as _;
 use heapless::spsc::{Producer, Queue};
-use heapless::{String, Vec};
+use heapless::String;
 use keyscanning::{Col, Row};
 use kiibohd_hid_io::{CommandInterface, HidIoCommandId, KiibohdCommandInterface};
 use kiibohd_usb::KeyState;
@@ -161,7 +161,6 @@ pub fn action(action: CallbackActions, ops: ARGS) {
         // start sending string and block other keys sending until complete
         unsafe { SENDINGSTRING.store(true, Ordering::Relaxed) };
         strng.chars().for_each(|e| {
-          let kbd = unsafe { KBD_PRODUCER.get_mut() };
           let code = KeyCode::from_char(e);
           if code.1 != 0 {
             unsafe { STRING_QUEUE.push(code.0) };
@@ -425,21 +424,23 @@ fn main() -> ! {
   info!("Loop starting!");
   println!("thg = {}", 0 * 1);
   loop {
-    // if SENDINGSTRING is true then queue the next key
+    // if SENDINGSTRING is true then queue the next key set
     if unsafe { SENDINGSTRING.load(Ordering::Relaxed) } {
       let kbd = unsafe { KBD_PRODUCER.get_mut() };
-      let codes = unsafe { STRING_QUEUE.pop().unwrap() };
-      if codes.0.is_some() {
+      let codes = unsafe { STRING_QUEUE.get() };
+      if codes.is_some() {
         if kbd.is_some() {
-          match kbd
-            .as_mut()
-            .unwrap()
-            .enqueue(kiibohd_usb::KeyState::Press(codes.0.unwrap().into()))
-          {
-            Ok(_) => {
-              warn!("Key OUT {:?}", codes.0.unwrap());
+          for set in codes.unwrap().iter() {
+            match kbd
+              .as_mut()
+              .unwrap()
+              .enqueue(kiibohd_usb::KeyState::Press(set.unwrap().into()))
+            {
+              Ok(_) => {
+                warn!("Key OUT {:?}", set);
+              }
+              Err(err) => error!("{}", err),
             }
-            Err(err) => error!("{}", err),
           }
         } else {
           error!("KBD_PRODUCER is None");

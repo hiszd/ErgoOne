@@ -318,51 +318,76 @@ impl<const QSIZE: usize> KeyQueue<QSIZE> {
 
 #[derive(Clone)]
 pub struct KeyQueueMulti<const QSIZE: usize> {
-  keys: Vec<[Option<KeyCode>; 4], QSIZE>,
+  keys: Vec<Option<[Option<KeyCode>; 4]>, QSIZE>,
   pub len: usize,
-  currentKey: [Option<KeyCode>; 4],
+  currentKey: Option<[Option<KeyCode>; 4]>,
 }
 
+// flow of data:
 impl<const QSIZE: usize> KeyQueueMulti<QSIZE> {
   pub const fn new() -> Self {
     KeyQueueMulti {
       keys: Vec::new(),
       len: 0,
-      currentKey: [None; 4],
+      currentKey: Some([None; 4]),
     }
   }
 
   pub fn is_empty(&self) -> bool { self.len == 0 }
 
-  pub fn clear(&mut self) { self.keys = self.keys.iter().map(|k| [None; 4]).collect(); }
+  pub fn clear(&mut self) { self.keys = self.keys.iter().map(|_| None).collect(); }
 
-  pub fn pop(&mut self) -> bool {
-    if self.len != 0 {
-      for (i, _) in self.keys.iter().enumerate() {
-        if i == 0 {
-          continue;
-        } else if i == 3 {
-          self.keys[i - 1] = self.keys[i];
-          self.keys[i] = [None; 4];
-        } else {
-          self.keys[i - 1] = self.keys[i];
+  // pop():
+  // take currentKey and return it
+  // copy the next item from keys into currentKey
+  // shift keys over to fill space
+  pub fn pop(&mut self) -> Option<[Option<KeyCode>; 4]> {
+    let key = self.currentKey;
+    let codes = self.keys.clone();
+    // if there are more elements than just the current one
+    if self.len > 1 {
+      for (i, curkey) in codes.iter().enumerate() {
+        if curkey.is_some() {
+          if i == 0 {
+            self.currentKey = Some(self.keys[i].unwrap());
+            self.keys[i] = None;
+          } else if i == 3 {
+            self.keys[i - 1] = self.keys[i];
+            self.keys[i] = None;
+          } else {
+            self.keys[i - 1] = self.keys[i];
+          }
         }
       }
-      true
     } else {
-      false
+      self.currentKey = None;
     }
+    println!("\n");
+    info!("currentKey: {:?}", self.currentKey);
+    info!("keys: {:?}", self.keys);
+    println!("\n");
+    key
   }
 
+  // push(keys):
+  // receive keys and if currentKey = None then fill currentKey
   pub fn push(&mut self, codes: [Option<KeyCode>; 4]) -> usize {
-    self.keys[self.len + 1] = codes;
+    if self.len == 0 {
+      self.currentKey = Some(codes);
+    } else {
+      self.keys[self.len - 1] = Some(codes);
+    }
     self.len += 1;
+    println!("\n");
+    info!("currentKey: {:?}", self.currentKey);
+    info!("keys: {:?}", self.keys);
+    println!("\n");
     self.len
   }
 
-  pub fn get(&self) -> &[Option<KeyCode>; 4] {
-    &self.currentKey
-  }
+  pub fn get(&self) -> Option<&[Option<KeyCode>; 4]> { self.currentKey.as_ref() }
 
-  pub fn get_keys(&self) -> [[Option<KeyCode>; 4]; QSIZE] { self.keys.into_array().unwrap() }
+  pub fn get_keys(&self) -> Vec<Option<[Option<KeyCode>; 4]>, QSIZE> {
+    self.keys.clone()
+  }
 }
