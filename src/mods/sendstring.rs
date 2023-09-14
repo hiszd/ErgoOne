@@ -40,10 +40,14 @@ impl SendString for Key {
     let [Some(_kc0), Some(kc1), None, None] = self.keycode else {
       return [None; 4];
     };
-    action(CallbackActions::SendString, ARGS::STR {
+    if self.prevstate != StateType::Tap {
+      action(CallbackActions::SendString, ARGS::STR {
         s: self.strng.into(),
-    });
-    [Some(kc1), None, None, None]
+      });
+      [Some(kc1), None, None, None]
+    } else {
+      [None; 4]
+    }
   }
 
   fn ssthold(&mut self, _ctx: Context) -> [Option<KeyCode>; 4] {

@@ -422,12 +422,12 @@ fn main() -> ! {
   });
 
   info!("Loop starting!");
-  println!("thg = {}", 0 * 1);
   loop {
     // if SENDINGSTRING is true then queue the next key set
-    let sending_string = unsafe { SENDINGSTRING.load(Ordering::Relaxed) };
-    if sending_string && unsafe { REPORTSENT.load(Ordering::Relaxed) } {
-      info!("sending string");
+    let sending_string: bool = unsafe { SENDINGSTRING.load(Ordering::Relaxed) };
+    let report_sent: bool = unsafe { REPORTSENT.load(Ordering::Relaxed) };
+    if sending_string && report_sent {
+      // info!("sending string");
       string_sender(true);
     }
     unsafe { REPORTSENT.store(false, Ordering::Relaxed) };
