@@ -225,7 +225,7 @@ impl KeyCode {
       '1' => ([Some(KeyCode::Num_1zzz), None, None, None], 1),
       '2' => ([Some(KeyCode::Num_2zzz), None, None, None], 1),
       '@' => (
-        [Some(KeyCode::Num_2zzz), Some(KeyCode::Mod_LSft), None, None],
+        [Some(KeyCode::Mod_LSft), Some(KeyCode::Num_2zzz), None, None],
         2,
       ),
       '3' => ([Some(KeyCode::Num_3zzz), None, None, None], 1),

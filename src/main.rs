@@ -14,6 +14,7 @@ mod mods;
 use core::sync::atomic::AtomicBool;
 use core::sync::atomic::{AtomicU8, Ordering};
 
+use cortex_m::delay::Delay;
 use cortex_m_rt::entry;
 use critical_section::Mutex;
 use defmt::*;
@@ -427,8 +428,8 @@ fn main() -> ! {
     let sending_string: bool = unsafe { SENDINGSTRING.load(Ordering::Relaxed) };
     let report_sent: bool = unsafe { REPORTSENT.load(Ordering::Relaxed) };
     if sending_string && report_sent {
-      // info!("sending string");
-      string_sender(true);
+      info!("sending string");
+      string_sender(true, &mut delay);
     }
     unsafe { REPORTSENT.store(false, Ordering::Relaxed) };
     // Delay by 1ms
@@ -440,7 +441,8 @@ fn main() -> ! {
           Ok(_) => {
             REPORTSENT.store(true, Ordering::Relaxed);
             if sending_string {
-              string_sender(false);
+              info!("sending string but false");
+              string_sender(false, &mut delay);
             }
           }
           Err(UsbError::WouldBlock) => {
@@ -466,13 +468,14 @@ fn main() -> ! {
   }
 }
 
-fn string_sender(press: bool) {
+fn string_sender(press: bool, delay: &mut Delay) {
   let kbd = unsafe { KBD_PRODUCER.get_mut() };
   let codes = unsafe { STRING_QUEUE.get() };
   if codes.is_some() {
     if kbd.is_some() {
       if press {
         for set in codes.unwrap().iter() {
+          delay.delay_us(1000u32);
           if set.is_some() {
             match kbd
               .as_mut()
@@ -480,7 +483,7 @@ fn string_sender(press: bool) {
               .enqueue(kiibohd_usb::KeyState::Press(set.unwrap().into()))
             {
               Ok(_) => {
-                warn!("Key IN  {:?}", set);
+                warn!("Char IN  {:?}", set);
               }
               Err(err) => error!("{}", err),
             }
@@ -490,6 +493,7 @@ fn string_sender(press: bool) {
         }
       } else {
         for set in codes.unwrap().iter() {
+          delay.delay_us(1000u32);
           if set.is_some() {
             match kbd
               .as_mut()
@@ -497,8 +501,8 @@ fn string_sender(press: bool) {
               .enqueue(kiibohd_usb::KeyState::Release(set.unwrap().into()))
             {
               Ok(_) => {
+                warn!("Char OUT {:?}", set);
                 unsafe { STRING_QUEUE.pop() };
-                warn!("Key OUT {:?}", set);
               }
               Err(err) => error!("{}", err),
             }
