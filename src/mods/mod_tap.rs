@@ -23,7 +23,7 @@ pub trait ModTap {
   fn mdtoff(&mut self, _ctx: Context) -> [Option<KeyCode>; 4];
   fn get_keys(&mut self, ctx: Context) -> [Option<KeyCode>; 4];
   fn mdtscan(&mut self, is_high: bool, ctx: Context) -> [Option<KeyCode>; 4];
-  fn exist_next(&self, ctx: Context, key: KeyCode) -> bool;
+  fn exist_next(&self, ctx: Context, key: KeyCode, ignore_mods: bool) -> bool;
 }
 
 impl ModTap for Key {
@@ -45,12 +45,12 @@ impl ModTap for Key {
 
   fn mdttap(&mut self, ctx: Context) -> [Option<KeyCode>; 4] {
     let [Some(_kc0), Some(kc1), None, None] = self.keycode else {
-            return [None; 4];
-        };
+      return [None; 4];
+    };
     // self.previnfo[0] is whether or not a combination was pressed
     self.previnfo[0] = false;
     if kc1.is_modifier() {
-      if self.exist_next(ctx, kc1) {
+      if self.exist_next(ctx, kc1, true) {
         self.previnfo[0] = true;
       }
     } else {
@@ -68,8 +68,8 @@ impl ModTap for Key {
 
   fn mdthold(&mut self, _ctx: Context) -> [Option<KeyCode>; 4] {
     let [Some(_kc0), Some(kc1), None, None] = self.keycode else {
-            return [None; 4];
-        };
+      return [None; 4];
+    };
     self.previnfo[0] = true;
     match kc1.is_modifier() {
       true => {
@@ -84,12 +84,12 @@ impl ModTap for Key {
 
   fn mdtoff(&mut self, ctx: Context) -> [Option<KeyCode>; 4] {
     let [Some(kc0), Some(kc1), None, None] = self.keycode else {
-            return [None; 4];
-        };
+      return [None; 4];
+    };
     match self.prevstate {
       StateType::Tap => {
         // if there was not a combination of key pressed during the tap then
-        if !self.previnfo[0] && !self.exist_next(ctx, kc1) {
+        if !self.previnfo[0] && !self.exist_next(ctx, kc1, true) {
           println!("no combo");
           match kc0.is_modifier() {
             true => error!("{} is a modifier, but shouldn't be", kc0),
@@ -139,8 +139,10 @@ impl ModTap for Key {
     }
   }
 
-  fn exist_next(&self, ctx: Context, key: KeyCode) -> bool {
+  fn exist_next(&self, ctx: Context, key: KeyCode, ignore_mods: bool) -> bool {
+    // TODO: check if key is the comparable opposite of the one pressed(lshift to rshift, etc...)
     let mut rtrn1 = false;
+    // locate key in array
     let ind1: Option<usize> = ctx
       .key_queue
       .iter()
@@ -151,10 +153,23 @@ impl ModTap for Key {
     }
     for i in srt..ctx.key_queue.len() {
       if ctx.key_queue[i].is_some() {
-        if ctx.key_queue[i].unwrap() != key {
-          rtrn1 = true;
-          warn!("rtrn1 = {}, key = {}", rtrn1, ctx.key_queue[i].unwrap());
-          break;
+        if let Some(curkey) = ctx.key_queue[i] {
+          if curkey != key {
+            if ignore_mods {
+              if curkey.is_modifier() {
+                warn!("rtrn1 = {}, key = {}", rtrn1, ctx.key_queue[i].unwrap());
+                break;
+              } else {
+                rtrn1 = true;
+                warn!("rtrn1 = {}, key = {}", rtrn1, ctx.key_queue[i].unwrap());
+                break;
+              }
+            } else {
+              rtrn1 = true;
+              warn!("rtrn1 = {}, key = {}", rtrn1, ctx.key_queue[i].unwrap());
+              break;
+            }
+          }
         }
       }
     }
@@ -167,8 +182,8 @@ impl ModTap for Key {
   #[doc = " Perform state change as a result of the scan"]
   fn mdtscan(&mut self, is_high: bool, ctx: Context) -> [Option<KeyCode>; 4] {
     let [Some(kc0), Some(kc1), None, None] = self.keycode else {
-            return [None; 4];
-        };
+      return [None; 4];
+    };
     if kc0 == KeyCode::________ && kc1 == KeyCode::________ {
       return [None; 4];
     }

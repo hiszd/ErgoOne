@@ -25,7 +25,7 @@ pub const ERGOONE_1: [&str; 80] = [
 "transparent",                   "transparent", "dft,Arw_Upzz","transparent", "transparent", "transparent", "transparent",          "transparent", "transparent", "transparent", "transparent", "dft,Num_7zzz","dft,Num_8zzz","dft,Num_9zzz","transparent", "dft,Fun_F12z",
 "transparent",                   "dft,Arw_Left","dft,Arw_Down","dft,Arw_Rght","transparent", "transparent", "transparent",          "transparent", "transparent", "transparent", "transparent", "dft,Num_4zzz","dft,Num_5zzz","dft,Num_6zzz","transparent", "transparent", 
 "transparent",                   "transparent", "transparent", "transparent", "transparent", "transparent", "transparent",          "transparent", "transparent", "dft,Fun_Delz","transparent", "dft,Num_1zzz","dft,Num_2zzz","dft,Num_3zzz","transparent", "transparent", 
-"transparent",                   "transparent", "transparent", "transparent", "transparent", "sst,zion",    "transparent",         "transparent", "transparent", "transparent", "transparent", "dft,Num_0zzz","transparent", "transparent", "transparent", "transparent", 
+"transparent",                   "transparent", "transparent", "transparent", "transparent", "sst,@zion",    "transparent",         "transparent", "transparent", "transparent", "transparent", "dft,Num_0zzz","transparent", "transparent", "transparent", "transparent", 
 ];
 
 #[allow(dead_code)]

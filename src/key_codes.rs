@@ -224,6 +224,10 @@ impl KeyCode {
       'Z' => ([Some(KeyCode::Ltr_Zzzz), None, None, None], 1),
       '1' => ([Some(KeyCode::Num_1zzz), None, None, None], 1),
       '2' => ([Some(KeyCode::Num_2zzz), None, None, None], 1),
+      '@' => (
+        [Some(KeyCode::Num_2zzz), Some(KeyCode::Mod_LSft), None, None],
+        2,
+      ),
       '3' => ([Some(KeyCode::Num_3zzz), None, None, None], 1),
       '4' => ([Some(KeyCode::Num_4zzz), None, None, None], 1),
       '5' => ([Some(KeyCode::Num_5zzz), None, None, None], 1),
@@ -232,7 +236,7 @@ impl KeyCode {
       '8' => ([Some(KeyCode::Num_8zzz), None, None, None], 1),
       '9' => ([Some(KeyCode::Num_9zzz), None, None, None], 1),
       '0' => ([Some(KeyCode::Num_0zzz), None, None, None], 1),
-      _ => ([None;4], 0),
+      _ => ([None; 4], 0),
     }
   }
 }

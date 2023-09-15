@@ -1,4 +1,5 @@
 use defmt::error;
+use defmt::info;
 use defmt::println;
 use defmt::warn;
 use heapless::Vec;
@@ -23,7 +24,7 @@ pub trait TapCom {
   fn tpcoff(&mut self, _ctx: Context) -> [Option<KeyCode>; 4];
   fn get_keys(&mut self, ctx: Context) -> [Option<KeyCode>; 4];
   fn tpcscan(&mut self, is_high: bool, ctx: Context) -> [Option<KeyCode>; 4];
-  fn exist_next(&self, ctx: Context, key: KeyCode) -> bool;
+  fn exist_next(&self, ctx: Context, key: KeyCode, ignore_mods: bool) -> bool;
 }
 
 impl TapCom for Key {
@@ -50,12 +51,13 @@ impl TapCom for Key {
 
   fn tpctap(&mut self, ctx: Context) -> [Option<KeyCode>; 4] {
     let [Some(kc0), Some(_kc1), Some(_kc2), None] = self.keycode else {
-            return [None; 4];
-        };
+      return [None; 4];
+    };
     if !self.previnfo[0] {
       if kc0.is_modifier() {
         // if there is another key pressed
-        if self.exist_next(ctx, kc0) {
+        if self.exist_next(ctx, kc0, true) {
+          info!("THEY DO EXIST");
           self.previnfo[0] = true;
         }
       } else {
@@ -72,8 +74,8 @@ impl TapCom for Key {
 
   fn tpchold(&mut self, _ctx: Context) -> [Option<KeyCode>; 4] {
     let [Some(kc0), Some(_kc1), Some(_kc2), None] = self.keycode else {
-            return [None; 4];
-        };
+      return [None; 4];
+    };
     self.previnfo[0] = true;
     match kc0.is_modifier() {
       true => {
@@ -88,12 +90,12 @@ impl TapCom for Key {
 
   fn tpcoff(&mut self, ctx: Context) -> [Option<KeyCode>; 4] {
     let [Some(kc0), Some(kc1), Some(kc2), None] = self.keycode else {
-            return [None; 4];
-        };
+      return [None; 4];
+    };
     match self.prevstate {
       StateType::Tap => {
         // if there was not a combination of key pressed during the tap then
-        if !self.previnfo[0] && !self.exist_next(ctx, kc0) {
+        if !self.previnfo[0] && !self.exist_next(ctx, kc0, true) {
           println!("no combo");
           self.previnfo[1] = true;
           self.stor[4] = 0;
@@ -117,12 +119,12 @@ impl TapCom for Key {
       }
       StateType::Off => {
         if self.previnfo[1] {
-          if self.stor[4] == 2 {
+          if self.stor[4] == 3 {
             action(CallbackActions::Release, ARGS::KS { code: kc1 });
             action(CallbackActions::Release, ARGS::KS { code: kc2 });
             self.previnfo[1] = false;
             self.stor[4] += 1;
-          } else {
+          } else if self.stor[4] < 5 {
             self.stor[4] += 1;
           }
         }
@@ -134,8 +136,8 @@ impl TapCom for Key {
     }
   }
 
-  fn exist_next(&self, ctx: Context, key: KeyCode) -> bool {
-      // TODO: check if key is the comparable opposite of the one pressed(lshift to rshift, etc...)
+  fn exist_next(&self, ctx: Context, key: KeyCode, ignore_mods: bool) -> bool {
+    // TODO: check if key is the comparable opposite of the one pressed(lshift to rshift, etc...)
     let mut rtrn1 = false;
     // locate key in array
     let ind1: Option<usize> = ctx
@@ -148,10 +150,23 @@ impl TapCom for Key {
     }
     for i in srt..ctx.key_queue.len() {
       if ctx.key_queue[i].is_some() {
-        if ctx.key_queue[i].unwrap() != key {
-          rtrn1 = true;
-          warn!("rtrn1 = {}, key = {}", rtrn1, ctx.key_queue[i].unwrap());
-          break;
+        if let Some(curkey) = ctx.key_queue[i] {
+          if curkey != key {
+            if ignore_mods {
+              if curkey.is_modifier() {
+                warn!("rtrn1 = {}, key = {}", rtrn1, ctx.key_queue[i].unwrap());
+                break;
+              } else {
+                rtrn1 = true;
+                warn!("rtrn1 = {}, key = {}", rtrn1, ctx.key_queue[i].unwrap());
+                break;
+              }
+            } else {
+              rtrn1 = true;
+              warn!("rtrn1 = {}, key = {}", rtrn1, ctx.key_queue[i].unwrap());
+              break;
+            }
+          }
         }
       }
     }
