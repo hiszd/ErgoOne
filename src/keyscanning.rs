@@ -387,7 +387,10 @@ impl<const QSIZE: usize> KeyQueueMulti<QSIZE> {
     len
   }
 
-  pub fn get(&self) -> Option<&[Option<KeyCode>; 4]> { self.currentKey.as_ref() }
+  pub fn get(&self) -> Option<&[Option<KeyCode>; 4]> {
+    println!("{:?}", self.currentKey);
+    self.currentKey.as_ref()
+  }
 
   pub fn get_keys(&self) -> Vec<Option<[Option<KeyCode>; 4]>, QSIZE> { self.keys.clone() }
 }

@@ -471,9 +471,9 @@ fn string_sender(press: bool) {
   let codes = unsafe { STRING_QUEUE.get() };
   if codes.is_some() {
     if kbd.is_some() {
-      if press {
-        for set in codes.unwrap().iter() {
-          if set.is_some() {
+      for set in codes.unwrap().iter() {
+        if set.is_some() {
+          if press {
             match kbd
               .as_mut()
               .unwrap()
@@ -485,12 +485,6 @@ fn string_sender(press: bool) {
               Err(err) => error!("{}", err),
             }
           } else {
-            break;
-          }
-        }
-      } else {
-        for set in codes.unwrap().iter() {
-          if set.is_some() {
             match kbd
               .as_mut()
               .unwrap()
@@ -502,9 +496,9 @@ fn string_sender(press: bool) {
               }
               Err(err) => error!("{}", err),
             }
-          } else {
-            break;
           }
+        } else {
+          break;
         }
       }
     } else {
