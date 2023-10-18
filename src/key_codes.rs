@@ -1,4 +1,7 @@
 use defmt::Format;
+use heapless::Vec;
+
+use crate::keyscanning::KeyVec;
 
 #[allow(unused)]
 #[repr(u8)]
@@ -168,76 +171,202 @@ impl KeyCode {
     *self == KeyCode::Mod_L01z || self.modifier_bitmask().is_some()
   }
 
-  pub fn from_char(val: char) -> ([Option<KeyCode>; 4], usize) {
+  pub fn from_char(val: char) -> KeyVec {
+    let mut codes: Vec<KeyCode, 4> = Vec::new();
     match val {
-      'a' => ([Some(KeyCode::Ltr_Azzz), None, None, None], 1),
-      'A' => ([Some(KeyCode::Ltr_Azzz), None, None, None], 1),
-      'b' => ([Some(KeyCode::Ltr_Bzzz), None, None, None], 1),
-      'B' => ([Some(KeyCode::Ltr_Bzzz), None, None, None], 1),
-      'c' => ([Some(KeyCode::Ltr_Czzz), None, None, None], 1),
-      'C' => ([Some(KeyCode::Ltr_Czzz), None, None, None], 1),
-      'd' => ([Some(KeyCode::Ltr_Dzzz), None, None, None], 1),
-      'D' => ([Some(KeyCode::Ltr_Dzzz), None, None, None], 1),
-      'e' => ([Some(KeyCode::Ltr_Ezzz), None, None, None], 1),
-      'E' => ([Some(KeyCode::Ltr_Ezzz), None, None, None], 1),
-      'f' => ([Some(KeyCode::Ltr_Fzzz), None, None, None], 1),
-      'F' => ([Some(KeyCode::Ltr_Fzzz), None, None, None], 1),
-      'g' => ([Some(KeyCode::Ltr_Gzzz), None, None, None], 1),
-      'G' => ([Some(KeyCode::Ltr_Gzzz), None, None, None], 1),
-      'h' => ([Some(KeyCode::Ltr_Hzzz), None, None, None], 1),
-      'H' => ([Some(KeyCode::Ltr_Hzzz), None, None, None], 1),
-      'i' => ([Some(KeyCode::Ltr_Izzz), None, None, None], 1),
-      'I' => ([Some(KeyCode::Ltr_Izzz), None, None, None], 1),
-      'j' => ([Some(KeyCode::Ltr_Jzzz), None, None, None], 1),
-      'J' => ([Some(KeyCode::Ltr_Jzzz), None, None, None], 1),
-      'k' => ([Some(KeyCode::Ltr_Kzzz), None, None, None], 1),
-      'K' => ([Some(KeyCode::Ltr_Kzzz), None, None, None], 1),
-      'l' => ([Some(KeyCode::Ltr_Lzzz), None, None, None], 1),
-      'L' => ([Some(KeyCode::Ltr_Lzzz), None, None, None], 1),
-      'm' => ([Some(KeyCode::Ltr_Mzzz), None, None, None], 1),
-      'M' => ([Some(KeyCode::Ltr_Mzzz), None, None, None], 1),
-      'n' => ([Some(KeyCode::Ltr_Nzzz), None, None, None], 1),
-      'N' => ([Some(KeyCode::Ltr_Nzzz), None, None, None], 1),
-      'o' => ([Some(KeyCode::Ltr_Ozzz), None, None, None], 1),
-      'O' => ([Some(KeyCode::Ltr_Ozzz), None, None, None], 1),
-      'p' => ([Some(KeyCode::Ltr_Pzzz), None, None, None], 1),
-      'P' => ([Some(KeyCode::Ltr_Pzzz), None, None, None], 1),
-      'q' => ([Some(KeyCode::Ltr_Qzzz), None, None, None], 1),
-      'Q' => ([Some(KeyCode::Ltr_Qzzz), None, None, None], 1),
-      'r' => ([Some(KeyCode::Ltr_Rzzz), None, None, None], 1),
-      'R' => ([Some(KeyCode::Ltr_Rzzz), None, None, None], 1),
-      's' => ([Some(KeyCode::Ltr_Szzz), None, None, None], 1),
-      'S' => ([Some(KeyCode::Ltr_Szzz), None, None, None], 1),
-      't' => ([Some(KeyCode::Ltr_Tzzz), None, None, None], 1),
-      'T' => ([Some(KeyCode::Ltr_Tzzz), None, None, None], 1),
-      'u' => ([Some(KeyCode::Ltr_Uzzz), None, None, None], 1),
-      'U' => ([Some(KeyCode::Ltr_Uzzz), None, None, None], 1),
-      'v' => ([Some(KeyCode::Ltr_Vzzz), None, None, None], 1),
-      'V' => ([Some(KeyCode::Ltr_Vzzz), None, None, None], 1),
-      'w' => ([Some(KeyCode::Ltr_Wzzz), None, None, None], 1),
-      'W' => ([Some(KeyCode::Ltr_Wzzz), None, None, None], 1),
-      'x' => ([Some(KeyCode::Ltr_Xzzz), None, None, None], 1),
-      'X' => ([Some(KeyCode::Ltr_Xzzz), None, None, None], 1),
-      'y' => ([Some(KeyCode::Ltr_Yzzz), None, None, None], 1),
-      'Y' => ([Some(KeyCode::Ltr_Yzzz), None, None, None], 1),
-      'z' => ([Some(KeyCode::Ltr_Zzzz), None, None, None], 1),
-      'Z' => ([Some(KeyCode::Ltr_Zzzz), None, None, None], 1),
-      '1' => ([Some(KeyCode::Num_1zzz), None, None, None], 1),
-      '2' => ([Some(KeyCode::Num_2zzz), None, None, None], 1),
-      '@' => (
-        [Some(KeyCode::Num_2zzz), Some(KeyCode::Mod_LSft), None, None],
-        2,
-      ),
-      '3' => ([Some(KeyCode::Num_3zzz), None, None, None], 1),
-      '4' => ([Some(KeyCode::Num_4zzz), None, None, None], 1),
-      '5' => ([Some(KeyCode::Num_5zzz), None, None, None], 1),
-      '6' => ([Some(KeyCode::Num_6zzz), None, None, None], 1),
-      '7' => ([Some(KeyCode::Num_7zzz), None, None, None], 1),
-      '8' => ([Some(KeyCode::Num_8zzz), None, None, None], 1),
-      '9' => ([Some(KeyCode::Num_9zzz), None, None, None], 1),
-      '0' => ([Some(KeyCode::Num_0zzz), None, None, None], 1),
-      _ => ([None; 4], 0),
-    }
+      'a' => {
+        codes.push(KeyCode::Ltr_Azzz).unwrap();
+      }
+      'A' => {
+        codes.push(KeyCode::Ltr_Azzz).unwrap();
+      }
+      'b' => {
+        codes.push(KeyCode::Ltr_Bzzz).unwrap();
+      }
+      'B' => {
+        codes.push(KeyCode::Ltr_Bzzz).unwrap();
+      }
+      'c' => {
+        codes.push(KeyCode::Ltr_Czzz).unwrap();
+      }
+      'C' => {
+        codes.push(KeyCode::Ltr_Czzz).unwrap();
+      }
+      'd' => {
+        codes.push(KeyCode::Ltr_Dzzz).unwrap();
+      }
+      'D' => {
+        codes.push(KeyCode::Ltr_Dzzz).unwrap();
+      }
+      'e' => {
+        codes.push(KeyCode::Ltr_Ezzz).unwrap();
+      }
+      'E' => {
+        codes.push(KeyCode::Ltr_Ezzz).unwrap();
+      }
+      'f' => {
+        codes.push(KeyCode::Ltr_Fzzz).unwrap();
+      }
+      'F' => {
+        codes.push(KeyCode::Ltr_Fzzz).unwrap();
+      }
+      'g' => {
+        codes.push(KeyCode::Ltr_Gzzz).unwrap();
+      }
+      'G' => {
+        codes.push(KeyCode::Ltr_Gzzz).unwrap();
+      }
+      'h' => {
+        codes.push(KeyCode::Ltr_Hzzz).unwrap();
+      }
+      'H' => {
+        codes.push(KeyCode::Ltr_Hzzz).unwrap();
+      }
+      'i' => {
+        codes.push(KeyCode::Ltr_Izzz).unwrap();
+      }
+      'I' => {
+        codes.push(KeyCode::Ltr_Izzz).unwrap();
+      }
+      'j' => {
+        codes.push(KeyCode::Ltr_Jzzz).unwrap();
+      }
+      'J' => {
+        codes.push(KeyCode::Ltr_Jzzz).unwrap();
+      }
+      'k' => {
+        codes.push(KeyCode::Ltr_Kzzz).unwrap();
+      }
+      'K' => {
+        codes.push(KeyCode::Ltr_Kzzz).unwrap();
+      }
+      'l' => {
+        codes.push(KeyCode::Ltr_Lzzz).unwrap();
+      }
+      'L' => {
+        codes.push(KeyCode::Ltr_Lzzz).unwrap();
+      }
+      'm' => {
+        codes.push(KeyCode::Ltr_Mzzz).unwrap();
+      }
+      'M' => {
+        codes.push(KeyCode::Ltr_Mzzz).unwrap();
+      }
+      'n' => {
+        codes.push(KeyCode::Ltr_Nzzz).unwrap();
+      }
+      'N' => {
+        codes.push(KeyCode::Ltr_Nzzz).unwrap();
+      }
+      'o' => {
+        codes.push(KeyCode::Ltr_Ozzz).unwrap();
+      }
+      'O' => {
+        codes.push(KeyCode::Ltr_Ozzz).unwrap();
+      }
+      'p' => {
+        codes.push(KeyCode::Ltr_Pzzz).unwrap();
+      }
+      'P' => {
+        codes.push(KeyCode::Ltr_Pzzz).unwrap();
+      }
+      'q' => {
+        codes.push(KeyCode::Ltr_Qzzz).unwrap();
+      }
+      'Q' => {
+        codes.push(KeyCode::Ltr_Qzzz).unwrap();
+      }
+      'r' => {
+        codes.push(KeyCode::Ltr_Rzzz).unwrap();
+      }
+      'R' => {
+        codes.push(KeyCode::Ltr_Rzzz).unwrap();
+      }
+      's' => {
+        codes.push(KeyCode::Ltr_Szzz).unwrap();
+      }
+      'S' => {
+        codes.push(KeyCode::Ltr_Szzz).unwrap();
+      }
+      't' => {
+        codes.push(KeyCode::Ltr_Tzzz).unwrap();
+      }
+      'T' => {
+        codes.push(KeyCode::Ltr_Tzzz).unwrap();
+      }
+      'u' => {
+        codes.push(KeyCode::Ltr_Uzzz).unwrap();
+      }
+      'U' => {
+        codes.push(KeyCode::Ltr_Uzzz).unwrap();
+      }
+      'v' => {
+        codes.push(KeyCode::Ltr_Vzzz).unwrap();
+      }
+      'V' => {
+        codes.push(KeyCode::Ltr_Vzzz).unwrap();
+      }
+      'w' => {
+        codes.push(KeyCode::Ltr_Wzzz).unwrap();
+      }
+      'W' => {
+        codes.push(KeyCode::Ltr_Wzzz).unwrap();
+      }
+      'x' => {
+        codes.push(KeyCode::Ltr_Xzzz).unwrap();
+      }
+      'X' => {
+        codes.push(KeyCode::Ltr_Xzzz).unwrap();
+      }
+      'y' => {
+        codes.push(KeyCode::Ltr_Yzzz).unwrap();
+      }
+      'Y' => {
+        codes.push(KeyCode::Ltr_Yzzz).unwrap();
+      }
+      'z' => {
+        codes.push(KeyCode::Ltr_Zzzz).unwrap();
+      }
+      'Z' => {
+        codes.push(KeyCode::Ltr_Zzzz).unwrap();
+      }
+      '1' => {
+        codes.push(KeyCode::Num_1zzz).unwrap();
+      }
+      '2' => {
+        codes.push(KeyCode::Num_2zzz).unwrap();
+      }
+      '@' => {
+        codes.push(KeyCode::Mod_LSft).unwrap();
+        codes.push(KeyCode::Num_2zzz).unwrap();
+      }
+      '3' => {
+        codes.push(KeyCode::Num_3zzz).unwrap();
+      }
+      '4' => {
+        codes.push(KeyCode::Num_4zzz).unwrap();
+      }
+      '5' => {
+        codes.push(KeyCode::Num_5zzz).unwrap();
+      }
+      '6' => {
+        codes.push(KeyCode::Num_6zzz).unwrap();
+      }
+      '7' => {
+        codes.push(KeyCode::Num_7zzz).unwrap();
+      }
+      '8' => {
+        codes.push(KeyCode::Num_8zzz).unwrap();
+      }
+      '9' => {
+        codes.push(KeyCode::Num_9zzz).unwrap();
+      }
+      '0' => {
+        codes.push(KeyCode::Num_0zzz).unwrap();
+      }
+      _ => (),
+    };
+    KeyVec::newfromvec(codes)
   }
 }
 

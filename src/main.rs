@@ -14,6 +14,7 @@ mod mods;
 use core::sync::atomic::AtomicBool;
 use core::sync::atomic::{AtomicU8, Ordering};
 
+use cortex_m::delay::Delay;
 use cortex_m_rt::entry;
 use critical_section::Mutex;
 use defmt::*;
@@ -74,6 +75,7 @@ impl<const H: usize> KiibohdCommandInterface<H> for HidioInterface<H> {
 
 static mut KBD_LAYER: AtomicU8 = AtomicU8::new(0);
 static mut SENDINGSTRING: AtomicBool = AtomicBool::new(false);
+static mut QUEUEDSTRING: AtomicBool = AtomicBool::new(false);
 
 #[derive(Clone, PartialEq, PartialOrd)]
 pub enum ARGS {
@@ -159,11 +161,11 @@ pub fn action(action: CallbackActions, ops: ARGS) {
     CallbackActions::SendString => match ops {
       ARGS::STR { s: strng } => {
         // start sending string and block other keys sending until complete
-        unsafe { SENDINGSTRING.store(true, Ordering::Relaxed) };
+        unsafe { QUEUEDSTRING.store(true, Ordering::Relaxed) };
         strng.chars().for_each(|e| {
           let code = KeyCode::from_char(e);
-          if code.1 != 0 {
-            unsafe { STRING_QUEUE.push(code.0) };
+          if code.len() != 0 {
+            unsafe { STRING_QUEUE.push(code) };
           }
         })
       }
@@ -425,10 +427,16 @@ fn main() -> ! {
   loop {
     // if SENDINGSTRING is true then queue the next key set
     let sending_string: bool = unsafe { SENDINGSTRING.load(Ordering::Relaxed) };
+    let queued_string: bool = unsafe { QUEUEDSTRING.load(Ordering::Relaxed) };
     let report_sent: bool = unsafe { REPORTSENT.load(Ordering::Relaxed) };
+    if queued_string {
+      string_sender(true, &mut delay);
+      unsafe { SENDINGSTRING.store(true, Ordering::Relaxed) };
+      unsafe { QUEUEDSTRING.store(false, Ordering::Relaxed) };
+    }
     if sending_string && report_sent {
-      // info!("sending string");
-      string_sender(true);
+      info!("sending string");
+      string_sender(true, &mut delay);
     }
     unsafe { REPORTSENT.store(false, Ordering::Relaxed) };
     // Delay by 1ms
@@ -438,13 +446,15 @@ fn main() -> ! {
         usb_hid.update();
         match usb_hid.push() {
           Ok(_) => {
-            REPORTSENT.store(true, Ordering::Relaxed);
             if sending_string {
-              string_sender(false);
+              // info!("sending string but false");
+              // string_sender(false, &mut delay);
+              REPORTSENT.store(true, Ordering::Relaxed);
             }
           }
           Err(UsbError::WouldBlock) => {
             REPORTSENT.store(false, Ordering::Relaxed);
+            info!("WouldBlock");
           }
           Err(UsbError::ParseError) => error!("UsbError::ParseError"),
           Err(UsbError::BufferOverflow) => error!("UsbError::BufferOverflow"),
@@ -466,46 +476,51 @@ fn main() -> ! {
   }
 }
 
-fn string_sender(press: bool) {
+fn string_sender(press: bool, delay: &mut Delay) {
   let kbd = unsafe { KBD_PRODUCER.get_mut() };
   let codes = unsafe { STRING_QUEUE.get() };
-  if codes.is_some() {
+  if codes.len() > 0 {
     if kbd.is_some() {
-      for set in codes.unwrap().iter() {
-        if set.is_some() {
-          if press {
-            match kbd
-              .as_mut()
-              .unwrap()
-              .enqueue(kiibohd_usb::KeyState::Press(set.unwrap().into()))
-            {
-              Ok(_) => {
-                warn!("Key IN  {:?}", set);
-              }
-              Err(err) => error!("{}", err),
-            }
-          } else {
-            match kbd
-              .as_mut()
-              .unwrap()
-              .enqueue(kiibohd_usb::KeyState::Release(set.unwrap().into()))
-            {
-              Ok(_) => {
-                unsafe { STRING_QUEUE.pop() };
-                warn!("Key OUT {:?}", set);
-              }
-              Err(err) => error!("{}", err),
-            }
+      println!("codes: {:?}", codes);
+      let set = codes.press_one();
+      if set != KeyCode::________ {
+        let set = codes.press_one();
+        delay.delay_ms(10u32);
+        match kbd
+          .as_mut()
+          .unwrap()
+          .enqueue(kiibohd_usb::KeyState::Press(set.into()))
+        {
+          Ok(_) => {
+            warn!("Char IN  {:?}", set);
           }
-        } else {
-          break;
+          Err(err) => error!("{}", err),
         }
+      } else {
+        let set = codes.release_one();
+        delay.delay_ms(10u32);
+        match kbd
+          .as_mut()
+          .unwrap()
+          .enqueue(kiibohd_usb::KeyState::Release(set.into()))
+        {
+          Ok(_) => {
+            warn!("Char OUT {:?}", set);
+          }
+          Err(err) => error!("{}", err),
+        }
+      }
+      println!("len: {}", codes.len());
+      if codes.len() == 0 {
+        // TODO: only do this when all keys have been pressed and released
+        unsafe { STRING_QUEUE.pop() };
       }
     } else {
       error!("KBD_PRODUCER is None");
     }
   } else {
     unsafe { SENDINGSTRING.store(false, Ordering::Relaxed) };
+    unsafe { QUEUEDSTRING.store(false, Ordering::Relaxed) };
   }
 }
 
