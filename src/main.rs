@@ -11,6 +11,7 @@ mod key_mapping;
 mod keyscanning;
 mod macros;
 mod mods;
+mod secrets;
 use core::sync::atomic::AtomicBool;
 use core::sync::atomic::{AtomicU8, Ordering};
 
@@ -373,7 +374,7 @@ fn main() -> ! {
   }
 
   let mut matrix: Matrix<5, 16> = Matrix::new(rows, cols, callback, [
-    key_mapping::ERGOONE_RSTLNE.into(),
+    key_mapping::ERGOONE_QWERTY.into(),
     key_mapping::ERGOONE_1.into(),
   ]);
 

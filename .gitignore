@@ -4,6 +4,7 @@
 Cargo.lock
 target/
 mnt/
+src/secrets.rs
 
 # editor files
 .vscode/*
