@@ -178,159 +178,196 @@ impl KeyCode {
         codes.push(KeyCode::Ltr_Azzz).unwrap();
       }
       'A' => {
+        codes.push(KeyCode::Mod_LSft).unwrap();
         codes.push(KeyCode::Ltr_Azzz).unwrap();
       }
       'b' => {
         codes.push(KeyCode::Ltr_Bzzz).unwrap();
       }
       'B' => {
+        codes.push(KeyCode::Mod_LSft).unwrap();
         codes.push(KeyCode::Ltr_Bzzz).unwrap();
       }
       'c' => {
         codes.push(KeyCode::Ltr_Czzz).unwrap();
       }
       'C' => {
+        codes.push(KeyCode::Mod_LSft).unwrap();
         codes.push(KeyCode::Ltr_Czzz).unwrap();
       }
       'd' => {
         codes.push(KeyCode::Ltr_Dzzz).unwrap();
       }
       'D' => {
+        codes.push(KeyCode::Mod_LSft).unwrap();
         codes.push(KeyCode::Ltr_Dzzz).unwrap();
       }
       'e' => {
         codes.push(KeyCode::Ltr_Ezzz).unwrap();
       }
       'E' => {
+        codes.push(KeyCode::Mod_LSft).unwrap();
         codes.push(KeyCode::Ltr_Ezzz).unwrap();
       }
       'f' => {
         codes.push(KeyCode::Ltr_Fzzz).unwrap();
       }
       'F' => {
+        codes.push(KeyCode::Mod_LSft).unwrap();
         codes.push(KeyCode::Ltr_Fzzz).unwrap();
       }
       'g' => {
         codes.push(KeyCode::Ltr_Gzzz).unwrap();
       }
       'G' => {
+        codes.push(KeyCode::Mod_LSft).unwrap();
         codes.push(KeyCode::Ltr_Gzzz).unwrap();
       }
       'h' => {
         codes.push(KeyCode::Ltr_Hzzz).unwrap();
       }
       'H' => {
+        codes.push(KeyCode::Mod_LSft).unwrap();
         codes.push(KeyCode::Ltr_Hzzz).unwrap();
       }
       'i' => {
         codes.push(KeyCode::Ltr_Izzz).unwrap();
       }
       'I' => {
+        codes.push(KeyCode::Mod_LSft).unwrap();
         codes.push(KeyCode::Ltr_Izzz).unwrap();
       }
       'j' => {
         codes.push(KeyCode::Ltr_Jzzz).unwrap();
       }
       'J' => {
+        codes.push(KeyCode::Mod_LSft).unwrap();
         codes.push(KeyCode::Ltr_Jzzz).unwrap();
       }
       'k' => {
         codes.push(KeyCode::Ltr_Kzzz).unwrap();
       }
       'K' => {
+        codes.push(KeyCode::Mod_LSft).unwrap();
         codes.push(KeyCode::Ltr_Kzzz).unwrap();
       }
       'l' => {
         codes.push(KeyCode::Ltr_Lzzz).unwrap();
       }
       'L' => {
+        codes.push(KeyCode::Mod_LSft).unwrap();
         codes.push(KeyCode::Ltr_Lzzz).unwrap();
       }
       'm' => {
         codes.push(KeyCode::Ltr_Mzzz).unwrap();
       }
       'M' => {
+        codes.push(KeyCode::Mod_LSft).unwrap();
         codes.push(KeyCode::Ltr_Mzzz).unwrap();
       }
       'n' => {
         codes.push(KeyCode::Ltr_Nzzz).unwrap();
       }
       'N' => {
+        codes.push(KeyCode::Mod_LSft).unwrap();
         codes.push(KeyCode::Ltr_Nzzz).unwrap();
       }
       'o' => {
         codes.push(KeyCode::Ltr_Ozzz).unwrap();
       }
       'O' => {
+        codes.push(KeyCode::Mod_LSft).unwrap();
         codes.push(KeyCode::Ltr_Ozzz).unwrap();
       }
       'p' => {
         codes.push(KeyCode::Ltr_Pzzz).unwrap();
       }
       'P' => {
+        codes.push(KeyCode::Mod_LSft).unwrap();
         codes.push(KeyCode::Ltr_Pzzz).unwrap();
       }
       'q' => {
         codes.push(KeyCode::Ltr_Qzzz).unwrap();
       }
       'Q' => {
+        codes.push(KeyCode::Mod_LSft).unwrap();
         codes.push(KeyCode::Ltr_Qzzz).unwrap();
       }
       'r' => {
         codes.push(KeyCode::Ltr_Rzzz).unwrap();
       }
       'R' => {
+        codes.push(KeyCode::Mod_LSft).unwrap();
         codes.push(KeyCode::Ltr_Rzzz).unwrap();
       }
       's' => {
         codes.push(KeyCode::Ltr_Szzz).unwrap();
       }
       'S' => {
+        codes.push(KeyCode::Mod_LSft).unwrap();
         codes.push(KeyCode::Ltr_Szzz).unwrap();
       }
       't' => {
         codes.push(KeyCode::Ltr_Tzzz).unwrap();
       }
       'T' => {
+        codes.push(KeyCode::Mod_LSft).unwrap();
         codes.push(KeyCode::Ltr_Tzzz).unwrap();
       }
       'u' => {
         codes.push(KeyCode::Ltr_Uzzz).unwrap();
       }
       'U' => {
+        codes.push(KeyCode::Mod_LSft).unwrap();
         codes.push(KeyCode::Ltr_Uzzz).unwrap();
       }
       'v' => {
         codes.push(KeyCode::Ltr_Vzzz).unwrap();
       }
       'V' => {
+        codes.push(KeyCode::Mod_LSft).unwrap();
         codes.push(KeyCode::Ltr_Vzzz).unwrap();
       }
       'w' => {
         codes.push(KeyCode::Ltr_Wzzz).unwrap();
       }
       'W' => {
+        codes.push(KeyCode::Mod_LSft).unwrap();
         codes.push(KeyCode::Ltr_Wzzz).unwrap();
       }
       'x' => {
         codes.push(KeyCode::Ltr_Xzzz).unwrap();
       }
       'X' => {
+        codes.push(KeyCode::Mod_LSft).unwrap();
         codes.push(KeyCode::Ltr_Xzzz).unwrap();
       }
       'y' => {
         codes.push(KeyCode::Ltr_Yzzz).unwrap();
       }
       'Y' => {
+        codes.push(KeyCode::Mod_LSft).unwrap();
         codes.push(KeyCode::Ltr_Yzzz).unwrap();
       }
       'z' => {
         codes.push(KeyCode::Ltr_Zzzz).unwrap();
       }
       'Z' => {
+        codes.push(KeyCode::Mod_LSft).unwrap();
         codes.push(KeyCode::Ltr_Zzzz).unwrap();
       }
+      '`' => {
+        codes.push(KeyCode::Sym_Tild).unwrap();
+      }
+      '~' => {
+        codes.push(KeyCode::Mod_LSft).unwrap();
+        codes.push(KeyCode::Sym_Tild).unwrap();
+      }
       '1' => {
+        codes.push(KeyCode::Num_1zzz).unwrap();
+      }
+      '!' => {
+        codes.push(KeyCode::Mod_LSft).unwrap();
         codes.push(KeyCode::Num_1zzz).unwrap();
       }
       '2' => {
@@ -343,32 +380,189 @@ impl KeyCode {
       '3' => {
         codes.push(KeyCode::Num_3zzz).unwrap();
       }
+      '#' => {
+        codes.push(KeyCode::Mod_LSft).unwrap();
+        codes.push(KeyCode::Num_3zzz).unwrap();
+      }
       '4' => {
+        codes.push(KeyCode::Num_4zzz).unwrap();
+      }
+      '$' => {
+        codes.push(KeyCode::Mod_LSft).unwrap();
         codes.push(KeyCode::Num_4zzz).unwrap();
       }
       '5' => {
         codes.push(KeyCode::Num_5zzz).unwrap();
       }
+      '%' => {
+        codes.push(KeyCode::Mod_LSft).unwrap();
+        codes.push(KeyCode::Num_5zzz).unwrap();
+      }
       '6' => {
+        codes.push(KeyCode::Num_6zzz).unwrap();
+      }
+      '^' => {
+        codes.push(KeyCode::Mod_LSft).unwrap();
         codes.push(KeyCode::Num_6zzz).unwrap();
       }
       '7' => {
         codes.push(KeyCode::Num_7zzz).unwrap();
       }
+      '&' => {
+        codes.push(KeyCode::Mod_LSft).unwrap();
+        codes.push(KeyCode::Num_7zzz).unwrap();
+      }
       '8' => {
+        codes.push(KeyCode::Num_8zzz).unwrap();
+      }
+      '*' => {
+        codes.push(KeyCode::Mod_LSft).unwrap();
         codes.push(KeyCode::Num_8zzz).unwrap();
       }
       '9' => {
         codes.push(KeyCode::Num_9zzz).unwrap();
       }
+      '(' => {
+        codes.push(KeyCode::Mod_LSft).unwrap();
+        codes.push(KeyCode::Num_9zzz).unwrap();
+      }
       '0' => {
         codes.push(KeyCode::Num_0zzz).unwrap();
+      }
+      ')' => {
+        codes.push(KeyCode::Mod_LSft).unwrap();
+        codes.push(KeyCode::Num_0zzz).unwrap();
+      }
+      '\'' => {
+        codes.push(KeyCode::Sym_SQut).unwrap();
+      }
+      '"' => {
+        codes.push(KeyCode::Mod_LSft).unwrap();
+        codes.push(KeyCode::Sym_SQut).unwrap();
+      }
+      '-' => {
+        codes.push(KeyCode::Sym_Minz).unwrap();
+      }
+      '_' => {
+        codes.push(KeyCode::Mod_LSft).unwrap();
+        codes.push(KeyCode::Sym_Minz).unwrap();
+      }
+      '=' => {
+        codes.push(KeyCode::Sym_Equz).unwrap();
+      }
+      '+' => {
+        codes.push(KeyCode::Mod_LSft).unwrap();
+        codes.push(KeyCode::Sym_Equz).unwrap();
+      }
+      '[' => {
+        codes.push(KeyCode::Sym_LBrk).unwrap();
+      }
+      '{' => {
+        codes.push(KeyCode::Mod_LSft).unwrap();
+        codes.push(KeyCode::Sym_LBrk).unwrap();
+      }
+      ']' => {
+        codes.push(KeyCode::Sym_RBrk).unwrap();
+      }
+      '}' => {
+        codes.push(KeyCode::Mod_LSft).unwrap();
+        codes.push(KeyCode::Sym_RBrk).unwrap();
+      }
+      ';' => {
+        codes.push(KeyCode::Sym_Scln).unwrap();
+      }
+      ':' => {
+        codes.push(KeyCode::Mod_LSft).unwrap();
+        codes.push(KeyCode::Sym_Scln).unwrap();
+      }
+      '/' => {
+        codes.push(KeyCode::Sym_FSla).unwrap();
+      }
+      '?' => {
+        codes.push(KeyCode::Mod_LSft).unwrap();
+        codes.push(KeyCode::Sym_FSla).unwrap();
+      }
+      '.' => {
+        codes.push(KeyCode::Sym_Perd).unwrap();
+      }
+      '>' => {
+        codes.push(KeyCode::Mod_LSft).unwrap();
+        codes.push(KeyCode::Sym_Perd).unwrap();
+      }
+      ',' => {
+        codes.push(KeyCode::Sym_Coma).unwrap();
+      }
+      '<' => {
+        codes.push(KeyCode::Mod_LSft).unwrap();
+        codes.push(KeyCode::Sym_Coma).unwrap();
       }
       _ => (),
     };
     KeyVec::newfromvec(codes)
   }
 }
+
+// TODO: implement From<Keyvec> for u8 or u8[]
+// impl From<&KeyCode> for u8 {
+//   fn from(val: &KeyCode) -> Self {
+//     match val {
+//       KeyCode::Ltr_Azzz => 0x04,
+//       KeyCode::Ltr_Bzzz => 0x05,
+//       KeyCode::Ltr_Czzz => 0x06,
+//       KeyCode::Ltr_Dzzz => 0x07,
+//       KeyCode::Ltr_Ezzz => 0x08,
+//       KeyCode::Ltr_Fzzz => 0x09,
+//       KeyCode::Ltr_Gzzz => 0x0a,
+//       KeyCode::Ltr_Hzzz => 0x0b,
+//       KeyCode::Ltr_Izzz => 0x0c,
+//       KeyCode::Ltr_Jzzz => 0x0d,
+//       KeyCode::Ltr_Kzzz => 0x0e,
+//       KeyCode::Ltr_Lzzz => 0x0f,
+//       KeyCode::Ltr_Mzzz => 0x10,
+//       KeyCode::Ltr_Nzzz => 0x11,
+//       KeyCode::Ltr_Ozzz => 0x12,
+//       KeyCode::Ltr_Pzzz => 0x13,
+//       KeyCode::Ltr_Qzzz => 0x14,
+//       KeyCode::Ltr_Rzzz => 0x15,
+//       KeyCode::Ltr_Szzz => 0x16,
+//       KeyCode::Ltr_Tzzz => 0x17,
+//       KeyCode::Ltr_Uzzz => 0x18,
+//       KeyCode::Ltr_Vzzz => 0x19,
+//       KeyCode::Ltr_Wzzz => 0x1a,
+//       KeyCode::Ltr_Xzzz => 0x1b,
+//       KeyCode::Ltr_Yzzz => 0x1c,
+//       KeyCode::Ltr_Zzzz => 0x1d,
+//       KeyCode::Num_1zzz => 0x1e,
+//       KeyCode::Num_2zzz => 0x1f,
+//       KeyCode::Num_3zzz => 0x20,
+//       KeyCode::Num_4zzz => 0x21,
+//       KeyCode::Num_5zzz => 0x22,
+//       KeyCode::Num_6zzz => 0x23,
+//       KeyCode::Num_7zzz => 0x24,
+//       KeyCode::Num_8zzz => 0x25,
+//       KeyCode::Num_9zzz => 0x26,
+//       KeyCode::Num_0zzz => 0x27,
+//       KeyCode::Fun_Entz => 0x28,
+//       KeyCode::Fun_Escz => 0x29,
+//       KeyCode::Fun_Bksp => 0x2a,
+//       KeyCode::Fun_Tabz => 0x2b,
+//       KeyCode::Fun_Spcz => 0x2c,
+//       KeyCode::Sym_Minz => 0x2d,
+//       KeyCode::Sym_Equz => 0x2e,
+//       KeyCode::Sym_LBrk => 0x2f,
+//       KeyCode::Sym_RBrk => 0x30,
+//       KeyCode::Sym_BSla => 0x31,
+//       KeyCode::Sym_Scln => 0x33,
+//       KeyCode::Sym_SQut => 0x34,
+//       KeyCode::Sym_Tild => 0x35,
+//       KeyCode::Sym_Coma => 0x36,
+//       KeyCode::Sym_Perd => 0x37,
+//       KeyCode::Sym_FSla => 0x38,
+//       _ => (),
+//     };
+//     KeyVec::newfromvec(codes)
+//   }
+// }
 
 impl From<&KeyCode> for u8 {
   fn from(val: &KeyCode) -> Self {

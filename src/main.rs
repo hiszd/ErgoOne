@@ -158,7 +158,6 @@ pub fn action(action: CallbackActions, ops: ARGS) {
         error!("Expected ARGS::RGB but got something else");
       }
     },
-    // TODO: add support for sending strings
     CallbackActions::SendString => match ops {
       ARGS::STR { s: strng } => {
         // start sending string and block other keys sending until complete
@@ -485,7 +484,6 @@ fn string_sender(press: bool, delay: &mut Delay) {
       println!("codes: {:?}", codes);
       let set = codes.press_one();
       if set != KeyCode::________ {
-        let set = codes.press_one();
         delay.delay_ms(10u32);
         match kbd
           .as_mut()
