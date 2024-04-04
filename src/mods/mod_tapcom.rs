@@ -27,6 +27,13 @@ pub trait TapCom {
   fn exist_next(&self, ctx: Context, key: KeyCode, ignore_mods: bool) -> bool;
 }
 
+// INFO: previnfo is used for the following:
+// 0: Detected that other keys were pressed, or the key was held, not tapped
+// 1:
+// 2:
+// 3:
+// 4:
+// 5:
 impl TapCom for Key {
   fn tpcnew(s: &str) -> Self {
     let sr = s.split(",").map(|s| s.trim()).collect::<Vec<&str, 3>>();
@@ -95,7 +102,8 @@ impl TapCom for Key {
     match self.prevstate {
       StateType::Tap => {
         // if there was not a combination of key pressed during the tap then
-        if !self.previnfo[0] && !self.exist_next(ctx, kc0, true) {
+        // if !self.previnfo[0] && !self.exist_next(ctx, kc0, true) {
+        if !self.previnfo[0] {
           println!("no combo");
           self.previnfo[1] = true;
           self.stor[4] = 0;
@@ -139,16 +147,7 @@ impl TapCom for Key {
   fn exist_next(&self, ctx: Context, key: KeyCode, ignore_mods: bool) -> bool {
     // TODO: check if key is the comparable opposite of the one pressed(lshift to rshift, etc...)
     let mut rtrn1 = false;
-    // locate key in array
-    let ind1: Option<usize> = ctx
-      .key_queue
-      .iter()
-      .position(|k| k.is_some() && k.unwrap() == key);
-    let mut srt: usize = 0;
-    if ind1.is_some() {
-      srt = ind1.unwrap();
-    }
-    for i in srt..ctx.key_queue.len() {
+    for i in 0..ctx.key_queue.len() {
       if ctx.key_queue[i].is_some() {
         if let Some(curkey) = ctx.key_queue[i] {
           if curkey != key {
@@ -171,7 +170,7 @@ impl TapCom for Key {
       }
     }
     if !rtrn1 {
-      warn!("rtrn1 = false, key = ''");
+      warn!("rtrn1 = false");
     }
     rtrn1
   }
