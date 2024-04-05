@@ -3,6 +3,7 @@ use crate::key_codes::KeyCode;
 use crate::mods::layer_hold::LayerHold;
 use crate::mods::mod_combo::ModCombo;
 use crate::mods::mod_tapcom::TapCom;
+use crate::mods::mod_tapstr::TapStr;
 use crate::mods::rgb_key::RGBKey;
 use crate::mods::sendstring::SendString;
 use crate::mods::transparent::Transparent;
@@ -10,6 +11,7 @@ use crate::secrets::*;
 use crate::{key::Default, keyscanning::KeyMatrix, mods::mod_tap::ModTap};
 
 // TODO: find a better way to nest functionality
+#[allow(dead_code)]
 #[rustfmt::skip]
 pub const ERGOONE_RSTLNE: [&str; 80] = [
 "dft,Sym_Tild",                  "dft,Num_1zzz","dft,Num_2zzz","dft,Num_3zzz","dft,Num_4zzz","dft,Num_5zzz","rgk,0_255_0",          "dft,EEEEEEEE","dft,EEEEEEEE","dft,EEEEEEEE","dft,Num_6zzz","dft,Num_7zzz","dft,Num_8zzz","dft,Num_9zzz","dft,Num_0zzz","dft,Sym_Equz",
@@ -32,11 +34,11 @@ pub const ERGOONE_1: [&str; 80] = [
 #[allow(dead_code)]
 #[rustfmt::skip]
 pub const ERGOONE_QWERTY: [&str; 80] = [
-"dft,Sym_Tild",                  "dft,Num_1zzz","dft,Num_2zzz","dft,Num_3zzz","dft,Num_4zzz","dft,Num_5zzz","rgk,0_255_0",          "dft,EEEEEEEE","dft,EEEEEEEE","dft,EEEEEEEE","dft,Num_6zzz","dft,Num_7zzz","dft,Num_8zzz","dft,Num_9zzz","dft,Num_0zzz","dft,Sym_Equz",
-"dft,Fun_Tabz",                  "dft,Ltr_Qzzz","dft,Ltr_Wzzz","dft,Ltr_Ezzz","dft,Ltr_Rzzz","dft,Ltr_Tzzz","rgk,255_0_0",          "dft,EEEEEEEE","dft,EEEEEEEE","dft,EEEEEEEE","dft,Ltr_Yzzz","dft,Ltr_Uzzz","dft,Ltr_Izzz","dft,Ltr_Ozzz","dft,Ltr_Pzzz","dft,Sym_BSla",
-"mdt,Fun_Escz,Mod_LCtl",         "dft,Ltr_Azzz","dft,Ltr_Szzz","dft,Ltr_Dzzz","dft,Ltr_Fzzz","dft,Ltr_Gzzz","dft,Sym_Minz",         "dft,Fun_Spcz","dft,Fun_Entz","dft,Sym_Equz","dft,Ltr_Hzzz","dft,Ltr_Jzzz","dft,Ltr_Kzzz","dft,Ltr_Lzzz","dft,Sym_Scln","dft,Sym_SQut",
-"tpc,Mod_LSft,Mod_LSft,Num_9zzz","dft,Ltr_Zzzz","dft,Ltr_Xzzz","dft,Ltr_Czzz","dft,Ltr_Vzzz","dft,Ltr_Bzzz","sst,_",                "dft,Fun_Home","dft,Fun_PgDn","dft,Fun_Bksp","dft,Ltr_Nzzz","dft,Ltr_Mzzz","dft,Sym_Coma","dft,Sym_Perd","dft,Sym_FSla","tpc,Mod_RSft,Mod_RSft,Num_0zzz",
-"dft,Mod_LCtl",                  "dft,Mod_LAlt","dft,Mod_LCmd","dft,EEEEEEEE","dft,Sym_LBrk","dft,Mod_LCmd","dft,EEEEEEEE",         "dft,Fun_Endz","dft,Fun_PgUp","dft,EEEEEEEE","lyh,1,0",     "dft,Sym_RBrk","dft,Arw_Left","dft,Arw_Down","dft,Arw_Upzz","dft,Arw_Rght",
+"dft,Sym_Tild",         "dft,Num_1zzz","dft,Num_2zzz","dft,Num_3zzz","dft,Num_4zzz","dft,Num_5zzz","rgk,0_255_0",          "dft,EEEEEEEE","dft,EEEEEEEE","dft,EEEEEEEE","dft,Num_6zzz","dft,Num_7zzz","dft,Num_8zzz","dft,Num_9zzz","dft,Num_0zzz","dft,Sym_Equz",
+"dft,Fun_Tabz",         "dft,Ltr_Qzzz","dft,Ltr_Wzzz","dft,Ltr_Ezzz","dft,Ltr_Rzzz","dft,Ltr_Tzzz","rgk,255_0_0",          "dft,EEEEEEEE","dft,EEEEEEEE","dft,EEEEEEEE","dft,Ltr_Yzzz","dft,Ltr_Uzzz","dft,Ltr_Izzz","dft,Ltr_Ozzz","dft,Ltr_Pzzz","dft,Sym_BSla",
+"mdt,Fun_Escz,Mod_LCtl","dft,Ltr_Azzz","dft,Ltr_Szzz","dft,Ltr_Dzzz","dft,Ltr_Fzzz","dft,Ltr_Gzzz","dft,Sym_Minz",         "dft,Fun_Spcz","dft,Fun_Entz","dft,Sym_Equz","dft,Ltr_Hzzz","dft,Ltr_Jzzz","dft,Ltr_Kzzz","dft,Ltr_Lzzz","dft,Sym_Scln","dft,Sym_SQut",
+"tps,Mod_LSft,(",       "dft,Ltr_Zzzz","dft,Ltr_Xzzz","dft,Ltr_Czzz","dft,Ltr_Vzzz","dft,Ltr_Bzzz","sst,_",                "dft,Fun_Home","dft,Fun_PgDn","dft,Fun_Bksp","dft,Ltr_Nzzz","dft,Ltr_Mzzz","dft,Sym_Coma","dft,Sym_Perd","dft,Sym_FSla","tps,Mod_RSft,)",
+"dft,Mod_LCtl",         "dft,Mod_LAlt","dft,Mod_LCmd","dft,EEEEEEEE","dft,Sym_LBrk","dft,Mod_LCmd","dft,EEEEEEEE",         "dft,Fun_Endz","dft,Fun_PgUp","dft,EEEEEEEE","lyh,1,0",     "dft,Sym_RBrk","dft,Arw_Left","dft,Arw_Down","dft,Arw_Upzz","dft,Arw_Rght",
 ];
 
 impl<const RSIZE: usize, const CSIZE: usize> From<[&'static str; RSIZE * CSIZE]>
@@ -58,6 +60,8 @@ impl<const RSIZE: usize, const CSIZE: usize> From<[&'static str; RSIZE * CSIZE]>
           m[r][c] = ModTap::mdtnew(&sel[4..]);
         } else if sel.starts_with("tpc,") {
           m[r][c] = TapCom::tpcnew(&sel[4..]);
+        } else if sel.starts_with("tps,") {
+          m[r][c] = TapStr::tpsnew(&sel[4..]);
         } else if sel.starts_with("mdc,") {
           m[r][c] = ModCombo::mdcnew(&sel[4..]);
         } else if sel.starts_with("rgk,") {

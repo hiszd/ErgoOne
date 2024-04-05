@@ -12,6 +12,7 @@ use crate::mods::layer_hold::LayerHold;
 use crate::mods::mod_combo::ModCombo;
 use crate::mods::mod_tap::ModTap;
 use crate::mods::mod_tapcom::TapCom;
+use crate::mods::mod_tapstr::TapStr;
 use crate::mods::rgb_key::RGBKey;
 use crate::mods::sendstring::SendString;
 use crate::{key::Key, key_codes::KeyCode};
@@ -169,6 +170,9 @@ impl<const RSIZE: usize, const CSIZE: usize> Matrix<RSIZE, CSIZE> {
       }
       "TapCom" => {
         codes.0 = self.state[layer].matrix[row][col].tpcscan(self.rows[row].is_high(), ctx);
+      }
+      "TapStr" => {
+        codes.0 = self.state[layer].matrix[row][col].tpsscan(self.rows[row].is_high(), ctx);
       }
       "ModCombo" => {
         codes.0 = self.state[layer].matrix[row][col].mdcscan(self.rows[row].is_high(), ctx);

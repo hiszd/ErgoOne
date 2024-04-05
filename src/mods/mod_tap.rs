@@ -26,6 +26,13 @@ pub trait ModTap {
   fn exist_next(&self, ctx: Context, key: KeyCode, ignore_mods: bool) -> bool;
 }
 
+// INFO: previnfo is used for the following:
+// 0: Detected that other keys were pressed, or the key was held, not tapped
+// 1:
+// 2:
+// 3:
+// 4:
+// 5:
 impl ModTap for Key {
   fn mdtnew(s: &str) -> Self {
     let sr = s.split(",").map(|s| s.trim()).collect::<Vec<&str, 2>>();
@@ -47,21 +54,18 @@ impl ModTap for Key {
     let [Some(_kc0), Some(kc1), None, None] = self.keycode else {
       return [None; 4];
     };
-    // self.previnfo[0] is whether or not a combination was pressed
-    self.previnfo[0] = false;
     if kc1.is_modifier() {
+      if self.prevstate == StateType::Off {
+        self.previnfo[0] = false;
+        action(CallbackActions::Press, ARGS::KS { code: kc1 });
+      }
       if self.exist_next(ctx, kc1, true) {
+        // NOTE: flag that other keys were pressed while this one was pressed
         self.previnfo[0] = true;
       }
     } else {
       error!("{} is not a modifier", kc1);
       return [None; 4];
-    }
-    match kc1.is_modifier() {
-      true => {
-        action(CallbackActions::Press, ARGS::KS { code: kc1 });
-      }
-      false => error!("{} is not a modifier", kc1),
     }
     [Some(kc1), None, None, None]
   }
@@ -71,12 +75,6 @@ impl ModTap for Key {
       return [None; 4];
     };
     self.previnfo[0] = true;
-    match kc1.is_modifier() {
-      true => {
-        action(CallbackActions::Press, ARGS::KS { code: kc1 });
-      }
-      false => error!("{} is not a modifier", kc1),
-    }
     [Some(kc1), None, None, None]
   }
 
@@ -88,50 +86,47 @@ impl ModTap for Key {
     };
     match self.prevstate {
       StateType::Tap => {
-        // if there was not a combination of key pressed during the tap then
-        if !self.previnfo[0] && !self.exist_next(ctx, kc1, true) {
-          println!("no combo");
-          match kc0.is_modifier() {
-            true => error!("{} is a modifier, but shouldn't be", kc0),
-            false => {
-              action(CallbackActions::Release, ARGS::KS { code: kc1 });
-              self.previnfo[4] = true;
-              self.stor[4] = 0;
-            }
+        action(CallbackActions::Release, ARGS::KS { code: kc1 });
+
+        if !self.exist_next(ctx, kc1, true) {
+          if !self.previnfo[0] {
+            self.previnfo[4] = true;
           }
-          return [Some(kc1), None, None, None];
-          // if there was a combination of keys pressed then do nothing
         } else {
-          action(CallbackActions::Release, ARGS::KS { code: kc1 });
-          return [Some(kc1), None, None, None];
+          // This might not work. Testing Required
+          self.previnfo[0] = true;
         }
+
+        return [Some(kc1), None, None, None];
       }
       StateType::Hold => {
-        match kc0.is_modifier() {
-          true => error!("{} is a modifier, but shouldn't be", kc0),
-          false => {
-            action(CallbackActions::Release, ARGS::KS { code: kc1 });
-          }
-        }
+        action(CallbackActions::Release, ARGS::KS { code: kc1 });
+        self.previnfo[4] = false;
         return [Some(kc1), None, None, None];
       }
       StateType::Off => {
-        let mut rtrn: [Option<KeyCode>; 4] = [None; 4];
-        if self.prevstate == StateType::Off && self.previnfo[4] {
-          if self.stor[4] == 1 {
-            action(CallbackActions::Press, ARGS::KS { code: kc0 });
-            rtrn = [Some(kc0), None, None, None];
-            self.stor[4] += 1;
-          } else if self.stor[4] == 2 {
-            action(CallbackActions::Release, ARGS::KS { code: kc0 });
-            self.previnfo[4] = false;
-            rtrn = [Some(kc0), None, None, None];
-            self.stor[4] += 1;
-          } else {
-            self.stor[4] += 1;
+        if self.previnfo[4] {
+          match self.stor[4] {
+            2 => {
+              if !self.previnfo[0] && !self.exist_next(ctx, kc0, true) {
+                action(CallbackActions::Press, ARGS::KS { code: kc0 });
+                self.stor[4] += 1;
+              }
+            }
+            3 => {
+              action(CallbackActions::Release, ARGS::KS { code: kc0 });
+              self.stor[4] += 1;
+            }
+            4 => {
+              self.previnfo[4] = false;
+              self.stor[4] = 0;
+            }
+            _ => {
+              self.stor[4] += 1;
+            }
           }
         }
-        rtrn
+        [None; 4]
       }
       _ => {
         return [None; 4];

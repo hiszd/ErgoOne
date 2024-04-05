@@ -1,6 +1,4 @@
 use defmt::error;
-use defmt::println;
-use defmt::warn;
 use heapless::Vec;
 
 use crate::action;
@@ -47,10 +45,9 @@ impl TapStr for Key {
     let [Some(kc0), None, None, None] = self.keycode else {
       return [None; 4];
     };
-    // self.previnfo[0] is whether or not a combination was pressed
-    self.previnfo[0] = false;
     if kc0.is_modifier() {
       if self.prevstate == StateType::Off {
+        self.previnfo[0] = false;
         action(CallbackActions::Press, ARGS::KS { code: kc0 });
       }
       if self.exist_next(ctx, kc0, true) {
@@ -78,42 +75,43 @@ impl TapStr for Key {
     let [Some(kc0), None, None, None] = self.keycode else {
       return [None; 4];
     };
-    action(CallbackActions::Release, ARGS::KS { code: kc0 });
     match self.prevstate {
       StateType::Tap => {
-        // if there was not a combination of key pressed during the tap then
+        action(CallbackActions::Release, ARGS::KS { code: kc0 });
+
         if !self.previnfo[0] && !self.exist_next(ctx, kc0, true) {
-          println!("no combo");
-          action(CallbackActions::SendString, ARGS::STR {
-            s: self.strng.into(),
-          });
           self.previnfo[4] = true;
-          self.stor[4] = 0;
-          // if there was a combination of keys pressed then do nothing
         }
+
         return [Some(kc0), None, None, None];
       }
       StateType::Hold => {
+        action(CallbackActions::Release, ARGS::KS { code: kc0 });
+        self.previnfo[4] = false;
         return [Some(kc0), None, None, None];
       }
-      // StateType::Off => {
-      //   let mut rtrn: [Option<KeyCode>; 4] = [None; 4];
-      //   if self.prevstate == StateType::Off && self.previnfo[4] {
-      //     if self.stor[4] == 1 {
-      //       action(CallbackActions::Press, ARGS::KS { code: kc0 });
-      //       rtrn = [Some(kc0), None, None, None];
-      //       self.stor[4] += 1;
-      //     } else if self.stor[4] == 2 {
-      //       action(CallbackActions::Release, ARGS::KS { code: kc0 });
-      //       self.previnfo[4] = false;
-      //       rtrn = [Some(kc0), None, None, None];
-      //       self.stor[4] += 1;
-      //     } else {
-      //       self.stor[4] += 1;
-      //     }
-      //   }
-      //   rtrn
-      // }
+      StateType::Off => {
+        if self.previnfo[4] {
+          match self.stor[4] {
+            2 => {
+              if !self.previnfo[0] && !self.exist_next(ctx, kc0, true) {
+                action(CallbackActions::SendString, ARGS::STR {
+                  s: self.strng.into(),
+                });
+                self.stor[4] += 1;
+              }
+            }
+            3 => {
+              self.previnfo[4] = false;
+              self.stor[4] = 0;
+            }
+            _ => {
+              self.stor[4] += 1;
+            }
+          }
+        }
+        [None; 4]
+      }
       _ => {
         return [None; 4];
       }
@@ -123,39 +121,24 @@ impl TapStr for Key {
   fn exist_next(&self, ctx: Context, key: KeyCode, ignore_mods: bool) -> bool {
     // TODO: check if key is the comparable opposite of the one pressed(lshift to rshift, etc...)
     let mut rtrn1 = false;
-    // locate key in array
-    let ind1: Option<usize> = ctx
-      .key_queue
-      .iter()
-      .position(|k| k.is_some() && k.unwrap() == key);
-    let mut srt: usize = 0;
-    if ind1.is_some() {
-      srt = ind1.unwrap();
-    }
-    for i in srt..ctx.key_queue.len() {
+    for i in 0..ctx.key_queue.len() {
       if ctx.key_queue[i].is_some() {
         if let Some(curkey) = ctx.key_queue[i] {
           if curkey != key {
             if ignore_mods {
               if curkey.is_modifier() {
-                warn!("rtrn1 = {}, key = {}", rtrn1, ctx.key_queue[i].unwrap());
                 break;
               } else {
                 rtrn1 = true;
-                warn!("rtrn1 = {}, key = {}", rtrn1, ctx.key_queue[i].unwrap());
                 break;
               }
             } else {
               rtrn1 = true;
-              warn!("rtrn1 = {}, key = {}", rtrn1, ctx.key_queue[i].unwrap());
               break;
             }
           }
         }
       }
-    }
-    if !rtrn1 {
-      warn!("rtrn1 = false, key = ''");
     }
     rtrn1
   }
