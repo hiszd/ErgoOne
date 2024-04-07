@@ -1,4 +1,3 @@
-use defmt::debug;
 use heapless::Vec;
 
 use crate::action;
@@ -9,6 +8,8 @@ use crate::keyscanning::StateType;
 use crate::Context;
 use crate::ARGS;
 use crate::{key::Key, key_codes::KeyCode};
+
+pub const MOD_STR: &str = "mdc";
 
 pub trait ModCombo {
   fn mdcnew(s: &str) -> Self
@@ -42,8 +43,8 @@ impl ModCombo for Key {
 
   fn mdctap(&mut self, _ctx: Context) -> [Option<KeyCode>; 4] {
     let [Some(kc0), Some(kc1), None, None] = self.keycode else {
-            return [None; 4];
-        };
+      return [None; 4];
+    };
     if kc0.is_modifier() {
       self.previnfo[1] = true;
       action(CallbackActions::Press, ARGS::KS { code: kc0 });
@@ -65,8 +66,8 @@ impl ModCombo for Key {
 
   fn mdcoff(&mut self, _ctx: Context) -> [Option<KeyCode>; 4] {
     let [Some(kc0), Some(kc1), None, None] = self.keycode else {
-            return [None; 4];
-        };
+      return [None; 4];
+    };
     if self.previnfo[1] {
       if self.stor[4] == 1 {
         action(CallbackActions::Release, ARGS::KS { code: kc0 });
@@ -91,8 +92,8 @@ impl ModCombo for Key {
 
   fn mdcscan(&mut self, is_high: bool, ctx: Context) -> [Option<KeyCode>; 4] {
     let [Some(kc0), Some(kc1), None, None] = self.keycode else {
-            return [None; 4];
-        };
+      return [None; 4];
+    };
     // println!("{}", is_high);
     // if they KeyCode is empty then don't bother processing
     if kc0 == KeyCode::________ && kc1 == KeyCode::________ {

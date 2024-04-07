@@ -10,6 +10,8 @@ use crate::Context;
 use crate::ARGS;
 use crate::{key::Key, key_codes::KeyCode};
 
+pub const MOD_STR: &str = "lyh";
+
 pub trait LayerHold {
   fn lyhnew(s: &str) -> Self
   where

@@ -9,6 +9,8 @@ use crate::Context;
 use crate::ARGS;
 use crate::{key::Key, key_codes::KeyCode};
 
+pub const MOD_STR: &str = "rgk";
+
 pub trait RGBKey {
   fn rgknew(s: &str) -> Self
   where
@@ -48,8 +50,8 @@ impl RGBKey for Key {
 
   fn rgktap(&mut self, _ctx: Context) -> [Option<KeyCode>; 4] {
     let [Some(_kc0), Some(kc1), None, None] = self.keycode else {
-            return [None; 4];
-        };
+      return [None; 4];
+    };
     action(CallbackActions::RGBSet, ARGS::RGB {
       r: self.stor[0],
       g: self.stor[1],
@@ -60,8 +62,8 @@ impl RGBKey for Key {
 
   fn rgkhold(&mut self, _ctx: Context) -> [Option<KeyCode>; 4] {
     let [Some(_kc0), Some(kc1), None, None] = self.keycode else {
-            return [None; 4];
-        };
+      return [None; 4];
+    };
     [Some(kc1), None, None, None]
   }
 
@@ -69,15 +71,15 @@ impl RGBKey for Key {
 
   fn rgkoff(&mut self, _ctx: Context) -> [Option<KeyCode>; 4] {
     let [Some(_kc0), Some(kc1), None, None] = self.keycode else {
-            return [None; 4];
-        };
+      return [None; 4];
+    };
     [Some(kc1), None, None, None]
   }
 
   fn rgkscan(&mut self, is_high: bool, ctx: Context) -> [Option<KeyCode>; 4] {
     let [Some(kc0), Some(kc1), None, None] = self.keycode else {
-            return [None; 4];
-        };
+      return [None; 4];
+    };
     // println!("{}", is_high);
     // if they KeyCode is empty then don't bother processing
     if kc0 == KeyCode::________ && kc1 == KeyCode::________ {

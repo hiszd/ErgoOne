@@ -1,14 +1,16 @@
-use crate::key::Key;
+use crate::key::{Default, Key};
 use crate::key_codes::KeyCode;
+use crate::keyscanning::KeyMatrix;
 use crate::mods::layer_hold::LayerHold;
 use crate::mods::mod_combo::ModCombo;
+use crate::mods::mod_tap::ModTap;
 use crate::mods::mod_tapcom::TapCom;
 use crate::mods::mod_tapstr::TapStr;
 use crate::mods::rgb_key::RGBKey;
 use crate::mods::sendstring::SendString;
 use crate::mods::transparent::Transparent;
+use crate::mods::*;
 use crate::secrets::*;
-use crate::{key::Default, keyscanning::KeyMatrix, mods::mod_tap::ModTap};
 
 // TODO: find a better way to nest functionality
 #[allow(dead_code)]
@@ -54,26 +56,43 @@ impl<const RSIZE: usize, const CSIZE: usize> From<[&'static str; RSIZE * CSIZE]>
         c = 0;
       }
       if sel.len() > 0 {
-        if sel.starts_with("dft,") {
-          m[r][c] = Default::new(sel[4..].into());
-        } else if sel.starts_with("mdt,") {
-          m[r][c] = ModTap::mdtnew(&sel[4..]);
-        } else if sel.starts_with("tpc,") {
-          m[r][c] = TapCom::tpcnew(&sel[4..]);
-        } else if sel.starts_with("tps,") {
-          m[r][c] = TapStr::tpsnew(&sel[4..]);
-        } else if sel.starts_with("mdc,") {
-          m[r][c] = ModCombo::mdcnew(&sel[4..]);
-        } else if sel.starts_with("rgk,") {
-          m[r][c] = RGBKey::rgknew(&sel[4..]);
-        } else if sel.starts_with("lyh,") {
-          m[r][c] = LayerHold::lyhnew(&sel[4..]);
-        } else if sel.starts_with("transparent") {
-          m[r][c] = Transparent::tptnew();
-        } else if sel.starts_with("sst,") {
-          m[r][c] = SendString::sstnew(&sel[4..]);
-        } else {
-          m[r][c] = Default::new("EEEEEEEE".into());
+        let mdl = &sel[..3];
+        let map = &sel[4..];
+        match mdl {
+          crate::key::MOD_STR => {
+            m[r][c] = Default::new(map.into());
+          }
+          layer_hold::MOD_STR => {
+            m[r][c] = LayerHold::lyhnew(map.into());
+          }
+          mod_tap::MOD_STR => {
+            m[r][c] = ModTap::mdtnew(map.into());
+          }
+          mod_tapcom::MOD_STR => {
+            m[r][c] = TapCom::tpcnew(map.into());
+          }
+          mod_combo::MOD_STR => {
+            m[r][c] = ModCombo::mdcnew(map.into());
+          }
+          mod_tapstr::MOD_STR => {
+            m[r][c] = TapStr::tpsnew(map.into());
+          }
+          rgb_key::MOD_STR => {
+            m[r][c] = RGBKey::rgknew(map.into());
+          }
+          sendstring::MOD_STR => {
+            m[r][c] = SendString::sstnew(map.into());
+          }
+          "tran" => {
+            if sel.starts_with("transparent") {
+              m[r][c] = Transparent::tptnew();
+            } else {
+              m[r][c] = Default::new("EEEEEEEE".into());
+            }
+          }
+          _ => {
+            m[r][c] = Default::new("EEEEEEEE".into());
+          }
         }
       }
       c += 1;

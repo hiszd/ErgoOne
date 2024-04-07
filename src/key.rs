@@ -12,6 +12,8 @@ pub(crate) const HOLD_CYCLES: u16 = 20;
 // TODO: impl idle tracking
 // const IDLE_CYCLES: u8 = 100;
 
+pub const MOD_STR: &str = "dft";
+
 // #[derive(Copy, Clone, PartialEq, PartialOrd)]
 #[derive(Copy, Clone, Debug)]
 pub struct Key {

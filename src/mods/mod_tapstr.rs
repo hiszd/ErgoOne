@@ -8,7 +8,7 @@
  * "tps,Mod_LSft,("
  * Requirements(each needs to be sepearated by a comma ","):
  * - "tps" the string has to start with this to identify the module.
- * - "Mod_LSFT" this keycode needs to be a modifier.
+ * - "Mod_LSFT" this can be any keycode that is a modifier.
  * - "(" this is the string that will be typed if the key is only tapped.
  */
 
@@ -23,6 +23,8 @@ use crate::keyscanning::StateType;
 use crate::Context;
 use crate::ARGS;
 use crate::{key::Key, key_codes::KeyCode};
+
+pub const MOD_STR: &str = "tps";
 
 pub trait TapStr {
   fn tpsnew(s: &'static str) -> Self

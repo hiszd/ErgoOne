@@ -7,6 +7,8 @@ use crate::Context;
 use crate::ARGS;
 use crate::{key::Key, key_codes::KeyCode};
 
+pub const MOD_STR: &str = "sst";
+
 pub trait SendString {
   fn sstnew(s: &'static str) -> Self
   where

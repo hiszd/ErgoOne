@@ -1,7 +1,6 @@
 use defmt::error;
 use defmt::info;
 use defmt::println;
-use defmt::warn;
 use heapless::Vec;
 
 use crate::action;
@@ -12,6 +11,8 @@ use crate::keyscanning::StateType;
 use crate::Context;
 use crate::ARGS;
 use crate::{key::Key, key_codes::KeyCode};
+
+pub const MOD_STR: &str = "tpc";
 
 pub trait TapCom {
   fn tpcnew(s: &str) -> Self
