@@ -45,13 +45,13 @@ impl TapStr for Key {
     let [Some(kc0), None, None, None] = self.keycode else {
       return [None; 4];
     };
+    // FIXME: Why do we care about this?
     if kc0.is_modifier() {
       if self.prevstate == StateType::Off {
         self.previnfo[0] = false;
         action(CallbackActions::Press, ARGS::KS { code: kc0 });
       }
       if self.exist_next(ctx, kc0, true) {
-        // NOTE: flag that other keys were pressed while this one was pressed
         self.previnfo[0] = true;
       }
     } else {
@@ -65,6 +65,7 @@ impl TapStr for Key {
     let [Some(kc0), None, None, None] = self.keycode else {
       return [None; 4];
     };
+    self.previnfo[4] = false;
     self.previnfo[0] = true;
     [Some(kc0), None, None, None]
   }
@@ -79,22 +80,29 @@ impl TapStr for Key {
       StateType::Tap => {
         action(CallbackActions::Release, ARGS::KS { code: kc0 });
 
-        if !self.previnfo[0] && !self.exist_next(ctx, kc0, true) {
-          self.previnfo[4] = true;
+        if !self.exist_next(ctx, kc0, true) {
+          if !self.previnfo[0] {
+            self.previnfo[4] = true;
+          }
+        } else {
+          // WARN: This might not work. Testing Required
+          // NOTE: Other keys were pressed.
+          self.previnfo[0] = true;
+          // NOTE: Do not initiate the secondary function of this key.
+          self.previnfo[4] = false;
         }
 
         return [Some(kc0), None, None, None];
       }
       StateType::Hold => {
         action(CallbackActions::Release, ARGS::KS { code: kc0 });
-        self.previnfo[4] = false;
         return [Some(kc0), None, None, None];
       }
       StateType::Off => {
-        if self.previnfo[4] {
+        if self.previnfo[4] && !self.previnfo[0] {
           match self.stor[4] {
             2 => {
-              if !self.previnfo[0] && !self.exist_next(ctx, kc0, true) {
+              if !self.exist_next(ctx, kc0, true) {
                 action(CallbackActions::SendString, ARGS::STR {
                   s: self.strng.into(),
                 });
@@ -119,16 +127,13 @@ impl TapStr for Key {
   }
 
   fn exist_next(&self, ctx: Context, key: KeyCode, ignore_mods: bool) -> bool {
-    // TODO: check if key is the comparable opposite of the one pressed(lshift to rshift, etc...)
     let mut rtrn1 = false;
     for i in 0..ctx.key_queue.len() {
       if ctx.key_queue[i].is_some() {
         if let Some(curkey) = ctx.key_queue[i] {
           if curkey != key {
             if ignore_mods {
-              if curkey.is_modifier() {
-                break;
-              } else {
+              if !curkey.is_modifier() {
                 rtrn1 = true;
                 break;
               }

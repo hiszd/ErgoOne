@@ -1,6 +1,4 @@
 use defmt::error;
-use defmt::println;
-use defmt::warn;
 use heapless::Vec;
 
 use crate::action;
@@ -27,11 +25,11 @@ pub trait ModTap {
 }
 
 // INFO: previnfo is used for the following:
-// 0: Detected that other keys were pressed, or the key was held, not tapped
+// 0: Detected that other keys were pressed while this key was pressed, or the key was held.
 // 1:
 // 2:
 // 3:
-// 4:
+// 4: The secondary function of this key should be, or was, activated.
 // 5:
 impl ModTap for Key {
   fn mdtnew(s: &str) -> Self {
@@ -60,7 +58,6 @@ impl ModTap for Key {
         action(CallbackActions::Press, ARGS::KS { code: kc1 });
       }
       if self.exist_next(ctx, kc1, true) {
-        // NOTE: flag that other keys were pressed while this one was pressed
         self.previnfo[0] = true;
       }
     } else {
@@ -74,6 +71,7 @@ impl ModTap for Key {
     let [Some(_kc0), Some(kc1), None, None] = self.keycode else {
       return [None; 4];
     };
+    self.previnfo[4] = false;
     self.previnfo[0] = true;
     [Some(kc1), None, None, None]
   }
@@ -93,22 +91,24 @@ impl ModTap for Key {
             self.previnfo[4] = true;
           }
         } else {
-          // This might not work. Testing Required
+          // WARN: This might not work. Testing Required
+          // NOTE: Other keys were pressed.
           self.previnfo[0] = true;
+          // NOTE: Do not initiate the secondary function of this key.
+          self.previnfo[4] = false;
         }
 
         return [Some(kc1), None, None, None];
       }
       StateType::Hold => {
         action(CallbackActions::Release, ARGS::KS { code: kc1 });
-        self.previnfo[4] = false;
         return [Some(kc1), None, None, None];
       }
       StateType::Off => {
-        if self.previnfo[4] {
+        if self.previnfo[4] && !self.previnfo[0] {
           match self.stor[4] {
             2 => {
-              if !self.previnfo[0] && !self.exist_next(ctx, kc0, true) {
+              if !self.exist_next(ctx, kc0, true) {
                 action(CallbackActions::Press, ARGS::KS { code: kc0 });
                 self.stor[4] += 1;
               }
@@ -135,41 +135,23 @@ impl ModTap for Key {
   }
 
   fn exist_next(&self, ctx: Context, key: KeyCode, ignore_mods: bool) -> bool {
-    // TODO: check if key is the comparable opposite of the one pressed(lshift to rshift, etc...)
     let mut rtrn1 = false;
-    // locate key in array
-    let ind1: Option<usize> = ctx
-      .key_queue
-      .iter()
-      .position(|k| k.is_some() && k.unwrap() == key);
-    let mut srt: usize = 0;
-    if ind1.is_some() {
-      srt = ind1.unwrap();
-    }
-    for i in srt..ctx.key_queue.len() {
+    for i in 0..ctx.key_queue.len() {
       if ctx.key_queue[i].is_some() {
         if let Some(curkey) = ctx.key_queue[i] {
           if curkey != key {
             if ignore_mods {
-              if curkey.is_modifier() {
-                warn!("rtrn1 = {}, key = {}", rtrn1, ctx.key_queue[i].unwrap());
-                break;
-              } else {
+              if !curkey.is_modifier() {
                 rtrn1 = true;
-                warn!("rtrn1 = {}, key = {}", rtrn1, ctx.key_queue[i].unwrap());
                 break;
               }
             } else {
               rtrn1 = true;
-              warn!("rtrn1 = {}, key = {}", rtrn1, ctx.key_queue[i].unwrap());
               break;
             }
           }
         }
       }
-    }
-    if !rtrn1 {
-      warn!("rtrn1 = false, key = ''");
     }
     rtrn1
   }

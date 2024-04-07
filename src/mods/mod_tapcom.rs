@@ -145,32 +145,23 @@ impl TapCom for Key {
   }
 
   fn exist_next(&self, ctx: Context, key: KeyCode, ignore_mods: bool) -> bool {
-    // TODO: check if key is the comparable opposite of the one pressed(lshift to rshift, etc...)
     let mut rtrn1 = false;
     for i in 0..ctx.key_queue.len() {
       if ctx.key_queue[i].is_some() {
         if let Some(curkey) = ctx.key_queue[i] {
           if curkey != key {
             if ignore_mods {
-              if curkey.is_modifier() {
-                warn!("rtrn1 = {}, key = {}", rtrn1, ctx.key_queue[i].unwrap());
-                break;
-              } else {
+              if !curkey.is_modifier() {
                 rtrn1 = true;
-                warn!("rtrn1 = {}, key = {}", rtrn1, ctx.key_queue[i].unwrap());
                 break;
               }
             } else {
               rtrn1 = true;
-              warn!("rtrn1 = {}, key = {}", rtrn1, ctx.key_queue[i].unwrap());
               break;
             }
           }
         }
       }
-    }
-    if !rtrn1 {
-      warn!("rtrn1 = false");
     }
     rtrn1
   }
