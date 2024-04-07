@@ -104,7 +104,7 @@ pub fn action(action: CallbackActions, ops: ARGS) {
                   .enqueue(kiibohd_usb::KeyState::Press(code.into()))
                 {
                   Ok(_) => {
-                    warn!("Key IN  {:?}", code);
+                    // warn!("Key IN  {:?}", code);
                     unsafe { ACTIVE_QUEUE.enqueue(code) };
                   }
                   Err(err) => error!("{}", err),
@@ -132,7 +132,7 @@ pub fn action(action: CallbackActions, ops: ARGS) {
                 .enqueue(kiibohd_usb::KeyState::Release(code.into()))
               {
                 Ok(_) => {
-                  warn!("Key OUT {:?}", code);
+                  // warn!("Key OUT {:?}", code);
                   unsafe { ACTIVE_QUEUE.dequeue(code) };
                 }
                 Err(err) => error!("{}", err),
