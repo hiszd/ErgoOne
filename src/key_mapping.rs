@@ -1,3 +1,5 @@
+use defmt::error;
+
 use crate::key::{Default, Key};
 use crate::key_codes::KeyCode;
 use crate::keyscanning::KeyMatrix;
@@ -11,6 +13,9 @@ use crate::mods::sendstring::SendString;
 use crate::mods::transparent::Transparent;
 use crate::mods::*;
 use crate::secrets::*;
+
+// TODO: Create a build step for getting the errors out of the strings in mapping, before the
+// firmware is running on the controller.
 
 // TODO: find a better way to nest functionality
 #[allow(dead_code)]
@@ -83,7 +88,7 @@ impl<const RSIZE: usize, const CSIZE: usize> From<[&'static str; RSIZE * CSIZE]>
           sendstring::MOD_STR => {
             m[r][c] = SendString::sstnew(map.into());
           }
-          "tran" => {
+          "tra" => {
             if sel.starts_with("transparent") {
               m[r][c] = Transparent::tptnew();
             } else {
@@ -91,6 +96,10 @@ impl<const RSIZE: usize, const CSIZE: usize> From<[&'static str; RSIZE * CSIZE]>
             }
           }
           _ => {
+            error!(
+              "Key mapping at ({}, {}) was specified incorrectly as: {}, {}",
+              r, c, sel, mdl
+            );
             m[r][c] = Default::new("EEEEEEEE".into());
           }
         }
