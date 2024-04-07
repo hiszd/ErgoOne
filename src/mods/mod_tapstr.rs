@@ -1,3 +1,17 @@
+/*
+ * This module provides the following functionality:
+ * When the main key is tapped and no other keys are pressed
+ * the string is sent.
+ * If the main key is held, or is pressed in combination with another key, it functions as normal.
+ *
+ * String example:
+ * "tps,Mod_LSft,("
+ * Requirements(each needs to be sepearated by a comma ","):
+ * - "tps" the string has to start with this to identify the module.
+ * - "Mod_LSFT" this keycode needs to be a modifier.
+ * - "(" this is the string that will be typed if the key is only tapped.
+ */
+
 use defmt::error;
 use heapless::Vec;
 
@@ -45,7 +59,6 @@ impl TapStr for Key {
     let [Some(kc0), None, None, None] = self.keycode else {
       return [None; 4];
     };
-    // FIXME: Why do we care about this?
     if kc0.is_modifier() {
       if self.prevstate == StateType::Off {
         self.previnfo[0] = false;
@@ -85,7 +98,6 @@ impl TapStr for Key {
             self.previnfo[4] = true;
           }
         } else {
-          // WARN: This might not work. Testing Required
           // NOTE: Other keys were pressed.
           self.previnfo[0] = true;
           // NOTE: Do not initiate the secondary function of this key.
