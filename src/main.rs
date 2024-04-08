@@ -192,7 +192,7 @@ pub fn action(action: CallbackActions, ops: ARGS) {
         };
       }
       _ => {
-        error!("Expected ARGS::LYR but got something else");
+        error!("Expected ARGS::NON but got something else");
       }
     },
     CallbackActions::DecLayer => match ops {
@@ -203,7 +203,7 @@ pub fn action(action: CallbackActions, ops: ARGS) {
         };
       }
       _ => {
-        error!("Expected ARGS::LYR but got something else");
+        error!("Expected ARGS::NON but got something else");
       }
     },
   }
@@ -232,8 +232,7 @@ fn core1_task(
   pin: Pin<Gpio7, <Gpio7 as PinId>::Reset>,
 ) -> ! {
   use smart_leds::{SmartLedsWrite, RGB8};
-  println!("Setting up the LED stuffs");
-  const NUM_LEDS: usize = 8;
+  const NUM_LEDS: usize = 3;
   let mut pac = unsafe { pac::Peripherals::steal() };
   let (mut pio, sm0, _, _, _) = pac.PIO0.split(&mut pac.RESETS);
 
@@ -493,7 +492,12 @@ fn main() -> ! {
     matrix.poll(Context {
       key_queue: unsafe { ACTIVE_QUEUE.get_keys() },
     });
-    matrix.set_layer(unsafe { KBD_LAYER.load(Ordering::Relaxed) as usize });
+    matrix.set_layer(
+      unsafe { KBD_LAYER.load(Ordering::Relaxed) as usize },
+      Context {
+        key_queue: unsafe { ACTIVE_QUEUE.get_keys() },
+      },
+    );
     unsafe { POLLCOMPLETE.store(false, Ordering::Relaxed) };
   }
 }

@@ -36,7 +36,7 @@ pub trait TapStr {
   fn tpsidle(&mut self, _ctx: Context) -> [Option<KeyCode>; 4];
   fn tpsoff(&mut self, _ctx: Context) -> [Option<KeyCode>; 4];
   fn get_keys(&mut self, ctx: Context) -> [Option<KeyCode>; 4];
-  fn tpsscan(&mut self, is_high: bool, ctx: Context) -> [Option<KeyCode>; 4];
+  fn scan(&mut self, is_high: bool, ctx: Context) -> [Option<KeyCode>; 4];
   fn exist_next(&self, ctx: Context, key: KeyCode, ignore_mods: bool) -> bool;
 }
 
@@ -163,7 +163,7 @@ impl TapStr for Key {
   }
 
   #[doc = " Perform state change as a result of the scan"]
-  fn tpsscan(&mut self, is_high: bool, ctx: Context) -> [Option<KeyCode>; 4] {
+  fn scan(&mut self, is_high: bool, ctx: Context) -> [Option<KeyCode>; 4] {
     let [Some(kc0), None, None, None] = self.keycode else {
       return [None; 4];
     };

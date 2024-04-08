@@ -21,7 +21,7 @@ pub trait RGBKey {
   fn rgkidle(&mut self, _ctx: Context) -> [Option<KeyCode>; 4];
   fn rgkoff(&mut self, _ctx: Context) -> [Option<KeyCode>; 4];
   fn get_keys(&mut self, ctx: Context) -> [Option<KeyCode>; 4];
-  fn rgkscan(&mut self, is_high: bool, ctx: Context) -> [Option<KeyCode>; 4];
+  fn scan(&mut self, is_high: bool, ctx: Context) -> [Option<KeyCode>; 4];
 }
 
 impl RGBKey for Key {
@@ -76,7 +76,7 @@ impl RGBKey for Key {
     [Some(kc1), None, None, None]
   }
 
-  fn rgkscan(&mut self, is_high: bool, ctx: Context) -> [Option<KeyCode>; 4] {
+  fn scan(&mut self, is_high: bool, ctx: Context) -> [Option<KeyCode>; 4] {
     let [Some(kc0), Some(kc1), None, None] = self.keycode else {
       return [None; 4];
     };

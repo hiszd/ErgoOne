@@ -6,7 +6,12 @@ macro_rules! KeyImpl {
     fn scan(&mut self, is_high: bool, ctx: Context) -> [Option<KeyCode>; 4] {
       // println!("{}", is_high);
       // if they KeyCode is empty then don't bother processing
-      if self.keycode[0].is_none() && self.keycode[1].is_none() {
+      if self.keycode.iter().fold(false, |acc, s| {
+        if s.is_some() {
+          true
+        }
+        acc
+      }) {
         return [None; 4];
       }
       //     ____________________________

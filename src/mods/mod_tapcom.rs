@@ -24,7 +24,7 @@ pub trait TapCom {
   fn tpcidle(&mut self, _ctx: Context) -> [Option<KeyCode>; 4];
   fn tpcoff(&mut self, _ctx: Context) -> [Option<KeyCode>; 4];
   fn get_keys(&mut self, ctx: Context) -> [Option<KeyCode>; 4];
-  fn tpcscan(&mut self, is_high: bool, ctx: Context) -> [Option<KeyCode>; 4];
+  fn scan(&mut self, is_high: bool, ctx: Context) -> [Option<KeyCode>; 4];
   fn exist_next(&self, ctx: Context, key: KeyCode, ignore_mods: bool) -> bool;
 }
 
@@ -167,7 +167,7 @@ impl TapCom for Key {
     rtrn1
   }
 
-  fn tpcscan(&mut self, is_high: bool, ctx: Context) -> [Option<KeyCode>; 4] {
+  fn scan(&mut self, is_high: bool, ctx: Context) -> [Option<KeyCode>; 4] {
     if self.keycode[0].is_none() && self.keycode[1].is_none() {
       return [None; 4];
     }

@@ -21,7 +21,7 @@ pub trait ModCombo {
   fn mdcidle(&mut self, _ctx: Context) -> [Option<KeyCode>; 4];
   fn mdcoff(&mut self, _ctx: Context) -> [Option<KeyCode>; 4];
   fn get_keys(&mut self, ctx: Context) -> [Option<KeyCode>; 4];
-  fn mdcscan(&mut self, is_high: bool, ctx: Context) -> [Option<KeyCode>; 4];
+  fn scan(&mut self, is_high: bool, ctx: Context) -> [Option<KeyCode>; 4];
 }
 
 impl ModCombo for Key {
@@ -90,7 +90,7 @@ impl ModCombo for Key {
     [None; 4]
   }
 
-  fn mdcscan(&mut self, is_high: bool, ctx: Context) -> [Option<KeyCode>; 4] {
+  fn scan(&mut self, is_high: bool, ctx: Context) -> [Option<KeyCode>; 4] {
     let [Some(kc0), Some(kc1), None, None] = self.keycode else {
       return [None; 4];
     };

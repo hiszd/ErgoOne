@@ -13,16 +13,16 @@ use crate::{key::Key, key_codes::KeyCode};
 pub const MOD_STR: &str = "mdt";
 
 pub trait ModTap {
-  fn mdtnew(s: &str) -> Self
+  fn new(s: &str) -> Self
   where
     Self: Sized,
     Self: ModTap;
-  fn mdttap(&mut self, ctx: Context) -> [Option<KeyCode>; 4];
-  fn mdthold(&mut self, _ctx: Context) -> [Option<KeyCode>; 4];
-  fn mdtidle(&mut self, _ctx: Context) -> [Option<KeyCode>; 4];
-  fn mdtoff(&mut self, _ctx: Context) -> [Option<KeyCode>; 4];
+  fn tap(&mut self, ctx: Context) -> [Option<KeyCode>; 4];
+  fn hold(&mut self, _ctx: Context) -> [Option<KeyCode>; 4];
+  fn idle(&mut self, _ctx: Context) -> [Option<KeyCode>; 4];
+  fn off(&mut self, _ctx: Context) -> [Option<KeyCode>; 4];
   fn get_keys(&mut self, ctx: Context) -> [Option<KeyCode>; 4];
-  fn mdtscan(&mut self, is_high: bool, ctx: Context) -> [Option<KeyCode>; 4];
+  fn scan(&mut self, is_high: bool, ctx: Context) -> [Option<KeyCode>; 4];
   fn exist_next(&self, ctx: Context, key: KeyCode, ignore_mods: bool) -> bool;
 }
 
@@ -34,7 +34,7 @@ pub trait ModTap {
 // 4: The secondary function of this key should be, or was, activated.
 // 5:
 impl ModTap for Key {
-  fn mdtnew(s: &str) -> Self {
+  fn new(s: &str) -> Self {
     let sr = s.split(",").map(|s| s.trim()).collect::<Vec<&str, 2>>();
     Key {
       cycles: 0,
@@ -50,7 +50,7 @@ impl ModTap for Key {
     }
   }
 
-  fn mdttap(&mut self, ctx: Context) -> [Option<KeyCode>; 4] {
+  fn tap(&mut self, ctx: Context) -> [Option<KeyCode>; 4] {
     let [Some(_kc0), Some(kc1), None, None] = self.keycode else {
       return [None; 4];
     };
@@ -69,7 +69,7 @@ impl ModTap for Key {
     [Some(kc1), None, None, None]
   }
 
-  fn mdthold(&mut self, _ctx: Context) -> [Option<KeyCode>; 4] {
+  fn hold(&mut self, _ctx: Context) -> [Option<KeyCode>; 4] {
     let [Some(_kc0), Some(kc1), None, None] = self.keycode else {
       return [None; 4];
     };
@@ -78,9 +78,9 @@ impl ModTap for Key {
     [Some(kc1), None, None, None]
   }
 
-  fn mdtidle(&mut self, _ctx: Context) -> [Option<KeyCode>; 4] { [None; 4] }
+  fn idle(&mut self, _ctx: Context) -> [Option<KeyCode>; 4] { [None; 4] }
 
-  fn mdtoff(&mut self, ctx: Context) -> [Option<KeyCode>; 4] {
+  fn off(&mut self, ctx: Context) -> [Option<KeyCode>; 4] {
     let [Some(kc0), Some(kc1), None, None] = self.keycode else {
       return [None; 4];
     };
@@ -159,13 +159,10 @@ impl ModTap for Key {
   }
 
   #[doc = " Perform state change as a result of the scan"]
-  fn mdtscan(&mut self, is_high: bool, ctx: Context) -> [Option<KeyCode>; 4] {
+  fn scan(&mut self, is_high: bool, ctx: Context) -> [Option<KeyCode>; 4] {
     let [Some(kc0), Some(kc1), None, None] = self.keycode else {
       return [None; 4];
     };
-    if kc0 == KeyCode::________ && kc1 == KeyCode::________ {
-      return [None; 4];
-    }
     if is_high {
       if self.cycles < u16::MAX {
         self.cycles += 1;
@@ -199,10 +196,10 @@ impl ModTap for Key {
 
   fn get_keys(&mut self, ctx: Context) -> [Option<KeyCode>; 4] {
     match self.state {
-      StateType::Tap => self.mdttap(ctx),
-      StateType::Hold => self.mdthold(ctx),
-      StateType::Idle => self.mdtidle(ctx),
-      StateType::Off => self.mdtoff(ctx),
+      StateType::Tap => <Key as ModTap>::tap(self, ctx),
+      StateType::Hold => <Key as ModTap>::hold(self, ctx),
+      StateType::Idle => <Key as ModTap>::idle(self, ctx),
+      StateType::Off => <Key as ModTap>::off(self, ctx),
     }
   }
 }

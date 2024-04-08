@@ -22,7 +22,7 @@ pub trait LayerHold {
   fn lyhidle(&mut self, _ctx: Context) -> [Option<KeyCode>; 4];
   fn lyhoff(&mut self, _ctx: Context) -> [Option<KeyCode>; 4];
   fn get_keys(&mut self, ctx: Context) -> [Option<KeyCode>; 4];
-  fn lyhscan(&mut self, is_high: bool, ctx: Context) -> [Option<KeyCode>; 4];
+  fn scan(&mut self, is_high: bool, ctx: Context) -> [Option<KeyCode>; 4];
 }
 
 impl LayerHold for Key {
@@ -66,7 +66,7 @@ impl LayerHold for Key {
   }
 
   #[doc = " Perform state change as a result of the scan"]
-  fn lyhscan(&mut self, is_high: bool, ctx: Context) -> [Option<KeyCode>; 4] {
+  fn scan(&mut self, is_high: bool, ctx: Context) -> [Option<KeyCode>; 4] {
     //    |                            |
     //    |       Cycle Counters       |
     //    |                            |
