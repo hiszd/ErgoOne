@@ -160,9 +160,15 @@ impl ModTap for Key {
 
   #[doc = " Perform state change as a result of the scan"]
   fn scan(&mut self, is_high: bool, ctx: Context) -> [Option<KeyCode>; 4] {
-    let [Some(kc0), Some(kc1), None, None] = self.keycode else {
+    // if they KeyCode is empty then don't bother processing
+    if self.keycode.iter().fold(true, |acc, s| {
+      if s.is_some() {
+        return false;
+      }
+      acc
+    }) {
       return [None; 4];
-    };
+    }
     if is_high {
       if self.cycles < u16::MAX {
         self.cycles += 1;

@@ -162,7 +162,7 @@ impl<const RSIZE: usize, const CSIZE: usize> Matrix<RSIZE, CSIZE> {
     let mut lay: usize = layer;
     codes = ([None; 4], lay);
     let mut key = &mut self.state[layer].matrix[row][col];
-    match self.state[layer].matrix[row][col].typ {
+    match key.typ {
       "Default" => {
         codes.0 = <Key as Default>::scan(&mut key, self.rows[row].is_high(), ctx);
       }

@@ -13,20 +13,20 @@ use crate::{key::Key, key_codes::KeyCode};
 pub const MOD_STR: &str = "lyh";
 
 pub trait LayerHold {
-  fn lyhnew(s: &str) -> Self
+  fn new(s: &str) -> Self
   where
     Self: Sized,
     Self: LayerHold;
-  fn lyhtap(&mut self, ctx: Context) -> [Option<KeyCode>; 4];
-  fn lyhhold(&mut self, _ctx: Context) -> [Option<KeyCode>; 4];
-  fn lyhidle(&mut self, _ctx: Context) -> [Option<KeyCode>; 4];
-  fn lyhoff(&mut self, _ctx: Context) -> [Option<KeyCode>; 4];
+  fn tap(&mut self, ctx: Context) -> [Option<KeyCode>; 4];
+  fn hold(&mut self, _ctx: Context) -> [Option<KeyCode>; 4];
+  fn idle(&mut self, _ctx: Context) -> [Option<KeyCode>; 4];
+  fn off(&mut self, _ctx: Context) -> [Option<KeyCode>; 4];
   fn get_keys(&mut self, ctx: Context) -> [Option<KeyCode>; 4];
   fn scan(&mut self, is_high: bool, ctx: Context) -> [Option<KeyCode>; 4];
 }
 
 impl LayerHold for Key {
-  fn lyhnew(s: &str) -> Self {
+  fn new(s: &str) -> Self {
     let sr = s.split(",").map(|s| s.trim()).collect::<Vec<&str, 2>>();
     debug!("sr: {:?}", sr);
     Key {
@@ -43,7 +43,7 @@ impl LayerHold for Key {
     }
   }
 
-  fn lyhtap(&mut self, _ctx: Context) -> [Option<KeyCode>; 4] {
+  fn tap(&mut self, _ctx: Context) -> [Option<KeyCode>; 4] {
     if self.prevstate != StateType::Tap {
       debug!("Tap");
       action(CallbackActions::SetLayer, ARGS::LYR { l: 1 });
@@ -52,11 +52,11 @@ impl LayerHold for Key {
     [None; 4]
   }
 
-  fn lyhhold(&mut self, _ctx: Context) -> [Option<KeyCode>; 4] { [None; 4] }
+  fn hold(&mut self, _ctx: Context) -> [Option<KeyCode>; 4] { [None; 4] }
 
-  fn lyhidle(&mut self, _ctx: Context) -> [Option<KeyCode>; 4] { [None; 4] }
+  fn idle(&mut self, _ctx: Context) -> [Option<KeyCode>; 4] { [None; 4] }
 
-  fn lyhoff(&mut self, _ctx: Context) -> [Option<KeyCode>; 4] {
+  fn off(&mut self, _ctx: Context) -> [Option<KeyCode>; 4] {
     if self.previnfo[0] {
       debug!("Off: {}, {}", self.previnfo[0], self.prevstate);
       action(CallbackActions::SetLayer, ARGS::LYR { l: 0 });
@@ -116,10 +116,10 @@ impl LayerHold for Key {
 
   fn get_keys(&mut self, ctx: Context) -> [Option<KeyCode>; 4] {
     match self.state {
-      StateType::Tap => self.lyhtap(ctx),
-      StateType::Hold => self.lyhhold(ctx),
-      StateType::Idle => self.lyhidle(ctx),
-      StateType::Off => self.lyhoff(ctx),
+      StateType::Tap => self.tap(ctx),
+      StateType::Hold => self.hold(ctx),
+      StateType::Idle => self.idle(ctx),
+      StateType::Off => self.off(ctx),
     }
   }
 }

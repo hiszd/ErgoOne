@@ -12,20 +12,20 @@ use crate::{key::Key, key_codes::KeyCode};
 pub const MOD_STR: &str = "mdc";
 
 pub trait ModCombo {
-  fn mdcnew(s: &str) -> Self
+  fn new(s: &str) -> Self
   where
     Self: Sized,
     Self: ModCombo;
-  fn mdctap(&mut self, ctx: Context) -> [Option<KeyCode>; 4];
-  fn mdchold(&mut self, _ctx: Context) -> [Option<KeyCode>; 4];
-  fn mdcidle(&mut self, _ctx: Context) -> [Option<KeyCode>; 4];
-  fn mdcoff(&mut self, _ctx: Context) -> [Option<KeyCode>; 4];
+  fn tap(&mut self, ctx: Context) -> [Option<KeyCode>; 4];
+  fn hold(&mut self, _ctx: Context) -> [Option<KeyCode>; 4];
+  fn idle(&mut self, _ctx: Context) -> [Option<KeyCode>; 4];
+  fn off(&mut self, _ctx: Context) -> [Option<KeyCode>; 4];
   fn get_keys(&mut self, ctx: Context) -> [Option<KeyCode>; 4];
   fn scan(&mut self, is_high: bool, ctx: Context) -> [Option<KeyCode>; 4];
 }
 
 impl ModCombo for Key {
-  fn mdcnew(s: &str) -> Self {
+  fn new(s: &str) -> Self {
     let sr = s.split(",").map(|s| s.trim()).collect::<Vec<&str, 2>>();
     Key {
       cycles: 0,
@@ -41,7 +41,7 @@ impl ModCombo for Key {
     }
   }
 
-  fn mdctap(&mut self, _ctx: Context) -> [Option<KeyCode>; 4] {
+  fn tap(&mut self, _ctx: Context) -> [Option<KeyCode>; 4] {
     let [Some(kc0), Some(kc1), None, None] = self.keycode else {
       return [None; 4];
     };
@@ -60,11 +60,11 @@ impl ModCombo for Key {
     [Some(kc0), Some(kc1), None, None]
   }
 
-  fn mdchold(&mut self, _ctx: Context) -> [Option<KeyCode>; 4] { [None; 4] }
+  fn hold(&mut self, _ctx: Context) -> [Option<KeyCode>; 4] { [None; 4] }
 
-  fn mdcidle(&mut self, _ctx: Context) -> [Option<KeyCode>; 4] { [None; 4] }
+  fn idle(&mut self, _ctx: Context) -> [Option<KeyCode>; 4] { [None; 4] }
 
-  fn mdcoff(&mut self, _ctx: Context) -> [Option<KeyCode>; 4] {
+  fn off(&mut self, _ctx: Context) -> [Option<KeyCode>; 4] {
     let [Some(kc0), Some(kc1), None, None] = self.keycode else {
       return [None; 4];
     };
@@ -150,10 +150,10 @@ impl ModCombo for Key {
 
   fn get_keys(&mut self, ctx: Context) -> [Option<KeyCode>; 4] {
     match self.state {
-      StateType::Tap => self.mdctap(ctx),
-      StateType::Hold => self.mdchold(ctx),
-      StateType::Idle => self.mdcidle(ctx),
-      StateType::Off => self.mdcoff(ctx),
+      StateType::Tap => self.tap(ctx),
+      StateType::Hold => self.hold(ctx),
+      StateType::Idle => self.idle(ctx),
+      StateType::Off => self.off(ctx),
     }
   }
 }

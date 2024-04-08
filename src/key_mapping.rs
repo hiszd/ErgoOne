@@ -68,29 +68,29 @@ impl<const RSIZE: usize, const CSIZE: usize> From<[&'static str; RSIZE * CSIZE]>
             m[r][c] = Default::new(map.into());
           }
           layer_hold::MOD_STR => {
-            m[r][c] = LayerHold::lyhnew(map.into());
+            m[r][c] = LayerHold::new(map.into());
           }
           mod_tap::MOD_STR => {
-            m[r][c] = ModTap::mdtnew(map.into());
+            m[r][c] = ModTap::new(map.into());
           }
           mod_tapcom::MOD_STR => {
-            m[r][c] = TapCom::tpcnew(map.into());
+            m[r][c] = TapCom::new(map.into());
           }
           mod_combo::MOD_STR => {
-            m[r][c] = ModCombo::mdcnew(map.into());
+            m[r][c] = ModCombo::new(map.into());
           }
           mod_tapstr::MOD_STR => {
-            m[r][c] = TapStr::tpsnew(map.into());
+            m[r][c] = TapStr::new(map.into());
           }
           rgb_key::MOD_STR => {
-            m[r][c] = RGBKey::rgknew(map.into());
+            m[r][c] = RGBKey::new(map.into());
           }
           sendstring::MOD_STR => {
-            m[r][c] = SendString::sstnew(map.into());
+            m[r][c] = SendString::new(map.into());
           }
           "tra" => {
             if sel.starts_with("transparent") {
-              m[r][c] = Transparent::tptnew();
+              m[r][c] = Transparent::new();
             } else {
               m[r][c] = Default::new("EEEEEEEE".into());
             }

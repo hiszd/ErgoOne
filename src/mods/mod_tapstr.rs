@@ -27,21 +27,21 @@ use crate::{key::Key, key_codes::KeyCode};
 pub const MOD_STR: &str = "tps";
 
 pub trait TapStr {
-  fn tpsnew(s: &'static str) -> Self
+  fn new(s: &'static str) -> Self
   where
     Self: Sized,
     Self: TapStr;
-  fn tpstap(&mut self, ctx: Context) -> [Option<KeyCode>; 4];
-  fn tpshold(&mut self, _ctx: Context) -> [Option<KeyCode>; 4];
-  fn tpsidle(&mut self, _ctx: Context) -> [Option<KeyCode>; 4];
-  fn tpsoff(&mut self, _ctx: Context) -> [Option<KeyCode>; 4];
+  fn tap(&mut self, ctx: Context) -> [Option<KeyCode>; 4];
+  fn hold(&mut self, _ctx: Context) -> [Option<KeyCode>; 4];
+  fn idle(&mut self, _ctx: Context) -> [Option<KeyCode>; 4];
+  fn off(&mut self, _ctx: Context) -> [Option<KeyCode>; 4];
   fn get_keys(&mut self, ctx: Context) -> [Option<KeyCode>; 4];
   fn scan(&mut self, is_high: bool, ctx: Context) -> [Option<KeyCode>; 4];
   fn exist_next(&self, ctx: Context, key: KeyCode, ignore_mods: bool) -> bool;
 }
 
 impl TapStr for Key {
-  fn tpsnew(s: &'static str) -> Self {
+  fn new(s: &'static str) -> Self {
     let sr = s.split(",").map(|s| s.trim()).collect::<Vec<&str, 2>>();
     Key {
       cycles: 0,
@@ -57,7 +57,7 @@ impl TapStr for Key {
     }
   }
 
-  fn tpstap(&mut self, ctx: Context) -> [Option<KeyCode>; 4] {
+  fn tap(&mut self, ctx: Context) -> [Option<KeyCode>; 4] {
     let [Some(kc0), None, None, None] = self.keycode else {
       return [None; 4];
     };
@@ -76,7 +76,7 @@ impl TapStr for Key {
     [Some(kc0), None, None, None]
   }
 
-  fn tpshold(&mut self, _ctx: Context) -> [Option<KeyCode>; 4] {
+  fn hold(&mut self, _ctx: Context) -> [Option<KeyCode>; 4] {
     let [Some(kc0), None, None, None] = self.keycode else {
       return [None; 4];
     };
@@ -85,9 +85,9 @@ impl TapStr for Key {
     [Some(kc0), None, None, None]
   }
 
-  fn tpsidle(&mut self, _ctx: Context) -> [Option<KeyCode>; 4] { [None; 4] }
+  fn idle(&mut self, _ctx: Context) -> [Option<KeyCode>; 4] { [None; 4] }
 
-  fn tpsoff(&mut self, ctx: Context) -> [Option<KeyCode>; 4] {
+  fn off(&mut self, ctx: Context) -> [Option<KeyCode>; 4] {
     let [Some(kc0), None, None, None] = self.keycode else {
       return [None; 4];
     };
@@ -164,49 +164,5 @@ impl TapStr for Key {
 
   #[doc = " Perform state change as a result of the scan"]
   fn scan(&mut self, is_high: bool, ctx: Context) -> [Option<KeyCode>; 4] {
-    let [Some(kc0), None, None, None] = self.keycode else {
-      return [None; 4];
-    };
-    if kc0 == KeyCode::________ || self.strng == "" {
-      return [None; 4];
-    }
-    if is_high {
-      if self.cycles < u16::MAX {
-        self.cycles += 1;
-      }
-      self.cycles_off = 0;
-    } else {
-      if self.cycles_off < u16::MAX {
-        self.cycles_off += 1;
-      }
-      self.cycles = 0;
-    }
-    self.raw_state = is_high;
-    if self.cycles >= DEBOUNCE_CYCLES {
-      if self.state == StateType::Tap && self.cycles >= HOLD_CYCLES {
-        self.prevstate = self.state;
-        self.state = StateType::Hold;
-      } else if self.state == StateType::Off || self.state == StateType::Tap {
-        self.prevstate = self.state;
-        self.state = StateType::Tap;
-      } else if self.state == StateType::Hold {
-        self.prevstate = self.state;
-        self.state = StateType::Hold;
-      }
-      return self.get_keys(ctx);
-    } else if self.cycles_off >= 1 {
-      self.prevstate = self.state;
-      self.state = StateType::Off;
-    }
-    self.get_keys(ctx)
-  }
-
-  fn get_keys(&mut self, ctx: Context) -> [Option<KeyCode>; 4] {
-    match self.state {
-      StateType::Tap => self.tpstap(ctx),
-      StateType::Hold => self.tpshold(ctx),
-      StateType::Idle => self.tpsidle(ctx),
-      StateType::Off => self.tpsoff(ctx),
-    }
   }
 }

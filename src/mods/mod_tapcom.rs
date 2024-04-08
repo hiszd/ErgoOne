@@ -15,14 +15,14 @@ use crate::{key::Key, key_codes::KeyCode};
 pub const MOD_STR: &str = "tpc";
 
 pub trait TapCom {
-  fn tpcnew(s: &str) -> Self
+  fn new(s: &str) -> Self
   where
     Self: Sized,
     Self: TapCom;
-  fn tpctap(&mut self, ctx: Context) -> [Option<KeyCode>; 4];
-  fn tpchold(&mut self, _ctx: Context) -> [Option<KeyCode>; 4];
-  fn tpcidle(&mut self, _ctx: Context) -> [Option<KeyCode>; 4];
-  fn tpcoff(&mut self, _ctx: Context) -> [Option<KeyCode>; 4];
+  fn tap(&mut self, ctx: Context) -> [Option<KeyCode>; 4];
+  fn hold(&mut self, _ctx: Context) -> [Option<KeyCode>; 4];
+  fn idle(&mut self, _ctx: Context) -> [Option<KeyCode>; 4];
+  fn off(&mut self, _ctx: Context) -> [Option<KeyCode>; 4];
   fn get_keys(&mut self, ctx: Context) -> [Option<KeyCode>; 4];
   fn scan(&mut self, is_high: bool, ctx: Context) -> [Option<KeyCode>; 4];
   fn exist_next(&self, ctx: Context, key: KeyCode, ignore_mods: bool) -> bool;
@@ -36,7 +36,7 @@ pub trait TapCom {
 // 4:
 // 5:
 impl TapCom for Key {
-  fn tpcnew(s: &str) -> Self {
+  fn new(s: &str) -> Self {
     let sr = s.split(",").map(|s| s.trim()).collect::<Vec<&str, 3>>();
     Key {
       cycles: 0,
@@ -57,7 +57,7 @@ impl TapCom for Key {
     }
   }
 
-  fn tpctap(&mut self, ctx: Context) -> [Option<KeyCode>; 4] {
+  fn tap(&mut self, ctx: Context) -> [Option<KeyCode>; 4] {
     let [Some(kc0), Some(_kc1), Some(_kc2), None] = self.keycode else {
       return [None; 4];
     };
@@ -80,7 +80,7 @@ impl TapCom for Key {
     [None; 4]
   }
 
-  fn tpchold(&mut self, _ctx: Context) -> [Option<KeyCode>; 4] {
+  fn hold(&mut self, _ctx: Context) -> [Option<KeyCode>; 4] {
     let [Some(kc0), Some(_kc1), Some(_kc2), None] = self.keycode else {
       return [None; 4];
     };
@@ -94,9 +94,9 @@ impl TapCom for Key {
     [Some(kc0), None, None, None]
   }
 
-  fn tpcidle(&mut self, _ctx: Context) -> [Option<KeyCode>; 4] { [None; 4] }
+  fn idle(&mut self, _ctx: Context) -> [Option<KeyCode>; 4] { [None; 4] }
 
-  fn tpcoff(&mut self, ctx: Context) -> [Option<KeyCode>; 4] {
+  fn off(&mut self, ctx: Context) -> [Option<KeyCode>; 4] {
     let [Some(kc0), Some(kc1), Some(kc2), None] = self.keycode else {
       return [None; 4];
     };
@@ -204,10 +204,10 @@ impl TapCom for Key {
 
   fn get_keys(&mut self, ctx: Context) -> [Option<KeyCode>; 4] {
     match self.state {
-      StateType::Tap => self.tpctap(ctx),
-      StateType::Hold => self.tpchold(ctx),
-      StateType::Idle => self.tpcidle(ctx),
-      StateType::Off => self.tpcoff(ctx),
+      StateType::Tap => self.tap(ctx),
+      StateType::Hold => self.hold(ctx),
+      StateType::Idle => self.idle(ctx),
+      StateType::Off => self.off(ctx),
     }
   }
 }

@@ -10,20 +10,20 @@ use crate::{key::Key, key_codes::KeyCode};
 pub const MOD_STR: &str = "sst";
 
 pub trait SendString {
-  fn sstnew(s: &'static str) -> Self
+  fn new(s: &'static str) -> Self
   where
     Self: Sized,
     Self: SendString;
-  fn ssttap(&mut self, ctx: Context) -> [Option<KeyCode>; 4];
-  fn ssthold(&mut self, _ctx: Context) -> [Option<KeyCode>; 4];
-  fn sstidle(&mut self, _ctx: Context) -> [Option<KeyCode>; 4];
-  fn sstoff(&mut self, _ctx: Context) -> [Option<KeyCode>; 4];
+  fn tap(&mut self, ctx: Context) -> [Option<KeyCode>; 4];
+  fn hold(&mut self, _ctx: Context) -> [Option<KeyCode>; 4];
+  fn idle(&mut self, _ctx: Context) -> [Option<KeyCode>; 4];
+  fn off(&mut self, _ctx: Context) -> [Option<KeyCode>; 4];
   fn get_keys(&mut self, ctx: Context) -> [Option<KeyCode>; 4];
   fn scan(&mut self, is_high: bool, ctx: Context) -> [Option<KeyCode>; 4];
 }
 
 impl SendString for Key {
-  fn sstnew(s: &'static str) -> Self {
+  fn new(s: &'static str) -> Self {
     Key {
       cycles: 0,
       raw_state: false,
@@ -38,7 +38,7 @@ impl SendString for Key {
     }
   }
 
-  fn ssttap(&mut self, _ctx: Context) -> [Option<KeyCode>; 4] {
+  fn tap(&mut self, _ctx: Context) -> [Option<KeyCode>; 4] {
     let [Some(_kc0), Some(kc1), None, None] = self.keycode else {
       return [None; 4];
     };
@@ -52,16 +52,16 @@ impl SendString for Key {
     }
   }
 
-  fn ssthold(&mut self, _ctx: Context) -> [Option<KeyCode>; 4] {
+  fn hold(&mut self, _ctx: Context) -> [Option<KeyCode>; 4] {
     let [Some(_kc0), Some(kc1), None, None] = self.keycode else {
       return [None; 4];
     };
     [Some(kc1), None, None, None]
   }
 
-  fn sstidle(&mut self, _ctx: Context) -> [Option<KeyCode>; 4] { [None; 4] }
+  fn idle(&mut self, _ctx: Context) -> [Option<KeyCode>; 4] { [None; 4] }
 
-  fn sstoff(&mut self, _ctx: Context) -> [Option<KeyCode>; 4] {
+  fn off(&mut self, _ctx: Context) -> [Option<KeyCode>; 4] {
     let [Some(_kc0), Some(kc1), None, None] = self.keycode else {
       return [None; 4];
     };
@@ -128,10 +128,10 @@ impl SendString for Key {
 
   fn get_keys(&mut self, ctx: Context) -> [Option<KeyCode>; 4] {
     match self.state {
-      StateType::Tap => self.ssttap(ctx),
-      StateType::Hold => self.ssthold(ctx),
-      StateType::Idle => self.sstidle(ctx),
-      StateType::Off => self.sstoff(ctx),
+      StateType::Tap => self.tap(ctx),
+      StateType::Hold => self.hold(ctx),
+      StateType::Idle => self.idle(ctx),
+      StateType::Off => self.off(ctx),
     }
   }
 }

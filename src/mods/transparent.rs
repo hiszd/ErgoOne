@@ -2,14 +2,14 @@ use crate::key::Key;
 use crate::keyscanning::StateType;
 
 pub trait Transparent {
-  fn tptnew() -> Self
+  fn new() -> Self
   where
     Self: Sized,
     Self: Transparent;
 }
 
 impl Transparent for Key {
-  fn tptnew() -> Self {
+  fn new() -> Self {
     Key {
       cycles: 0,
       raw_state: false,
