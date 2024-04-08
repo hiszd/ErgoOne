@@ -26,6 +26,8 @@ use keyscanning::{Col, Row};
 use kiibohd_hid_io::{CommandInterface, HidIoCommandId, KiibohdCommandInterface};
 use kiibohd_usb::KeyState;
 use panic_probe as _;
+use rp2040_hal::gpio::bank0::Gpio7;
+use rp2040_hal::gpio::{Pin, PinId};
 use rp2040_hal::{
   clocks::{init_clocks_and_plls, Clock},
   multicore::{Multicore, Stack},
@@ -224,6 +226,53 @@ static mut HIDIO_INTF: Mutex<
   Option<CommandInterface<HidioInterface<256>, 8, 8, 64, 256, 277, 10>>,
 > = Mutex::new(None);
 
+fn core1_task(
+  sys_freq: u32,
+  perif_freq: fugit::Rate<u32, 1, 1>,
+  pin: Pin<Gpio7, <Gpio7 as PinId>::Reset>,
+) -> ! {
+  use smart_leds::{SmartLedsWrite, RGB8};
+  println!("Setting up the LED stuffs");
+  const NUM_LEDS: usize = 8;
+  let mut pac = unsafe { pac::Peripherals::steal() };
+  let (mut pio, sm0, _, _, _) = pac.PIO0.split(&mut pac.RESETS);
+
+  let timer = Timer::new(pac.TIMER, &mut pac.RESETS);
+  // let empty: [RGB8; NUM_LEDS] = [RGB8::default(); NUM_LEDS];
+  let mut ws = Ws2812::new(
+    pin.into_mode(),
+    &mut pio,
+    sm0,
+    perif_freq,
+    timer.count_down(),
+  );
+
+  let mut R = RCOL.load(Ordering::Relaxed);
+  let mut G = GCOL.load(Ordering::Relaxed);
+  let mut B = BCOL.load(Ordering::Relaxed);
+  let mut prev_color = [RGB8::new(R, G, B); NUM_LEDS];
+  ws.write(prev_color.iter().copied()).unwrap();
+  println!("starting LED loop");
+  loop {
+    R = RCOL.load(Ordering::Relaxed);
+    G = GCOL.load(Ordering::Relaxed);
+    B = BCOL.load(Ordering::Relaxed);
+    let curcol = [RGB8::new(R, G, B); NUM_LEDS];
+
+    if (curcol[0].r != prev_color[0].r)
+      || (curcol[0].g != prev_color[0].g)
+      || (curcol[0].b != prev_color[0].b)
+    {
+      println!(
+        "{},{},{}  {},{},{}",
+        curcol[0].r, curcol[0].g, curcol[0].b, prev_color[0].r, prev_color[0].g, prev_color[0].b
+      );
+      ws.write(curcol.iter().copied()).unwrap();
+      prev_color = curcol;
+    }
+  }
+}
+
 #[entry]
 fn main() -> ! {
   info!("Program start");
@@ -244,8 +293,9 @@ fn main() -> ! {
   )
   .ok()
   .unwrap();
-  let mut delay = cortex_m::delay::Delay::new(core.SYST, clocks.system_clock.freq().to_Hz());
-  let timer = Timer::new(pac.TIMER, &mut pac.RESETS);
+  let sys_freq = clocks.system_clock.freq().to_Hz();
+  let perif_freq = clocks.peripheral_clock.freq();
+  let mut delay = cortex_m::delay::Delay::new(core.SYST, sys_freq);
   let pins = rp2040_hal::gpio::Pins::new(
     pac.IO_BANK0,
     pac.PADS_BANK0,
@@ -387,40 +437,12 @@ fn main() -> ! {
     // rp2040_hal::rom_data::reset_to_usb_boot(gpio_activity_pin_mask, disable_interface_mask);
     rp2040_hal::rom_data::reset_to_usb_boot(0, 0);
   }
+
   let mut mc = Multicore::new(&mut pac.PSM, &mut pac.PPB, &mut sio.fifo);
   let cores = mc.cores();
   let core1 = &mut cores[1];
   let _ledcore = core1.spawn(unsafe { &mut CORE1_STACK.mem }, move || {
-    use smart_leds::{SmartLedsWrite, RGB8};
-    let (mut pio, sm0, _, _, _) = pac.PIO0.split(&mut pac.RESETS);
-    let empty: [RGB8; 8] = [RGB8::default(); 8];
-    let mut ws = Ws2812::new(
-      pins.gpio7.into_mode(),
-      &mut pio,
-      sm0,
-      clocks.peripheral_clock.freq(),
-      timer.count_down(),
-    );
-    let mut R = RCOL.load(Ordering::Relaxed);
-    let mut G = GCOL.load(Ordering::Relaxed);
-    let mut B = BCOL.load(Ordering::Relaxed);
-    ws.write(empty.iter().copied()).unwrap();
-    loop {
-      let color = [RGB8::new(R, G, B); 8];
-      R = RCOL.load(Ordering::Relaxed);
-      G = GCOL.load(Ordering::Relaxed);
-      B = BCOL.load(Ordering::Relaxed);
-      let curcol = [RGB8::new(R, G, B); 8];
-      if (curcol[0].r != color[0].r) || (curcol[0].g != color[0].g) || (curcol[0].b != color[0].b) {
-        println!(
-          "{},{},{}  {},{},{}",
-          curcol[0].r, curcol[0].g, curcol[0].b, color[0].r, color[0].g, color[0].b
-        );
-        // ws.write(empty.iter().copied()).unwrap();
-        // color = curcol;
-      }
-      ws.write(color.iter().copied()).unwrap();
-    }
+    core1_task(sys_freq, perif_freq, pins.gpio7);
   });
 
   info!("Loop starting!");
@@ -525,7 +547,7 @@ fn string_sender(press: bool, delay: &mut Delay) {
 
 static RCOL: AtomicU8 = AtomicU8::new(0);
 static GCOL: AtomicU8 = AtomicU8::new(0);
-static BCOL: AtomicU8 = AtomicU8::new(0);
+static BCOL: AtomicU8 = AtomicU8::new(255);
 
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub struct Context {

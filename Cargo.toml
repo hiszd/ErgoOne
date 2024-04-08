@@ -22,6 +22,7 @@ usbd-hid = { version = "0.6.1", features = ["defmt"] }
 critical-section = "1.1.1"
 kiibohd-usb = { version = "0.1.6", features = ["defmt"] }
 kiibohd-hid-io = { version = "0.1.6", features = ["defmt"] }
+fugit = { version = "0.3.7", features = ["defmt"] }
 
 # cargo build/run
 [profile.dev]
