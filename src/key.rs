@@ -4,9 +4,9 @@ use defmt::{info, println};
 
 use crate::action;
 use crate::actions::CallbackActions;
+use crate::Context;
 use crate::ARGS;
 use crate::{key_codes::KeyCode, keyscanning::StateType};
-use crate::{Context, KeyImpl};
 pub(crate) const DEBOUNCE_CYCLES: u16 = 3;
 pub(crate) const HOLD_CYCLES: u16 = 20;
 // TODO: impl idle tracking
@@ -40,70 +40,16 @@ pub struct Key {
   pub strng: &'static str,
 }
 
-pub trait Default {
-  fn new(KC1: KeyCode) -> Self
-  where
-    Self: Sized,
-    Self: Default;
-  fn tap(&mut self, ctx: Context) -> [Option<KeyCode>; 4];
-  fn hold(&mut self, ctx: Context) -> [Option<KeyCode>; 4];
-  fn idle(&self, _ctx: Context) -> [Option<KeyCode>; 4];
-  fn off(&mut self, _ctx: Context) -> [Option<KeyCode>; 4];
-  fn get_keys(&mut self, ctx: Context) -> [Option<KeyCode>; 4];
-  fn scan(&mut self, is_high: bool, ctx: Context) -> [Option<KeyCode>; 4];
-}
-
-impl Default for Key {
-  fn new(KC1: KeyCode) -> Self {
-    Key {
-      cycles: 0,
-      raw_state: false,
-      cycles_off: 0,
-      state: StateType::Off,
-      prevstate: StateType::Off,
-      keycode: [Some(KC1), None, None, None],
-      previnfo: [false; 6],
-      stor: [0; 6],
-      typ: "Default",
-      strng: "",
+impl Key {
+  fn get_keys(&mut self, ctx: Context) -> [Option<KeyCode>; 4] {
+    match self.state {
+      StateType::Tap => self.tap(ctx),
+      StateType::Hold => self.hold(ctx),
+      StateType::Idle => self.idle(ctx),
+      StateType::Off => self.off(ctx),
     }
   }
-
-  fn tap(&mut self, _ctx: Context) -> [Option<KeyCode>; 4] {
-    if self.keycode[0].is_some() {
-      let kc0 = self.keycode[0].unwrap();
-      if self.prevstate == StateType::Off {
-        action(CallbackActions::Press, ARGS::KS { code: kc0 });
-      }
-    }
-    self.keycode
-  }
-
-  fn hold(&mut self, _ctx: Context) -> [Option<KeyCode>; 4] {
-    if self.keycode[0].is_some() {
-      let kc0 = self.keycode[0].unwrap();
-      action(CallbackActions::Press, ARGS::KS { code: kc0 });
-      self.keycode
-    } else {
-      [None; 4]
-    }
-  }
-
-  fn idle(&self, _ctx: Context) -> [Option<KeyCode>; 4] { [None; 4] }
-
-  fn off(&mut self, _ctx: Context) -> [Option<KeyCode>; 4] {
-    if self.keycode[0].is_some() {
-      let kc0 = self.keycode[0].unwrap();
-      if self.state != self.prevstate {
-        action(CallbackActions::Release, ARGS::KS { code: kc0 });
-      }
-      self.keycode
-    } else {
-      return [None; 4];
-    }
-  }
-
-  fn scan(&mut self, is_high: bool, ctx: Context) -> [Option<KeyCode>; 4] {
+  pub fn scan(&mut self, is_high: bool, ctx: Context) -> [Option<KeyCode>; 4] {
     // if they KeyCode is empty then don't bother processing
     if self.keycode.iter().fold(true, |acc, s| {
       if s.is_some() {
@@ -158,12 +104,66 @@ impl Default for Key {
     }
     self.get_keys(ctx)
   }
-  fn get_keys(&mut self, ctx: Context) -> [Option<KeyCode>; 4] {
-    match self.state {
-      StateType::Tap => self.tap(ctx),
-      StateType::Hold => self.hold(ctx),
-      StateType::Idle => self.idle(ctx),
-      StateType::Off => self.off(ctx),
+}
+
+pub trait Default {
+  fn new(KC1: KeyCode) -> Self
+  where
+    Self: Sized,
+    Self: Default;
+  fn tap(&mut self, ctx: Context) -> [Option<KeyCode>; 4];
+  fn hold(&mut self, ctx: Context) -> [Option<KeyCode>; 4];
+  fn idle(&self, _ctx: Context) -> [Option<KeyCode>; 4];
+  fn off(&mut self, _ctx: Context) -> [Option<KeyCode>; 4];
+}
+
+impl Default for Key {
+  fn new(KC1: KeyCode) -> Self {
+    Key {
+      cycles: 0,
+      raw_state: false,
+      cycles_off: 0,
+      state: StateType::Off,
+      prevstate: StateType::Off,
+      keycode: [Some(KC1), None, None, None],
+      previnfo: [false; 6],
+      stor: [0; 6],
+      typ: "Default",
+      strng: "",
+    }
+  }
+
+  fn tap(&mut self, _ctx: Context) -> [Option<KeyCode>; 4] {
+    if self.keycode[0].is_some() {
+      let kc0 = self.keycode[0].unwrap();
+      if self.prevstate == StateType::Off {
+        action(CallbackActions::Press, ARGS::KS { code: kc0 });
+      }
+    }
+    self.keycode
+  }
+
+  fn hold(&mut self, _ctx: Context) -> [Option<KeyCode>; 4] {
+    if self.keycode[0].is_some() {
+      let kc0 = self.keycode[0].unwrap();
+      action(CallbackActions::Press, ARGS::KS { code: kc0 });
+      self.keycode
+    } else {
+      [None; 4]
+    }
+  }
+
+  fn idle(&self, _ctx: Context) -> [Option<KeyCode>; 4] { [None; 4] }
+
+  fn off(&mut self, _ctx: Context) -> [Option<KeyCode>; 4] {
+    if self.keycode[0].is_some() {
+      let kc0 = self.keycode[0].unwrap();
+      if self.state != self.prevstate {
+        action(CallbackActions::Release, ARGS::KS { code: kc0 });
+      }
+      self.keycode
+    } else {
+      return [None; 4];
     }
   }
 }

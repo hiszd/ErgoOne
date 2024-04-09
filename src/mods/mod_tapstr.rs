@@ -17,8 +17,6 @@ use heapless::Vec;
 
 use crate::action;
 use crate::actions::CallbackActions;
-use crate::key::DEBOUNCE_CYCLES;
-use crate::key::HOLD_CYCLES;
 use crate::keyscanning::StateType;
 use crate::Context;
 use crate::ARGS;
@@ -35,8 +33,6 @@ pub trait TapStr {
   fn hold(&mut self, _ctx: Context) -> [Option<KeyCode>; 4];
   fn idle(&mut self, _ctx: Context) -> [Option<KeyCode>; 4];
   fn off(&mut self, _ctx: Context) -> [Option<KeyCode>; 4];
-  fn get_keys(&mut self, ctx: Context) -> [Option<KeyCode>; 4];
-  fn scan(&mut self, is_high: bool, ctx: Context) -> [Option<KeyCode>; 4];
   fn exist_next(&self, ctx: Context, key: KeyCode, ignore_mods: bool) -> bool;
 }
 
@@ -160,9 +156,5 @@ impl TapStr for Key {
       }
     }
     rtrn1
-  }
-
-  #[doc = " Perform state change as a result of the scan"]
-  fn scan(&mut self, is_high: bool, ctx: Context) -> [Option<KeyCode>; 4] {
   }
 }

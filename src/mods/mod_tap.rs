@@ -3,8 +3,6 @@ use heapless::Vec;
 
 use crate::action;
 use crate::actions::CallbackActions;
-use crate::key::DEBOUNCE_CYCLES;
-use crate::key::HOLD_CYCLES;
 use crate::keyscanning::StateType;
 use crate::Context;
 use crate::ARGS;
@@ -21,8 +19,6 @@ pub trait ModTap {
   fn hold(&mut self, _ctx: Context) -> [Option<KeyCode>; 4];
   fn idle(&mut self, _ctx: Context) -> [Option<KeyCode>; 4];
   fn off(&mut self, _ctx: Context) -> [Option<KeyCode>; 4];
-  fn get_keys(&mut self, ctx: Context) -> [Option<KeyCode>; 4];
-  fn scan(&mut self, is_high: bool, ctx: Context) -> [Option<KeyCode>; 4];
   fn exist_next(&self, ctx: Context, key: KeyCode, ignore_mods: bool) -> bool;
 }
 
@@ -156,56 +152,5 @@ impl ModTap for Key {
       }
     }
     rtrn1
-  }
-
-  #[doc = " Perform state change as a result of the scan"]
-  fn scan(&mut self, is_high: bool, ctx: Context) -> [Option<KeyCode>; 4] {
-    // if they KeyCode is empty then don't bother processing
-    if self.keycode.iter().fold(true, |acc, s| {
-      if s.is_some() {
-        return false;
-      }
-      acc
-    }) {
-      return [None; 4];
-    }
-    if is_high {
-      if self.cycles < u16::MAX {
-        self.cycles += 1;
-      }
-      self.cycles_off = 0;
-    } else {
-      if self.cycles_off < u16::MAX {
-        self.cycles_off += 1;
-      }
-      self.cycles = 0;
-    }
-    self.raw_state = is_high;
-    if self.cycles >= DEBOUNCE_CYCLES {
-      if self.state == StateType::Tap && self.cycles >= HOLD_CYCLES {
-        self.prevstate = self.state;
-        self.state = StateType::Hold;
-      } else if self.state == StateType::Off || self.state == StateType::Tap {
-        self.prevstate = self.state;
-        self.state = StateType::Tap;
-      } else if self.state == StateType::Hold {
-        self.prevstate = self.state;
-        self.state = StateType::Hold;
-      }
-      return self.get_keys(ctx);
-    } else if self.cycles_off >= 1 {
-      self.prevstate = self.state;
-      self.state = StateType::Off;
-    }
-    self.get_keys(ctx)
-  }
-
-  fn get_keys(&mut self, ctx: Context) -> [Option<KeyCode>; 4] {
-    match self.state {
-      StateType::Tap => <Key as ModTap>::tap(self, ctx),
-      StateType::Hold => <Key as ModTap>::hold(self, ctx),
-      StateType::Idle => <Key as ModTap>::idle(self, ctx),
-      StateType::Off => <Key as ModTap>::off(self, ctx),
-    }
   }
 }

@@ -163,29 +163,9 @@ impl<const RSIZE: usize, const CSIZE: usize> Matrix<RSIZE, CSIZE> {
     codes = ([None; 4], lay);
     let mut key = &mut self.state[layer].matrix[row][col];
     match key.typ {
-      "Default" => {
-        codes.0 = <Key as Default>::scan(&mut key, self.rows[row].is_high(), ctx);
-      }
-      "ModTap" => {
-        codes.0 = <Key as ModTap>::scan(&mut key, self.rows[row].is_high(), ctx);
-      }
-      "TapCom" => {
-        codes.0 = <Key as TapCom>::scan(&mut key, self.rows[row].is_high(), ctx);
-      }
-      "TapStr" => {
-        codes.0 = <Key as TapStr>::scan(&mut key, self.rows[row].is_high(), ctx);
-      }
-      "ModCombo" => {
-        codes.0 = <Key as ModCombo>::scan(&mut key, self.rows[row].is_high(), ctx);
-      }
-      "RGBKey" => {
-        codes.0 = <Key as RGBKey>::scan(&mut key, self.rows[row].is_high(), ctx);
-      }
-      "LayerHold" => {
-        codes.0 = <Key as LayerHold>::scan(&mut key, self.rows[row].is_high(), ctx);
-      }
-      "SendString" => {
-        codes.0 = <Key as SendString>::scan(&mut key, self.rows[row].is_high(), ctx);
+      "Default" | "ModTap" | "TapCom" | "TapStr" | "ModCombo" | "RGBKey" | "LayerHold"
+      | "SendString" => {
+        codes.0 = key.scan(self.rows[row].is_high(), ctx);
       }
       "Transparent" => {
         codes.0 = [None; 4];

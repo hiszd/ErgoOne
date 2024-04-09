@@ -2,8 +2,6 @@ use heapless::Vec;
 
 use crate::action;
 use crate::actions::CallbackActions;
-use crate::key::DEBOUNCE_CYCLES;
-use crate::key::HOLD_CYCLES;
 use crate::keyscanning::StateType;
 use crate::Context;
 use crate::ARGS;
@@ -20,8 +18,6 @@ pub trait RGBKey {
   fn hold(&mut self, _ctx: Context) -> [Option<KeyCode>; 4];
   fn idle(&mut self, _ctx: Context) -> [Option<KeyCode>; 4];
   fn off(&mut self, _ctx: Context) -> [Option<KeyCode>; 4];
-  fn get_keys(&mut self, ctx: Context) -> [Option<KeyCode>; 4];
-  fn scan(&mut self, is_high: bool, ctx: Context) -> [Option<KeyCode>; 4];
 }
 
 impl RGBKey for Key {
@@ -74,8 +70,5 @@ impl RGBKey for Key {
       return [None; 4];
     };
     [Some(kc1), None, None, None]
-  }
-
-  fn scan(&mut self, is_high: bool, ctx: Context) -> [Option<KeyCode>; 4] {
   }
 }
