@@ -2,15 +2,17 @@
 use defmt::export::debug;
 use defmt::{info, println};
 
-use crate::action;
 use crate::actions::CallbackActions;
 use crate::Context;
 use crate::ARGS;
+use crate::{action, modules};
 use crate::{key_codes::KeyCode, keyscanning::StateType};
 pub(crate) const DEBOUNCE_CYCLES: u16 = 3;
 pub(crate) const HOLD_CYCLES: u16 = 20;
 // TODO: impl idle tracking
 // const IDLE_CYCLES: u8 = 100;
+
+modules!(Default, ModTap);
 
 pub const MOD_STR: &str = "dft";
 
