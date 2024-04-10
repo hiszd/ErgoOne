@@ -1,4 +1,4 @@
-use crate::key::Key;
+use crate::key::{Key, Modules};
 use crate::keyscanning::StateType;
 
 pub trait Transparent {
@@ -19,7 +19,7 @@ impl Transparent for Key {
       keycode: [None; 4],
       previnfo: [false; 6],
       stor: [0; 6],
-      typ: "Transparent",
+      typ: Modules::Transparent,
       strng: "",
     }
   }

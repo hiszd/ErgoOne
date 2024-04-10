@@ -1,20 +1,48 @@
 #![allow(unused_imports)]
 use defmt::export::debug;
-use defmt::{info, println};
+use defmt::{error, info, println};
 
 use crate::actions::CallbackActions;
+use crate::mods::*;
 use crate::Context;
 use crate::ARGS;
-use crate::{action, modules};
+use crate::{action, ct_idents, modules};
 use crate::{key_codes::KeyCode, keyscanning::StateType};
 pub(crate) const DEBOUNCE_CYCLES: u16 = 3;
 pub(crate) const HOLD_CYCLES: u16 = 20;
 // TODO: impl idle tracking
 // const IDLE_CYCLES: u8 = 100;
 
-modules!(Default, ModTap);
+#[allow(dead_code)]
+#[derive(Copy, Clone, Debug)]
+pub enum Modules {
+  Default,
+  ModTap,
+  ModCombo,
+  TapCom,
+  TapStr,
+  RGBKey,
+  SendString,
+  Transparent,
+  LayerHold,
+}
 
-pub const MOD_STR: &str = "dft";
+impl Modules {
+  #[allow(unused)]
+  pub fn to_str(&self) -> &'static str {
+    match self {
+      Modules::Default => "dft",
+      Modules::ModTap => "mdt",
+      Modules::ModCombo => "mdc",
+      Modules::TapCom => "tpc",
+      Modules::TapStr => "tps",
+      Modules::RGBKey => "rgk",
+      Modules::SendString => "sst",
+      Modules::Transparent => "transparent",
+      Modules::LayerHold => "lyh",
+    }
+  }
+}
 
 // #[derive(Copy, Clone, PartialEq, PartialOrd)]
 #[derive(Copy, Clone, Debug)]
@@ -37,18 +65,63 @@ pub struct Key {
   /// Stores information needed by internal functions(e.g. colors for RGB keys)
   pub stor: [u8; 6],
   /// holds a &str of the type of the key
-  pub typ: &'static str,
+  pub typ: Modules,
   /// holds a &str for sending
   pub strng: &'static str,
 }
 
 impl Key {
   fn get_keys(&mut self, ctx: Context) -> [Option<KeyCode>; 4] {
-    match self.state {
-      StateType::Tap => self.tap(ctx),
-      StateType::Hold => self.hold(ctx),
-      StateType::Idle => self.idle(ctx),
-      StateType::Off => self.off(ctx),
+    match self.typ {
+      Modules::Default => match self.state {
+        StateType::Tap => <Key as Default>::tap(self, ctx),
+        StateType::Hold => <Key as Default>::hold(self, ctx),
+        StateType::Idle => <Key as Default>::idle(self, ctx),
+        StateType::Off => <Key as Default>::off(self, ctx),
+      },
+      Modules::LayerHold => match self.state {
+        StateType::Tap => <Key as layer_hold::LayerHold>::tap(self, ctx),
+        StateType::Hold => <Key as layer_hold::LayerHold>::hold(self, ctx),
+        StateType::Idle => <Key as layer_hold::LayerHold>::idle(self, ctx),
+        StateType::Off => <Key as layer_hold::LayerHold>::off(self, ctx),
+      },
+      Modules::ModTap => match self.state {
+        StateType::Tap => <Key as mod_tap::ModTap>::tap(self, ctx),
+        StateType::Hold => <Key as mod_tap::ModTap>::hold(self, ctx),
+        StateType::Idle => <Key as mod_tap::ModTap>::idle(self, ctx),
+        StateType::Off => <Key as mod_tap::ModTap>::off(self, ctx),
+      },
+      Modules::TapCom => match self.state {
+        StateType::Tap => <Key as mod_tapcom::TapCom>::tap(self, ctx),
+        StateType::Hold => <Key as mod_tapcom::TapCom>::hold(self, ctx),
+        StateType::Idle => <Key as mod_tapcom::TapCom>::idle(self, ctx),
+        StateType::Off => <Key as mod_tapcom::TapCom>::off(self, ctx),
+      },
+      Modules::ModCombo => match self.state {
+        StateType::Tap => <Key as mod_combo::ModCombo>::tap(self, ctx),
+        StateType::Hold => <Key as mod_combo::ModCombo>::hold(self, ctx),
+        StateType::Idle => <Key as mod_combo::ModCombo>::idle(self, ctx),
+        StateType::Off => <Key as mod_combo::ModCombo>::off(self, ctx),
+      },
+      Modules::TapStr => match self.state {
+        StateType::Tap => <Key as mod_tapstr::TapStr>::tap(self, ctx),
+        StateType::Hold => <Key as mod_tapstr::TapStr>::hold(self, ctx),
+        StateType::Idle => <Key as mod_tapstr::TapStr>::idle(self, ctx),
+        StateType::Off => <Key as mod_tapstr::TapStr>::off(self, ctx),
+      },
+      Modules::RGBKey => match self.state {
+        StateType::Tap => <Key as rgb_key::RGBKey>::tap(self, ctx),
+        StateType::Hold => <Key as rgb_key::RGBKey>::hold(self, ctx),
+        StateType::Idle => <Key as rgb_key::RGBKey>::idle(self, ctx),
+        StateType::Off => <Key as rgb_key::RGBKey>::off(self, ctx),
+      },
+      Modules::SendString => match self.state {
+        StateType::Tap => <Key as sendstring::SendString>::tap(self, ctx),
+        StateType::Hold => <Key as sendstring::SendString>::hold(self, ctx),
+        StateType::Idle => <Key as sendstring::SendString>::idle(self, ctx),
+        StateType::Off => <Key as sendstring::SendString>::off(self, ctx),
+      },
+      Modules::Transparent => [None; 4],
     }
   }
   pub fn scan(&mut self, is_high: bool, ctx: Context) -> [Option<KeyCode>; 4] {
@@ -130,7 +203,7 @@ impl Default for Key {
       keycode: [Some(KC1), None, None, None],
       previnfo: [false; 6],
       stor: [0; 6],
-      typ: "Default",
+      typ: Modules::Default,
       strng: "",
     }
   }

@@ -7,7 +7,7 @@ use rp2040_hal::gpio::DynPin;
 use usbd_hid::descriptor::KeyboardReport;
 
 use crate::actions::CallbackActions;
-use crate::key::Default;
+use crate::key::{Default, Modules};
 use crate::mods::layer_hold::LayerHold;
 use crate::mods::mod_combo::ModCombo;
 use crate::mods::mod_tap::ModTap;
@@ -163,24 +163,23 @@ impl<const RSIZE: usize, const CSIZE: usize> Matrix<RSIZE, CSIZE> {
     codes = ([None; 4], lay);
     let mut key = &mut self.state[layer].matrix[row][col];
     match key.typ {
-      "Default" | "ModTap" | "TapCom" | "TapStr" | "ModCombo" | "RGBKey" | "LayerHold"
-      | "SendString" => {
+      Modules::Default
+      | Modules::ModTap
+      | Modules::TapCom
+      | Modules::TapStr
+      | Modules::ModCombo
+      | Modules::RGBKey
+      | Modules::LayerHold
+      | Modules::SendString => {
         codes.0 = key.scan(self.rows[row].is_high(), ctx);
       }
-      "Transparent" => {
+      Modules::Transparent => {
         codes.0 = [None; 4];
         if self.layer_active > 0 {
           lay = lay - 1;
           codes = self.keyscan(row, col, layer - 1, ctx);
         }
         codes.1 = lay;
-      }
-      _ => {
-        codes.0 = [None; 4];
-        error!(
-          "Unknown key type {}",
-          self.state[layer].matrix[row][col].typ
-        );
       }
     }
     codes
@@ -226,33 +225,31 @@ impl<const RSIZE: usize, const CSIZE: usize> Matrix<RSIZE, CSIZE> {
         for r in 0..RSIZE {
           let mut key: &mut Key = &mut self.state[self.layer_active].matrix[r][c];
           match key.typ {
-            "Default" => {
+            Modules::Default => {
               <Key as Default>::off(&mut key, ctx);
             }
-            "ModTap" => {
+            Modules::ModTap => {
               <Key as Default>::off(&mut key, ctx);
             }
-            "TapCom" => {
+            Modules::TapCom => {
               <Key as Default>::off(&mut key, ctx);
             }
-            "TapStr" => {
+            Modules::TapStr => {
               <Key as Default>::off(&mut key, ctx);
             }
-            "ModCombo" => {
+            Modules::ModCombo => {
               <Key as Default>::off(&mut key, ctx);
             }
-            "RGBKey" => {
+            Modules::RGBKey => {
               <Key as Default>::off(&mut key, ctx);
             }
-            "LayerHold" => {
+            Modules::LayerHold => {
               <Key as Default>::off(&mut key, ctx);
             }
-            "SendString" => {
+            Modules::SendString => {
               <Key as Default>::off(&mut key, ctx);
             }
-            _ => {
-              error!("Unknown key type {}", key.typ);
-            }
+            Modules::Transparent => {}
           }
         }
       }

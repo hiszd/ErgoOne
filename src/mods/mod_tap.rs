@@ -3,6 +3,7 @@ use heapless::Vec;
 
 use crate::action;
 use crate::actions::CallbackActions;
+use crate::key::Modules;
 use crate::keyscanning::StateType;
 use crate::Context;
 use crate::ARGS;
@@ -41,7 +42,7 @@ impl ModTap for Key {
       keycode: [Some(sr[0].into()), Some(sr[1].into()), None, None],
       previnfo: [false; 6],
       stor: [0; 6],
-      typ: "ModTap",
+      typ: Modules::ModTap,
       strng: "",
     }
   }

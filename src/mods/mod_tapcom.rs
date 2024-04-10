@@ -5,6 +5,7 @@ use heapless::Vec;
 
 use crate::action;
 use crate::actions::CallbackActions;
+use crate::key::Modules;
 use crate::keyscanning::StateType;
 use crate::Context;
 use crate::ARGS;
@@ -48,7 +49,7 @@ impl TapCom for Key {
       ],
       previnfo: [false; 6],
       stor: [0; 6],
-      typ: "TapCom",
+      typ: Modules::TapCom,
       strng: "",
     }
   }

@@ -17,6 +17,7 @@ use heapless::Vec;
 
 use crate::action;
 use crate::actions::CallbackActions;
+use crate::key::Modules;
 use crate::keyscanning::StateType;
 use crate::Context;
 use crate::ARGS;
@@ -48,7 +49,7 @@ impl TapStr for Key {
       keycode: [Some(sr[0].into()), None, None, None],
       previnfo: [false; 6],
       stor: [0; 6],
-      typ: "TapStr",
+      typ: Modules::TapStr,
       strng: sr[1],
     }
   }

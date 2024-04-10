@@ -3,6 +3,7 @@ use heapless::Vec;
 
 use crate::action;
 use crate::actions::CallbackActions;
+use crate::key::Modules;
 use crate::keyscanning::StateType;
 use crate::Context;
 use crate::ARGS;
@@ -34,7 +35,7 @@ impl LayerHold for Key {
       keycode: [None; 4],
       previnfo: [false; 6],
       stor: [sr[0].parse().unwrap(), sr[1].parse().unwrap(), 0, 0, 0, 0],
-      typ: "LayerHold",
+      typ: Modules::LayerHold,
       strng: "",
     }
   }

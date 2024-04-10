@@ -2,6 +2,7 @@ use heapless::Vec;
 
 use crate::action;
 use crate::actions::CallbackActions;
+use crate::key::Modules;
 use crate::keyscanning::StateType;
 use crate::Context;
 use crate::ARGS;
@@ -32,7 +33,7 @@ impl ModCombo for Key {
       keycode: [Some(sr[0].into()), Some(sr[1].into()), None, None],
       previnfo: [false; 6],
       stor: [0; 6],
-      typ: "ModCombo",
+      typ: Modules::ModCombo,
       strng: "",
     }
   }

@@ -2,6 +2,7 @@ use heapless::Vec;
 
 use crate::action;
 use crate::actions::CallbackActions;
+use crate::key::Modules;
 use crate::keyscanning::StateType;
 use crate::Context;
 use crate::ARGS;
@@ -39,7 +40,7 @@ impl RGBKey for Key {
         0,
         0,
       ],
-      typ: "RGBKey",
+      typ: Modules::RGBKey,
       strng: "",
     }
   }

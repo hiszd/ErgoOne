@@ -1,5 +1,6 @@
 use crate::action;
 use crate::actions::CallbackActions;
+use crate::key::Modules;
 use crate::keyscanning::StateType;
 use crate::Context;
 use crate::ARGS;
@@ -29,7 +30,7 @@ impl SendString for Key {
       keycode: [Some(KeyCode::EEEEEEEE), Some(KeyCode::EEEEEEEE), None, None],
       previnfo: [false; 6],
       stor: [0; 6],
-      typ: "SendString",
+      typ: Modules::SendString,
       strng: s,
     }
   }
