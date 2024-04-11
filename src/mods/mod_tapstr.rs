@@ -37,17 +37,25 @@ pub trait TapStr {
 
 impl TapStr for Key {
   fn new(Args: Vec<&'static str, 4>) -> Self {
+    let KC0: Option<KeyCode> = match KeyCode::try_from(Args[0]) {
+      Ok(kc) => Some(kc),
+      Err(_) => None,
+    };
+    let STR0: &str = match Args[1].try_into() {
+      Ok(kc) => kc,
+      Err(_) => "".into(),
+    };
     Key {
       cycles: 0,
       raw_state: false,
       cycles_off: 0,
       state: StateType::Off,
       prevstate: StateType::Off,
-      keycode: [Some(Args[0].into()), None, None, None],
+      keycode: [KC0, None, None, None],
       previnfo: [false; 6],
       stor: [0; 6],
       typ: Modules::TapStr,
-      strng: Args[1],
+      strng: STR0,
     }
   }
 

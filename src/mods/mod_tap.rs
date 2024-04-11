@@ -30,13 +30,21 @@ pub trait ModTap {
 // 5:
 impl ModTap for Key {
   fn new(Args: Vec<&str, 4>) -> Self {
+    let KC0: Option<KeyCode> = match KeyCode::try_from(Args[0]) {
+      Ok(kc) => Some(kc),
+      Err(_) => None,
+    };
+    let KC1: Option<KeyCode> = match KeyCode::try_from(Args[1]) {
+      Ok(kc) => Some(kc),
+      Err(_) => None,
+    };
     Key {
       cycles: 0,
       raw_state: false,
       cycles_off: 0,
       state: StateType::Off,
       prevstate: StateType::Off,
-      keycode: [Some(Args[0].into()), Some(Args[1].into()), None, None],
+      keycode: [KC0, KC1, None, None],
       previnfo: [false; 6],
       stor: [0; 6],
       typ: Modules::ModTap,

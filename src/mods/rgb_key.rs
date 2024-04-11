@@ -28,7 +28,7 @@ impl RGBKey for Key {
       cycles_off: 0,
       state: StateType::Off,
       prevstate: StateType::Off,
-      keycode: [Some(KeyCode::EEEEEEEE), Some(KeyCode::EEEEEEEE), None, None],
+      keycode: [Some(KeyCode::EEEEEEEE), None, None, None],
       previnfo: [false; 6],
       stor: [
         cols[0].parse().unwrap(),

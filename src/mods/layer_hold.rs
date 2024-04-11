@@ -10,7 +10,7 @@ use crate::ARGS;
 use crate::{key::Key, key_codes::KeyCode};
 
 pub trait LayerHold {
-  fn new(Args: Vec<&str, 4>) -> Self
+  fn new(Args: Vec<&str, 4>, layer: usize) -> Self
   where
     Self: Sized,
     Self: LayerHold;
@@ -21,24 +21,20 @@ pub trait LayerHold {
 }
 
 impl LayerHold for Key {
-  fn new(Args: Vec<&str, 4>) -> Self {
-    debug!("LayerHold Args: {:?}", Args);
+  fn new(Args: Vec<&str, 4>, layer: usize) -> Self {
+    let Stor0: u8 = match Args[0].parse() {
+      Ok(v) => v,
+      Err(_) => 0,
+    };
     Key {
       cycles: 0,
       raw_state: false,
       cycles_off: 0,
       state: StateType::Off,
       prevstate: StateType::Off,
-      keycode: [None; 4],
+      keycode: [Some(KeyCode::EEEEEEEE), None, None, None],
       previnfo: [false; 6],
-      stor: [
-        Args[0].parse().unwrap(),
-        Args[1].parse().unwrap(),
-        0,
-        0,
-        0,
-        0,
-      ],
+      stor: [Stor0, layer as u8, 0, 0, 0, 0],
       typ: Modules::LayerHold,
       strng: "",
     }
@@ -46,7 +42,7 @@ impl LayerHold for Key {
 
   fn tap(&mut self, _ctx: Context) -> [Option<KeyCode>; 4] {
     if self.prevstate != StateType::Tap {
-      debug!("Tap");
+      debug!("Tap: {}", self.stor[0]);
       action(CallbackActions::SetLayer, ARGS::LYR {
         l: self.stor[0].into(),
       });
@@ -60,6 +56,7 @@ impl LayerHold for Key {
   fn idle(&mut self, _ctx: Context) -> [Option<KeyCode>; 4] { [None; 4] }
 
   fn off(&mut self, _ctx: Context) -> [Option<KeyCode>; 4] {
+    // TODO: use the layer info to selectively ignore off calls from layer changes(if possible)
     if self.previnfo[0] {
       debug!("Off: {}, {}", self.previnfo[0], self.prevstate);
       action(CallbackActions::SetLayer, ARGS::LYR {

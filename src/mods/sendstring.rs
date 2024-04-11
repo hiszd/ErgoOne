@@ -21,13 +21,16 @@ pub trait SendString {
 
 impl SendString for Key {
   fn new(Args: Vec<&'static str, 4>) -> Self {
+    if Args.len() != 1 {
+      panic!("SendString requires 1 argument");
+    }
     Key {
       cycles: 0,
       raw_state: false,
       cycles_off: 0,
       state: StateType::Off,
       prevstate: StateType::Off,
-      keycode: [Some(KeyCode::EEEEEEEE), Some(KeyCode::EEEEEEEE), None, None],
+      keycode: [Some(KeyCode::EEEEEEEE), None, None, None],
       previnfo: [false; 6],
       stor: [0; 6],
       typ: Modules::SendString,
@@ -36,32 +39,17 @@ impl SendString for Key {
   }
 
   fn tap(&mut self, _ctx: Context) -> [Option<KeyCode>; 4] {
-    let [Some(_kc0), Some(kc1), None, None] = self.keycode else {
-      return [None; 4];
-    };
     if self.prevstate != StateType::Tap {
       action(CallbackActions::SendString, ARGS::STR {
         s: self.strng.into(),
       });
-      [Some(kc1), None, None, None]
-    } else {
-      [None; 4]
     }
+    [None; 4]
   }
 
-  fn hold(&mut self, _ctx: Context) -> [Option<KeyCode>; 4] {
-    let [Some(_kc0), Some(kc1), None, None] = self.keycode else {
-      return [None; 4];
-    };
-    [Some(kc1), None, None, None]
-  }
+  fn hold(&mut self, _ctx: Context) -> [Option<KeyCode>; 4] { [None; 4] }
 
   fn idle(&mut self, _ctx: Context) -> [Option<KeyCode>; 4] { [None; 4] }
 
-  fn off(&mut self, _ctx: Context) -> [Option<KeyCode>; 4] {
-    let [Some(_kc0), Some(kc1), None, None] = self.keycode else {
-      return [None; 4];
-    };
-    [Some(kc1), None, None, None]
-  }
+  fn off(&mut self, _ctx: Context) -> [Option<KeyCode>; 4] { [None; 4] }
 }

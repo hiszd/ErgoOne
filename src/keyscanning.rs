@@ -62,10 +62,16 @@ impl Row {
 #[derive(Copy, Clone)]
 pub struct KeyMatrix<const RSIZE: usize, const CSIZE: usize> {
   matrix: [[Key; CSIZE]; RSIZE],
+  layer: usize,
 }
 
 impl<const RSIZE: usize, const CSIZE: usize> KeyMatrix<RSIZE, CSIZE> {
-  pub fn new(keymap: [[Key; CSIZE]; RSIZE]) -> Self { KeyMatrix { matrix: keymap } }
+  pub fn new(keymap: [[Key; CSIZE]; RSIZE], layer: usize) -> Self {
+    KeyMatrix {
+      matrix: keymap,
+      layer,
+    }
+  }
 }
 
 pub struct Matrix<const RSIZE: usize, const CSIZE: usize> {
@@ -161,7 +167,7 @@ impl<const RSIZE: usize, const CSIZE: usize> Matrix<RSIZE, CSIZE> {
     let mut codes: ([Option<KeyCode>; 4], usize);
     let mut lay: usize = layer;
     codes = ([None; 4], lay);
-    let mut key = &mut self.state[layer].matrix[row][col];
+    let key = &mut self.state[layer].matrix[row][col];
     match key.typ {
       Modules::Default
       | Modules::ModTap
@@ -243,13 +249,15 @@ impl<const RSIZE: usize, const CSIZE: usize> Matrix<RSIZE, CSIZE> {
             Modules::RGBKey => {
               <Key as RGBKey>::off(&mut key, ctx);
             }
-            Modules::LayerHold => {
-              <Key as LayerHold>::off(&mut key, ctx);
-            }
+            // WARN: this might be a problem in the future
+            // Modules::LayerHold => {
+            //   <Key as LayerHold>::off(&mut key, ctx);
+            // }
             Modules::SendString => {
               <Key as SendString>::off(&mut key, ctx);
             }
             Modules::Transparent => {}
+            _ => {}
           }
         }
       }

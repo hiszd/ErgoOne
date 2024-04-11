@@ -32,18 +32,25 @@ pub trait TapCom {
 // 5:
 impl TapCom for Key {
   fn new(Args: Vec<&str, 4>) -> Self {
+    let KC0: Option<KeyCode> = match KeyCode::try_from(Args[0]) {
+      Ok(kc) => Some(kc),
+      Err(_) => None,
+    };
+    let KC1: Option<KeyCode> = match KeyCode::try_from(Args[1]) {
+      Ok(kc) => Some(kc),
+      Err(_) => None,
+    };
+    let KC2: Option<KeyCode> = match KeyCode::try_from(Args[2]) {
+      Ok(kc) => Some(kc),
+      Err(_) => None,
+    };
     Key {
       cycles: 0,
       raw_state: false,
       cycles_off: 0,
       state: StateType::Off,
       prevstate: StateType::Off,
-      keycode: [
-        Some(Args[0].into()),
-        Some(Args[1].into()),
-        Some(Args[2].into()),
-        None,
-      ],
+      keycode: [KC0, KC1, KC2, None],
       previnfo: [false; 6],
       stor: [0; 6],
       typ: Modules::TapCom,
