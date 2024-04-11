@@ -24,8 +24,8 @@ pub enum Modules {
   TapStr,
   RGBKey,
   SendString,
-  Transparent,
   LayerHold,
+  Transparent,
 }
 
 impl Modules {
@@ -39,8 +39,8 @@ impl Modules {
       Modules::TapStr => "tps",
       Modules::RGBKey => "rgk",
       Modules::SendString => "sst",
-      Modules::Transparent => "transparent",
       Modules::LayerHold => "lyh",
+      Modules::Transparent => "transparent",
     }
   }
   pub fn try_from_str(s: &str) -> Result<Self, ()> {
@@ -52,8 +52,8 @@ impl Modules {
       "tps" => Ok(Modules::TapStr),
       "rgk" => Ok(Modules::RGBKey),
       "sst" => Ok(Modules::SendString),
-      "transparent" => Ok(Modules::Transparent),
       "lyh" => Ok(Modules::LayerHold),
+      "transparent" => Ok(Modules::Transparent),
       _ => Err(()),
     }
   }
@@ -88,17 +88,19 @@ pub struct Key {
 impl Key {
   fn get_keys(&mut self, ctx: Context) -> [Option<KeyCode>; 4] {
     match self.typ {
+      Modules::LayerHold => {
+        if self.state != StateType::Off {
+          println!("Sending layer tap");
+        }
+      }
+      _ => {}
+    }
+    match self.typ {
       Modules::Default => match self.state {
         StateType::Tap => <Key as Default>::tap(self, ctx),
         StateType::Hold => <Key as Default>::hold(self, ctx),
         StateType::Idle => <Key as Default>::idle(self, ctx),
         StateType::Off => <Key as Default>::off(self, ctx),
-      },
-      Modules::LayerHold => match self.state {
-        StateType::Tap => <Key as layer_hold::LayerHold>::tap(self, ctx),
-        StateType::Hold => <Key as layer_hold::LayerHold>::hold(self, ctx),
-        StateType::Idle => <Key as layer_hold::LayerHold>::idle(self, ctx),
-        StateType::Off => <Key as layer_hold::LayerHold>::off(self, ctx),
       },
       Modules::ModTap => match self.state {
         StateType::Tap => <Key as mod_tap::ModTap>::tap(self, ctx),
@@ -135,6 +137,12 @@ impl Key {
         StateType::Hold => <Key as sendstring::SendString>::hold(self, ctx),
         StateType::Idle => <Key as sendstring::SendString>::idle(self, ctx),
         StateType::Off => <Key as sendstring::SendString>::off(self, ctx),
+      },
+      Modules::LayerHold => match self.state {
+        StateType::Tap => <Key as layer_hold::LayerHold>::tap(self, ctx),
+        StateType::Hold => <Key as layer_hold::LayerHold>::hold(self, ctx),
+        StateType::Idle => <Key as layer_hold::LayerHold>::idle(self, ctx),
+        StateType::Off => <Key as layer_hold::LayerHold>::off(self, ctx),
       },
       Modules::Transparent => [None; 4],
     }

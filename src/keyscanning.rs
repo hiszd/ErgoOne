@@ -220,7 +220,7 @@ impl<const RSIZE: usize, const CSIZE: usize> Matrix<RSIZE, CSIZE> {
   }
 
   pub fn set_layer(&mut self, layer: usize, ctx: Context) {
-    if layer < self.layer_active {
+    if layer != self.layer_active {
       for c in 0..CSIZE {
         for r in 0..RSIZE {
           let mut key: &mut Key = &mut self.state[self.layer_active].matrix[r][c];
@@ -229,25 +229,25 @@ impl<const RSIZE: usize, const CSIZE: usize> Matrix<RSIZE, CSIZE> {
               <Key as Default>::off(&mut key, ctx);
             }
             Modules::ModTap => {
-              <Key as Default>::off(&mut key, ctx);
+              <Key as ModTap>::off(&mut key, ctx);
             }
             Modules::TapCom => {
-              <Key as Default>::off(&mut key, ctx);
+              <Key as TapCom>::off(&mut key, ctx);
             }
             Modules::TapStr => {
-              <Key as Default>::off(&mut key, ctx);
+              <Key as TapStr>::off(&mut key, ctx);
             }
             Modules::ModCombo => {
-              <Key as Default>::off(&mut key, ctx);
+              <Key as ModCombo>::off(&mut key, ctx);
             }
             Modules::RGBKey => {
-              <Key as Default>::off(&mut key, ctx);
+              <Key as RGBKey>::off(&mut key, ctx);
             }
             Modules::LayerHold => {
-              <Key as Default>::off(&mut key, ctx);
+              <Key as LayerHold>::off(&mut key, ctx);
             }
             Modules::SendString => {
-              <Key as Default>::off(&mut key, ctx);
+              <Key as SendString>::off(&mut key, ctx);
             }
             Modules::Transparent => {}
           }

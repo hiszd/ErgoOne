@@ -69,7 +69,6 @@ impl<const RSIZE: usize, const CSIZE: usize> From<[&'static str; RSIZE * CSIZE]>
           .filter(|(i, _)| *i > 0)
           .map(|(_, v)| *v)
           .collect::<Vec<&str, 4>>();
-        println!("map: {:?}", map);
         match Modules::try_from_str(mdl) {
           Ok(Modules::Default) => {
             m[r][c] = Default::new(map.clone());

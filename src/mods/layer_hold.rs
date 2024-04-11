@@ -22,7 +22,7 @@ pub trait LayerHold {
 
 impl LayerHold for Key {
   fn new(Args: Vec<&str, 4>) -> Self {
-    debug!("Args: {:?}", Args);
+    debug!("LayerHold Args: {:?}", Args);
     Key {
       cycles: 0,
       raw_state: false,
@@ -47,7 +47,9 @@ impl LayerHold for Key {
   fn tap(&mut self, _ctx: Context) -> [Option<KeyCode>; 4] {
     if self.prevstate != StateType::Tap {
       debug!("Tap");
-      action(CallbackActions::SetLayer, ARGS::LYR { l: 1 });
+      action(CallbackActions::SetLayer, ARGS::LYR {
+        l: self.stor[0].into(),
+      });
       self.previnfo[0] = true;
     }
     [None; 4]
@@ -60,7 +62,9 @@ impl LayerHold for Key {
   fn off(&mut self, _ctx: Context) -> [Option<KeyCode>; 4] {
     if self.previnfo[0] {
       debug!("Off: {}, {}", self.previnfo[0], self.prevstate);
-      action(CallbackActions::SetLayer, ARGS::LYR { l: 0 });
+      action(CallbackActions::SetLayer, ARGS::LYR {
+        l: self.stor[1].into(),
+      });
       self.previnfo[0] = false;
     }
     [None; 4]
