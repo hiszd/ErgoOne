@@ -1,6 +1,7 @@
 #![allow(unused_imports)]
 use defmt::export::debug;
 use defmt::{error, info, println};
+use heapless::Vec;
 
 use crate::actions::CallbackActions;
 use crate::mods::*;
@@ -40,6 +41,20 @@ impl Modules {
       Modules::SendString => "sst",
       Modules::Transparent => "transparent",
       Modules::LayerHold => "lyh",
+    }
+  }
+  pub fn try_from_str(s: &str) -> Result<Self, ()> {
+    match s {
+      "dft" => Ok(Modules::Default),
+      "mdt" => Ok(Modules::ModTap),
+      "mdc" => Ok(Modules::ModCombo),
+      "tpc" => Ok(Modules::TapCom),
+      "tps" => Ok(Modules::TapStr),
+      "rgk" => Ok(Modules::RGBKey),
+      "sst" => Ok(Modules::SendString),
+      "transparent" => Ok(Modules::Transparent),
+      "lyh" => Ok(Modules::LayerHold),
+      _ => Err(()),
     }
   }
 }
@@ -182,7 +197,7 @@ impl Key {
 }
 
 pub trait Default {
-  fn new(KC1: KeyCode) -> Self
+  fn new(Args: Vec<&str, 4>) -> Self
   where
     Self: Sized,
     Self: Default;
@@ -193,14 +208,14 @@ pub trait Default {
 }
 
 impl Default for Key {
-  fn new(KC1: KeyCode) -> Self {
+  fn new(Args: Vec<&str, 4>) -> Self {
     Key {
       cycles: 0,
       raw_state: false,
       cycles_off: 0,
       state: StateType::Off,
       prevstate: StateType::Off,
-      keycode: [Some(KC1), None, None, None],
+      keycode: [Some(Args[0].into()), None, None, None],
       previnfo: [false; 6],
       stor: [0; 6],
       typ: Modules::Default,

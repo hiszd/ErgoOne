@@ -23,10 +23,8 @@ use crate::Context;
 use crate::ARGS;
 use crate::{key::Key, key_codes::KeyCode};
 
-pub const MOD_STR: &str = "tps";
-
 pub trait TapStr {
-  fn new(s: &'static str) -> Self
+  fn new(Args: Vec<&'static str, 4>) -> Self
   where
     Self: Sized,
     Self: TapStr;
@@ -38,19 +36,18 @@ pub trait TapStr {
 }
 
 impl TapStr for Key {
-  fn new(s: &'static str) -> Self {
-    let sr = s.split(",").map(|s| s.trim()).collect::<Vec<&str, 2>>();
+  fn new(Args: Vec<&'static str, 4>) -> Self {
     Key {
       cycles: 0,
       raw_state: false,
       cycles_off: 0,
       state: StateType::Off,
       prevstate: StateType::Off,
-      keycode: [Some(sr[0].into()), None, None, None],
+      keycode: [Some(Args[0].into()), None, None, None],
       previnfo: [false; 6],
       stor: [0; 6],
       typ: Modules::TapStr,
-      strng: sr[1],
+      strng: Args[1],
     }
   }
 

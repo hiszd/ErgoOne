@@ -9,10 +9,8 @@ use crate::Context;
 use crate::ARGS;
 use crate::{key::Key, key_codes::KeyCode};
 
-pub const MOD_STR: &str = "mdt";
-
 pub trait ModTap {
-  fn new(s: &str) -> Self
+  fn new(Args: Vec<&str, 4>) -> Self
   where
     Self: Sized,
     Self: ModTap;
@@ -31,15 +29,14 @@ pub trait ModTap {
 // 4: The secondary function of this key should be, or was, activated.
 // 5:
 impl ModTap for Key {
-  fn new(s: &str) -> Self {
-    let sr = s.split(",").map(|s| s.trim()).collect::<Vec<&str, 2>>();
+  fn new(Args: Vec<&str, 4>) -> Self {
     Key {
       cycles: 0,
       raw_state: false,
       cycles_off: 0,
       state: StateType::Off,
       prevstate: StateType::Off,
-      keycode: [Some(sr[0].into()), Some(sr[1].into()), None, None],
+      keycode: [Some(Args[0].into()), Some(Args[1].into()), None, None],
       previnfo: [false; 6],
       stor: [0; 6],
       typ: Modules::ModTap,

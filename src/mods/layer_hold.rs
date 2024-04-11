@@ -9,10 +9,8 @@ use crate::Context;
 use crate::ARGS;
 use crate::{key::Key, key_codes::KeyCode};
 
-pub const MOD_STR: &str = "lyh";
-
 pub trait LayerHold {
-  fn new(s: &str) -> Self
+  fn new(Args: Vec<&str, 4>) -> Self
   where
     Self: Sized,
     Self: LayerHold;
@@ -23,9 +21,8 @@ pub trait LayerHold {
 }
 
 impl LayerHold for Key {
-  fn new(s: &str) -> Self {
-    let sr = s.split(",").map(|s| s.trim()).collect::<Vec<&str, 2>>();
-    debug!("sr: {:?}", sr);
+  fn new(Args: Vec<&str, 4>) -> Self {
+    debug!("Args: {:?}", Args);
     Key {
       cycles: 0,
       raw_state: false,
@@ -34,7 +31,14 @@ impl LayerHold for Key {
       prevstate: StateType::Off,
       keycode: [None; 4],
       previnfo: [false; 6],
-      stor: [sr[0].parse().unwrap(), sr[1].parse().unwrap(), 0, 0, 0, 0],
+      stor: [
+        Args[0].parse().unwrap(),
+        Args[1].parse().unwrap(),
+        0,
+        0,
+        0,
+        0,
+      ],
       typ: Modules::LayerHold,
       strng: "",
     }

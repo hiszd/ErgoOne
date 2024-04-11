@@ -8,10 +8,8 @@ use crate::Context;
 use crate::ARGS;
 use crate::{key::Key, key_codes::KeyCode};
 
-pub const MOD_STR: &str = "rgk";
-
 pub trait RGBKey {
-  fn new(s: &str) -> Self
+  fn new(Args: Vec<&str, 4>) -> Self
   where
     Self: Sized,
     Self: RGBKey;
@@ -22,8 +20,8 @@ pub trait RGBKey {
 }
 
 impl RGBKey for Key {
-  fn new(s: &str) -> Self {
-    let sr = s.split("_").map(|x| x.trim()).collect::<Vec<&str, 3>>();
+  fn new(Args: Vec<&str, 4>) -> Self {
+    let cols = Args[0].split('_').collect::<Vec<&str, 4>>();
     Key {
       cycles: 0,
       raw_state: false,
@@ -33,9 +31,9 @@ impl RGBKey for Key {
       keycode: [Some(KeyCode::EEEEEEEE), Some(KeyCode::EEEEEEEE), None, None],
       previnfo: [false; 6],
       stor: [
-        sr[0].parse().unwrap(),
-        sr[1].parse().unwrap(),
-        sr[2].parse().unwrap(),
+        cols[0].parse().unwrap(),
+        cols[1].parse().unwrap(),
+        cols[2].parse().unwrap(),
         0,
         0,
         0,

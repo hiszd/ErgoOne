@@ -1,3 +1,5 @@
+use heapless::Vec;
+
 use crate::action;
 use crate::actions::CallbackActions;
 use crate::key::Modules;
@@ -6,10 +8,8 @@ use crate::Context;
 use crate::ARGS;
 use crate::{key::Key, key_codes::KeyCode};
 
-pub const MOD_STR: &str = "sst";
-
 pub trait SendString {
-  fn new(s: &'static str) -> Self
+  fn new(Args: Vec<&'static str, 4>) -> Self
   where
     Self: Sized,
     Self: SendString;
@@ -20,7 +20,7 @@ pub trait SendString {
 }
 
 impl SendString for Key {
-  fn new(s: &'static str) -> Self {
+  fn new(Args: Vec<&'static str, 4>) -> Self {
     Key {
       cycles: 0,
       raw_state: false,
@@ -31,7 +31,7 @@ impl SendString for Key {
       previnfo: [false; 6],
       stor: [0; 6],
       typ: Modules::SendString,
-      strng: s,
+      strng: Args[0],
     }
   }
 

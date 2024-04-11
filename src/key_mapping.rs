@@ -1,8 +1,7 @@
-use defmt::error;
+use defmt::{error, println};
 use heapless::Vec;
 
-use crate::key::{Default, Key};
-use crate::key_codes::KeyCode;
+use crate::key::{Default, Key, Modules};
 use crate::keyscanning::KeyMatrix;
 use crate::mods::layer_hold::LayerHold;
 use crate::mods::mod_combo::ModCombo;
@@ -12,7 +11,6 @@ use crate::mods::mod_tapstr::TapStr;
 use crate::mods::rgb_key::RGBKey;
 use crate::mods::sendstring::SendString;
 use crate::mods::transparent::Transparent;
-use crate::mods::*;
 use crate::secrets::*;
 
 // TODO: Create a build step for getting the errors out of the strings in mapping, before the
@@ -53,7 +51,8 @@ impl<const RSIZE: usize, const CSIZE: usize> From<[&'static str; RSIZE * CSIZE]>
   for KeyMatrix<RSIZE, CSIZE>
 {
   fn from(v: [&'static str; RSIZE * CSIZE]) -> Self {
-    let mut m: [[Key; CSIZE]; RSIZE] = [[Default::new(KeyCode::EEEEEEEE); CSIZE]; RSIZE];
+    let mut m: [[Key; CSIZE]; RSIZE] =
+      [[Default::new(Vec::from_slice(&["EEEEEEEE"]).unwrap()); CSIZE]; RSIZE];
     let mut r: usize = 0;
     let mut c: usize = 0;
     v.iter().enumerate().for_each(|(i, sel)| {
@@ -70,44 +69,41 @@ impl<const RSIZE: usize, const CSIZE: usize> From<[&'static str; RSIZE * CSIZE]>
           .filter(|(i, _)| *i > 0)
           .map(|(_, v)| *v)
           .collect::<Vec<&str, 4>>();
-        match mdl {
-          crate::key::MOD_STR => {
-            m[r][c] = Default::new(map.into());
+        println!("map: {:?}", map);
+        match Modules::try_from_str(mdl) {
+          Ok(Modules::Default) => {
+            m[r][c] = Default::new(map.clone());
           }
-          layer_hold::MOD_STR => {
-            m[r][c] = LayerHold::new(map.into());
+          Ok(Modules::LayerHold) => {
+            m[r][c] = LayerHold::new(map.clone());
           }
-          mod_tap::MOD_STR => {
-            m[r][c] = ModTap::new(map.into());
+          Ok(Modules::ModTap) => {
+            m[r][c] = ModTap::new(map.clone());
           }
-          mod_tapcom::MOD_STR => {
-            m[r][c] = TapCom::new(map.into());
+          Ok(Modules::TapCom) => {
+            m[r][c] = TapCom::new(map.clone());
           }
-          mod_combo::MOD_STR => {
-            m[r][c] = ModCombo::new(map.into());
+          Ok(Modules::ModCombo) => {
+            m[r][c] = ModCombo::new(map.clone());
           }
-          mod_tapstr::MOD_STR => {
-            m[r][c] = TapStr::new(map.into());
+          Ok(Modules::TapStr) => {
+            m[r][c] = TapStr::new(map.clone());
           }
-          rgb_key::MOD_STR => {
-            m[r][c] = RGBKey::new(map.into());
+          Ok(Modules::RGBKey) => {
+            m[r][c] = RGBKey::new(map.clone());
           }
-          sendstring::MOD_STR => {
-            m[r][c] = SendString::new(map.into());
+          Ok(Modules::SendString) => {
+            m[r][c] = SendString::new(map.clone());
           }
-          "tra" => {
-            if sel.starts_with("transparent") {
-              m[r][c] = Transparent::new();
-            } else {
-              m[r][c] = Default::new("EEEEEEEE".into());
-            }
+          Ok(Modules::Transparent) => {
+            m[r][c] = Transparent::new();
           }
           _ => {
             error!(
               "Key mapping at ({}, {}) was specified incorrectly as: {}, {}",
               r, c, sel, mdl
             );
-            m[r][c] = Default::new("EEEEEEEE".into());
+            m[r][c] = Default::new(Vec::from_slice(&["EEEEEEEE"]).unwrap());
           }
         }
       }

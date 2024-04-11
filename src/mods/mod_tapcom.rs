@@ -11,10 +11,8 @@ use crate::Context;
 use crate::ARGS;
 use crate::{key::Key, key_codes::KeyCode};
 
-pub const MOD_STR: &str = "tpc";
-
 pub trait TapCom {
-  fn new(s: &str) -> Self
+  fn new(Args: Vec<&str, 4>) -> Self
   where
     Self: Sized,
     Self: TapCom;
@@ -33,8 +31,7 @@ pub trait TapCom {
 // 4:
 // 5:
 impl TapCom for Key {
-  fn new(s: &str) -> Self {
-    let sr = s.split(",").map(|s| s.trim()).collect::<Vec<&str, 3>>();
+  fn new(Args: Vec<&str, 4>) -> Self {
     Key {
       cycles: 0,
       raw_state: false,
@@ -42,9 +39,9 @@ impl TapCom for Key {
       state: StateType::Off,
       prevstate: StateType::Off,
       keycode: [
-        Some(sr[0].into()),
-        Some(sr[1].into()),
-        Some(sr[2].into()),
+        Some(Args[0].into()),
+        Some(Args[1].into()),
+        Some(Args[2].into()),
         None,
       ],
       previnfo: [false; 6],
