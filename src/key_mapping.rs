@@ -106,6 +106,7 @@ pub fn keymap_from<const RSIZE: usize, const CSIZE: usize>(
         }
       }
     }
+    c += 1;
   });
-  KeyMatrix::new(m, l)
+  KeyMatrix::new(m)
 }

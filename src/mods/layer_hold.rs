@@ -18,6 +18,7 @@ pub trait LayerHold {
   fn hold(&mut self, _ctx: Context) -> [Option<KeyCode>; 4];
   fn idle(&mut self, _ctx: Context) -> [Option<KeyCode>; 4];
   fn off(&mut self, _ctx: Context) -> [Option<KeyCode>; 4];
+  fn set_layer(&mut self, layer: usize);
 }
 
 impl LayerHold for Key {
@@ -39,6 +40,8 @@ impl LayerHold for Key {
       strng: "",
     }
   }
+
+  fn set_layer(&mut self, layer: usize) { self.stor[1] = layer as u8; }
 
   fn tap(&mut self, _ctx: Context) -> [Option<KeyCode>; 4] {
     if self.prevstate != StateType::Tap {

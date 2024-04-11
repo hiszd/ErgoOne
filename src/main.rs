@@ -45,7 +45,6 @@ use ws2812_pio::Ws2812;
 
 use self::actions::CallbackActions;
 use self::keyscanning::{KeyQueue, KeyQueueMulti};
-use crate::key_mapping::keymap_from;
 use crate::keyscanning::Matrix;
 use crate::keyscanning::StateType;
 use crate::{key_codes::KeyCode, pac::interrupt};
@@ -423,8 +422,8 @@ fn main() -> ! {
   }
 
   let mut matrix: Matrix<5, 16> = Matrix::new(rows, cols, callback, [
-    keymap_from(key_mapping::ERGOONE_QWERTY, 0),
-    keymap_from(key_mapping::ERGOONE_1, 1),
+    key_mapping::ERGOONE_QWERTY,
+    key_mapping::ERGOONE_1,
   ]);
 
   let poll1 = matrix.poll(Context {

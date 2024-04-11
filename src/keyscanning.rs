@@ -8,6 +8,7 @@ use usbd_hid::descriptor::KeyboardReport;
 
 use crate::actions::CallbackActions;
 use crate::key::{Default, Modules};
+use crate::key_mapping::keymap_from;
 use crate::mods::layer_hold::LayerHold;
 use crate::mods::mod_combo::ModCombo;
 use crate::mods::mod_tap::ModTap;
@@ -59,17 +60,30 @@ impl Row {
   }
 }
 
-#[derive(Copy, Clone)]
+#[derive(Debug, Copy, Clone)]
 pub struct KeyMatrix<const RSIZE: usize, const CSIZE: usize> {
   matrix: [[Key; CSIZE]; RSIZE],
   layer: usize,
 }
 
 impl<const RSIZE: usize, const CSIZE: usize> KeyMatrix<RSIZE, CSIZE> {
-  pub fn new(keymap: [[Key; CSIZE]; RSIZE], layer: usize) -> Self {
+  pub fn new(keymap: [[Key; CSIZE]; RSIZE]) -> Self {
     KeyMatrix {
       matrix: keymap,
-      layer,
+      layer: 0,
+    }
+  }
+  pub fn set_layer(&mut self, layer: usize) {
+    self.layer = layer;
+    for r in 0..RSIZE {
+      for c in 0..CSIZE {
+        match self.matrix[r][c].typ {
+          Modules::LayerHold => {
+            self.matrix[r][c].set_layer(layer);
+          }
+          _ => {}
+        }
+      }
     }
   }
 }
@@ -104,12 +118,22 @@ impl<const RSIZE: usize, const CSIZE: usize> Matrix<RSIZE, CSIZE> {
       prevstate: StateType,
       keycodes: [KeyCode; 2],
     ),
-    keymap: [KeyMatrix<RSIZE, CSIZE>; 2],
+    keymap: [[&'static str; RSIZE * CSIZE]; 2],
   ) -> Self {
+    // let keymaps: [KeyMatrix<RSIZE, CSIZE>; 2] = [
+    //   keymap_from::<RSIZE, CSIZE>(keymap[0], 0),
+    //   keymap_from::<RSIZE, CSIZE>(keymap[1], 1),
+    // ];
+    let keymaps: [KeyMatrix<RSIZE, CSIZE>; 2] = keymap
+      .iter()
+      .map(|k| keymap_from::<RSIZE, CSIZE>(*k, 0))
+      .collect::<Vec<KeyMatrix<RSIZE, CSIZE>, 2>>()
+      .into_array()
+      .unwrap();
     let mut new = Matrix {
       rows,
       cols,
-      state: keymap,
+      state: keymaps,
       callback,
       wait_cycles: 2,
       cycles: 0,
