@@ -12,6 +12,8 @@ mod keyscanning;
 mod macros;
 mod mods;
 mod secrets;
+use core::any::Any;
+use core::fmt::Pointer;
 use core::sync::atomic::AtomicBool;
 use core::sync::atomic::{AtomicU8, Ordering};
 
@@ -21,9 +23,9 @@ use critical_section::Mutex;
 use defmt::*;
 use defmt_rtt as _;
 use heapless::spsc::{Producer, Queue};
-use heapless::String;
+use heapless::{String, Vec};
 use keyscanning::{Col, Row};
-use kiibohd_hid_io::{CommandInterface, HidIoCommandId, KiibohdCommandInterface};
+use kiibohd_hid_io::{CommandInterface, HidIoCommandId, HidIoEvent, KiibohdCommandInterface};
 use kiibohd_usb::KeyState;
 use panic_probe as _;
 use rp2040_hal::gpio::bank0::Gpio7;
@@ -71,9 +73,63 @@ impl<const H: usize> HidioInterface<H> {
   fn new() -> Self { Self {} }
 }
 
+enum ErgoOneCmds {
+  Led,
+  SetLayer,
+}
+
+impl TryFrom<&str> for ErgoOneCmds {
+  type Error = ();
+  fn try_from(s: &str) -> Result<Self, Self::Error> {
+    match s {
+      "SetLed" => Ok(ErgoOneCmds::Led),
+      "SetLayer" => Ok(ErgoOneCmds::SetLayer),
+      _ => Err(()),
+    }
+  }
+}
+
 impl<const H: usize> KiibohdCommandInterface<H> for HidioInterface<H> {
   fn h0001_device_name(&self) -> Option<&str> { Some("ErgoOne") }
   fn h0001_firmware_name(&self) -> Option<&str> { Some("ErgoOne") }
+  fn h0031_terminalinput(&mut self, data: kiibohd_hid_io::h0031::Cmd<H>) -> bool {
+    let parts = &data
+      .command
+      .split(":")
+      .map(|s| s.trim())
+      .collect::<Vec<&str, 8>>();
+    let cmd = parts[0];
+    match ErgoOneCmds::try_from(cmd) {
+      Ok(ErgoOneCmds::Led) => {
+        let rgbparts = parts[1].split(",");
+        let partlen = rgbparts.clone().count();
+        if partlen != 3 {
+          error!("Invalid RGB string: {}", parts[1]);
+          return false;
+        }
+        let rgb = rgbparts
+          .map(|s| {
+            let s = s.trim();
+            match s.parse::<u8>() {
+              Ok(n) => n,
+              Err(_) => 0,
+            }
+          })
+          .collect::<Vec<u8, 3>>();
+        action(CallbackActions::RGBSet, ARGS::RGB {
+          r: rgb[0],
+          g: rgb[1],
+          b: rgb[2],
+        });
+      }
+      Ok(ErgoOneCmds::SetLayer) => {}
+      Err(_) => {
+        error!("Unknown command sent through RPC: {}", cmd);
+      }
+    }
+    println!("TERMINAL: {}", data.command);
+    true
+  }
 }
 
 static mut KBD_LAYER: AtomicU8 = AtomicU8::new(0);
@@ -334,6 +390,7 @@ fn main() -> ! {
           HidIoCommandId::SupportedIds,
           HidIoCommandId::GetInfo,
           HidIoCommandId::TestPacket,
+          HidIoCommandId::TerminalCmd,
         ],
         HidioInterface::<256>::new(),
       )
@@ -578,7 +635,9 @@ unsafe fn USBCTRL_IRQ() {
         let hidio_intf = critical_section::with(|_| HIDIO_INTF.get_mut().as_mut());
         if hidio_intf.is_some() {
           let hidio = hidio_intf.unwrap();
+          let _ = hidio.rx_packetbuffer_decode();
           usb_hid.pull_hidio(hidio);
+          usb_hid.push_hidio(hidio);
         }
         unsafe { POLLCOMPLETE.store(true, Ordering::Relaxed) }
       }
