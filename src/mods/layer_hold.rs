@@ -1,4 +1,5 @@
 use defmt::debug;
+use defmt::info;
 use heapless::Vec;
 
 use crate::action;
@@ -45,7 +46,7 @@ impl LayerHold for Key {
 
   fn tap(&mut self, _ctx: Context) -> [Option<KeyCode>; 4] {
     if self.prevstate != StateType::Tap {
-      debug!("Tap: {}", self.stor[0]);
+      info!("Tap: {}", self.stor[0]);
       action(CallbackActions::SetLayer, ARGS::LYR {
         l: self.stor[0].into(),
       });
@@ -61,7 +62,7 @@ impl LayerHold for Key {
   fn off(&mut self, _ctx: Context) -> [Option<KeyCode>; 4] {
     // TODO: use the layer info to selectively ignore off calls from layer changes(if possible)
     if self.previnfo[0] {
-      debug!("Off: {}, {}", self.previnfo[0], self.prevstate);
+      info!("Off: {}, {}", self.previnfo[0], self.prevstate);
       action(CallbackActions::SetLayer, ARGS::LYR {
         l: self.stor[1].into(),
       });

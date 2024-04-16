@@ -7,4 +7,5 @@ pub enum CallbackActions {
   SetLayer,
   IncLayer,
   DecLayer,
+  SendHIDRaw,
 }

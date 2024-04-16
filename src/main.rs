@@ -5,6 +5,7 @@
 #![feature(generic_const_exprs)]
 
 mod actions;
+mod events;
 mod key;
 mod key_codes;
 mod key_mapping;
@@ -12,8 +13,6 @@ mod keyscanning;
 mod macros;
 mod mods;
 mod secrets;
-use core::any::Any;
-use core::fmt::Pointer;
 use core::sync::atomic::AtomicBool;
 use core::sync::atomic::{AtomicU8, Ordering};
 
@@ -25,7 +24,7 @@ use defmt_rtt as _;
 use heapless::spsc::{Producer, Queue};
 use heapless::{String, Vec};
 use keyscanning::{Col, Row};
-use kiibohd_hid_io::{CommandInterface, HidIoCommandId, HidIoEvent, KiibohdCommandInterface};
+use kiibohd_hid_io::{h0034, CommandInterface, Commands, HidIoCommandId, KiibohdCommandInterface};
 use kiibohd_usb::KeyState;
 use panic_probe as _;
 use rp2040_hal::gpio::bank0::Gpio7;
@@ -46,10 +45,11 @@ use usbd_hid::hid_class::HidCountryCode;
 use ws2812_pio::Ws2812;
 
 use self::actions::CallbackActions;
+use self::events::EventType;
+use self::keyscanning::Matrix;
+use self::keyscanning::StateType;
 use self::keyscanning::{KeyQueue, KeyQueueMulti};
-use crate::keyscanning::Matrix;
-use crate::keyscanning::StateType;
-use crate::{key_codes::KeyCode, pac::interrupt};
+use self::{key_codes::KeyCode, pac::interrupt};
 
 // These define the maximum pending items in each queue
 const KBD_QUEUE_SIZE: usize = 20; // This would limit NKRO mode to 10KRO
@@ -92,6 +92,7 @@ impl TryFrom<&str> for ErgoOneCmds {
 impl<const H: usize> KiibohdCommandInterface<H> for HidioInterface<H> {
   fn h0001_device_name(&self) -> Option<&str> { Some("ErgoOne") }
   fn h0001_firmware_name(&self) -> Option<&str> { Some("ErgoOne") }
+  fn h0001_device_mcu(&self) -> Option<&str> { Some("RP2040") }
   fn h0031_terminalinput(&mut self, data: kiibohd_hid_io::h0031::Cmd<H>) -> bool {
     let parts = &data
       .command
@@ -135,16 +136,34 @@ impl<const H: usize> KiibohdCommandInterface<H> for HidioInterface<H> {
 static mut KBD_LAYER: AtomicU8 = AtomicU8::new(0);
 static mut SENDINGSTRING: AtomicBool = AtomicBool::new(false);
 static mut QUEUEDSTRING: AtomicBool = AtomicBool::new(false);
+static mut HID_TERMOUT: Vec<String<30>, 5> = Vec::new();
 
-#[derive(Clone, PartialEq, PartialOrd)]
+#[derive(Debug, Clone, PartialEq, PartialOrd)]
 pub enum ARGS {
   KS { code: KeyCode },
   RGB { r: u8, g: u8, b: u8 },
   STR { s: String<30> },
   LYR { l: usize },
   BLN { b: bool },
+  HID { data: String<30> },
   NON {},
 }
+
+impl defmt::Format for ARGS {
+  fn format(&self, f: defmt::Formatter) {
+    match self {
+      ARGS::KS { code } => defmt::write!(f, "ARGS::KS {{ code: {:?} }}", code),
+      ARGS::RGB { r, g, b } => defmt::write!(f, "ARGS::RGB {{ r: {}, g: {}, b: {} }}", r, g, b),
+      ARGS::STR { s } => defmt::write!(f, "ARGS::STR {{ s: {:?} }}", s.clone()),
+      ARGS::LYR { l } => defmt::write!(f, "ARGS::LYR {{ l: {} }}", l),
+      ARGS::BLN { b } => defmt::write!(f, "ARGS::BLN {{ b: {} }}", b),
+      ARGS::HID { data } => defmt::write!(f, "ARGS::HID {{ data: {:?} }}", data),
+      ARGS::NON {} => defmt::write!(f, "ARGS::NON"),
+    }
+  }
+}
+
+static mut EMITTER: events::Emitter = events::Emitter::new();
 
 /// execute function for key code
 pub fn action(action: CallbackActions, ops: ARGS) {
@@ -162,8 +181,8 @@ pub fn action(action: CallbackActions, ops: ARGS) {
                   .enqueue(kiibohd_usb::KeyState::Press(code.into()))
                 {
                   Ok(_) => {
-                    // warn!("Key IN  {:?}", code);
                     unsafe { ACTIVE_QUEUE.enqueue(code) };
+                    unsafe { EMITTER.call(EventType::KeyDown, ARGS::KS { code }) };
                   }
                   Err(err) => error!("{}", err),
                 }
@@ -190,8 +209,8 @@ pub fn action(action: CallbackActions, ops: ARGS) {
                 .enqueue(kiibohd_usb::KeyState::Release(code.into()))
               {
                 Ok(_) => {
-                  // warn!("Key OUT {:?}", code);
                   unsafe { ACTIVE_QUEUE.dequeue(code) };
+                  unsafe { EMITTER.call(EventType::KeyUp, ARGS::KS { code }) };
                 }
                 Err(err) => error!("{}", err),
               }
@@ -211,19 +230,21 @@ pub fn action(action: CallbackActions, ops: ARGS) {
         RCOL.store(r, Ordering::Relaxed);
         GCOL.store(g, Ordering::Relaxed);
         BCOL.store(b, Ordering::Relaxed);
+        unsafe { EMITTER.call(EventType::RgbSet, ARGS::RGB { r, g, b }) };
       }
       _ => {
         error!("Expected ARGS::RGB but got something else");
       }
     },
     CallbackActions::SendString => match ops {
-      ARGS::STR { s: strng } => {
+      ARGS::STR { s } => {
         // start sending string and block other keys sending until complete
         unsafe { QUEUEDSTRING.store(true, Ordering::Relaxed) };
-        strng.chars().for_each(|e| {
+        s.chars().for_each(|e| {
           let code = KeyCode::from_char(e);
           if code.len() != 0 {
             unsafe { STRING_QUEUE.push(code) };
+            unsafe { EMITTER.call(EventType::StringSent, ARGS::STR { s: s.clone() }) };
           }
         })
       }
@@ -235,6 +256,7 @@ pub fn action(action: CallbackActions, ops: ARGS) {
       ARGS::LYR { l } => {
         println!("Layer: {}", l);
         unsafe { KBD_LAYER.store(l as u8, Ordering::Relaxed) };
+        unsafe { EMITTER.call(EventType::LayerSet, ARGS::LYR { l }) };
       }
       _ => {
         error!("Expected ARGS::LYR but got something else");
@@ -260,6 +282,17 @@ pub fn action(action: CallbackActions, ops: ARGS) {
       }
       _ => {
         error!("Expected ARGS::NON but got something else");
+      }
+    },
+    CallbackActions::SendHIDRaw => match ops {
+      ARGS::HID { data } => match unsafe { HID_TERMOUT.push(data.clone()) } {
+        Ok(_) => {
+          unsafe { EMITTER.call(EventType::HidRawSent, ARGS::HID { data }) };
+        }
+        Err(err) => error!("{}", err),
+      },
+      _ => {
+        error!("Expected ARGS::HID but got something else");
       }
     },
   }
@@ -475,7 +508,7 @@ fn main() -> ! {
         StateType::Idle => " c: Idle",
       })
       .unwrap();
-    info!("{}, c1: {}, c2: {}", str, keycodes[0], keycodes[1]);
+    // info!("{}, c1: {}, c2: {}", str, keycodes[0], keycodes[1]);
   }
 
   let mut matrix: Matrix<5, 16> = Matrix::new(rows, cols, callback, [
@@ -636,6 +669,15 @@ unsafe fn USBCTRL_IRQ() {
         if hidio_intf.is_some() {
           let hidio = hidio_intf.unwrap();
           let _ = hidio.rx_packetbuffer_decode();
+          let tout = unsafe { HID_TERMOUT.pop() };
+          if tout.is_some() {
+            hidio.h0034_terminalout(
+              h0034::Cmd {
+                output: String::from(tout.unwrap().as_str()),
+              },
+              true,
+            );
+          }
           usb_hid.pull_hidio(hidio);
           usb_hid.push_hidio(hidio);
         }
