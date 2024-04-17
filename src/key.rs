@@ -24,6 +24,7 @@ pub enum Modules {
   TapStr,
   RGBKey,
   SendString,
+  SendHIDRaw,
   LayerHold,
   Transparent,
 }
@@ -39,6 +40,7 @@ impl Modules {
       Modules::TapStr => "tps",
       Modules::RGBKey => "rgk",
       Modules::SendString => "sst",
+      Modules::SendHIDRaw => "shr",
       Modules::LayerHold => "lyh",
       Modules::Transparent => "transparent",
     }
@@ -52,6 +54,7 @@ impl Modules {
       "tps" => Ok(Modules::TapStr),
       "rgk" => Ok(Modules::RGBKey),
       "sst" => Ok(Modules::SendString),
+      "shr" => Ok(Modules::SendHIDRaw),
       "lyh" => Ok(Modules::LayerHold),
       "transparent" => Ok(Modules::Transparent),
       _ => Err(()),
@@ -89,10 +92,10 @@ impl Key {
   fn get_keys(&mut self, ctx: Context) -> [Option<KeyCode>; 4] {
     match self.typ {
       Modules::Default => match self.state {
-        StateType::Tap => <Key as Default>::tap(self, ctx),
-        StateType::Hold => <Key as Default>::hold(self, ctx),
-        StateType::Idle => <Key as Default>::idle(self, ctx),
-        StateType::Off => <Key as Default>::off(self, ctx),
+        StateType::Tap => <Key as Default>::tap(self),
+        StateType::Hold => <Key as Default>::hold(self),
+        StateType::Idle => <Key as Default>::idle(self),
+        StateType::Off => <Key as Default>::off(self),
       },
       Modules::ModTap => match self.state {
         StateType::Tap => <Key as mod_tap::ModTap>::tap(self, ctx),
@@ -129,6 +132,12 @@ impl Key {
         StateType::Hold => <Key as sendstring::SendString>::hold(self, ctx),
         StateType::Idle => <Key as sendstring::SendString>::idle(self, ctx),
         StateType::Off => <Key as sendstring::SendString>::off(self, ctx),
+      },
+      Modules::SendHIDRaw => match self.state {
+        StateType::Tap => <Key as sendhid::SendHID>::tap(self),
+        StateType::Hold => <Key as sendhid::SendHID>::hold(self),
+        StateType::Idle => <Key as sendhid::SendHID>::idle(self),
+        StateType::Off => <Key as sendhid::SendHID>::off(self),
       },
       Modules::LayerHold => match self.state {
         StateType::Tap => <Key as layer_hold::LayerHold>::tap(self, ctx),
@@ -201,10 +210,10 @@ pub trait Default {
   where
     Self: Sized,
     Self: Default;
-  fn tap(&mut self, ctx: Context) -> [Option<KeyCode>; 4];
-  fn hold(&mut self, ctx: Context) -> [Option<KeyCode>; 4];
-  fn idle(&self, _ctx: Context) -> [Option<KeyCode>; 4];
-  fn off(&mut self, _ctx: Context) -> [Option<KeyCode>; 4];
+  fn tap(&mut self) -> [Option<KeyCode>; 4];
+  fn hold(&mut self) -> [Option<KeyCode>; 4];
+  fn idle(&self) -> [Option<KeyCode>; 4];
+  fn off(&mut self) -> [Option<KeyCode>; 4];
 }
 
 impl Default for Key {
@@ -227,7 +236,7 @@ impl Default for Key {
     }
   }
 
-  fn tap(&mut self, _ctx: Context) -> [Option<KeyCode>; 4] {
+  fn tap(&mut self) -> [Option<KeyCode>; 4] {
     if self.keycode[0].is_some() {
       let kc0 = self.keycode[0].unwrap();
       if self.prevstate == StateType::Off {
@@ -237,7 +246,7 @@ impl Default for Key {
     self.keycode
   }
 
-  fn hold(&mut self, _ctx: Context) -> [Option<KeyCode>; 4] {
+  fn hold(&mut self) -> [Option<KeyCode>; 4] {
     if self.keycode[0].is_some() {
       let kc0 = self.keycode[0].unwrap();
       action(CallbackActions::Press, ARGS::KS { code: kc0 });
@@ -247,9 +256,9 @@ impl Default for Key {
     }
   }
 
-  fn idle(&self, _ctx: Context) -> [Option<KeyCode>; 4] { [None; 4] }
+  fn idle(&self) -> [Option<KeyCode>; 4] { [None; 4] }
 
-  fn off(&mut self, _ctx: Context) -> [Option<KeyCode>; 4] {
+  fn off(&mut self) -> [Option<KeyCode>; 4] {
     if self.keycode[0].is_some() {
       let kc0 = self.keycode[0].unwrap();
       if self.state != self.prevstate {

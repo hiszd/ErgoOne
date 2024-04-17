@@ -15,6 +15,7 @@ use crate::mods::mod_tap::ModTap;
 use crate::mods::mod_tapcom::TapCom;
 use crate::mods::mod_tapstr::TapStr;
 use crate::mods::rgb_key::RGBKey;
+use crate::mods::sendhid::SendHID;
 use crate::mods::sendstring::SendString;
 use crate::{key::Key, key_codes::KeyCode};
 use crate::{Context, ARGS};
@@ -200,6 +201,7 @@ impl<const RSIZE: usize, const CSIZE: usize> Matrix<RSIZE, CSIZE> {
       | Modules::ModCombo
       | Modules::RGBKey
       | Modules::LayerHold
+      | Modules::SendHIDRaw
       | Modules::SendString => {
         codes.0 = key.scan(self.rows[row].is_high(), ctx);
       }
@@ -256,7 +258,7 @@ impl<const RSIZE: usize, const CSIZE: usize> Matrix<RSIZE, CSIZE> {
           let mut key: &mut Key = &mut self.state[self.layer_active].matrix[r][c];
           match key.typ {
             Modules::Default => {
-              <Key as Default>::off(&mut key, ctx);
+              <Key as Default>::off(&mut key);
             }
             Modules::ModTap => {
               <Key as ModTap>::off(&mut key, ctx);
@@ -277,6 +279,9 @@ impl<const RSIZE: usize, const CSIZE: usize> Matrix<RSIZE, CSIZE> {
             // Modules::LayerHold => {
             //   <Key as LayerHold>::off(&mut key, ctx);
             // }
+            Modules::SendHIDRaw => {
+              <Key as SendHID>::off(&mut key);
+            }
             Modules::SendString => {
               <Key as SendString>::off(&mut key, ctx);
             }

@@ -117,21 +117,17 @@ impl Emitter {
   }
   fn key_up(&mut self, args: ARGS) {
     match args {
-      ARGS::KS { code } => {
-          match code {
-              KeyCode::Num_1zzz => {
-                  action(CallbackActions::SendHIDRaw, ARGS::HID {
-                      data: String::from("volume:100"),
-                  });
-              }
-              KeyCode::Num_2zzz => {
-                  action(CallbackActions::SendHIDRaw, ARGS::HID {
-                      data: String::from("volume:0"),
-                  });
-              }
-              _ => {}
-          }
-      }
+      ARGS::KS { code } => match code {
+        KeyCode::Num_1zzz => {
+          action(CallbackActions::SendHIDRaw, ARGS::HID {
+            data: "volume:100",
+          });
+        }
+        KeyCode::Num_2zzz => {
+          action(CallbackActions::SendHIDRaw, ARGS::HID { data: "volume:0" });
+        }
+        _ => {}
+      },
       _ => info!("Expected ARGS::KS but got something else"),
     }
     self.push(Event {

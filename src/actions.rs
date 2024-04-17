@@ -3,9 +3,9 @@ pub enum CallbackActions {
   Press,
   Release,
   RGBSet,
+  SendHIDRaw,
   SendString,
   SetLayer,
   IncLayer,
   DecLayer,
-  SendHIDRaw,
 }

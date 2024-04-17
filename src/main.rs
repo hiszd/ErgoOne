@@ -13,6 +13,7 @@ mod keyscanning;
 mod macros;
 mod mods;
 mod secrets;
+use core::borrow::BorrowMut;
 use core::sync::atomic::AtomicBool;
 use core::sync::atomic::{AtomicU8, Ordering};
 
@@ -136,7 +137,6 @@ impl<const H: usize> KiibohdCommandInterface<H> for HidioInterface<H> {
 static mut KBD_LAYER: AtomicU8 = AtomicU8::new(0);
 static mut SENDINGSTRING: AtomicBool = AtomicBool::new(false);
 static mut QUEUEDSTRING: AtomicBool = AtomicBool::new(false);
-static mut HID_TERMOUT: Vec<String<30>, 5> = Vec::new();
 
 #[derive(Debug, Clone, PartialEq, PartialOrd)]
 pub enum ARGS {
@@ -145,7 +145,7 @@ pub enum ARGS {
   STR { s: String<30> },
   LYR { l: usize },
   BLN { b: bool },
-  HID { data: String<30> },
+  HID { data: &'static str },
   NON {},
 }
 
@@ -163,7 +163,7 @@ impl defmt::Format for ARGS {
   }
 }
 
-static mut EMITTER: events::Emitter = events::Emitter::new();
+// static mut EMITTER: events::Emitter = events::Emitter::new();
 
 /// execute function for key code
 pub fn action(action: CallbackActions, ops: ARGS) {
@@ -182,7 +182,7 @@ pub fn action(action: CallbackActions, ops: ARGS) {
                 {
                   Ok(_) => {
                     unsafe { ACTIVE_QUEUE.enqueue(code) };
-                    unsafe { EMITTER.call(EventType::KeyDown, ARGS::KS { code }) };
+                    // unsafe { EMITTER.call(EventType::KeyDown, ARGS::KS { code }) };
                   }
                   Err(err) => error!("{}", err),
                 }
@@ -210,7 +210,7 @@ pub fn action(action: CallbackActions, ops: ARGS) {
               {
                 Ok(_) => {
                   unsafe { ACTIVE_QUEUE.dequeue(code) };
-                  unsafe { EMITTER.call(EventType::KeyUp, ARGS::KS { code }) };
+                  // unsafe { EMITTER.call(EventType::KeyUp, ARGS::KS { code }) };
                 }
                 Err(err) => error!("{}", err),
               }
@@ -230,10 +230,34 @@ pub fn action(action: CallbackActions, ops: ARGS) {
         RCOL.store(r, Ordering::Relaxed);
         GCOL.store(g, Ordering::Relaxed);
         BCOL.store(b, Ordering::Relaxed);
-        unsafe { EMITTER.call(EventType::RgbSet, ARGS::RGB { r, g, b }) };
+        // unsafe { EMITTER.call(EventType::RgbSet, ARGS::RGB { r, g, b }) };
       }
       _ => {
         error!("Expected ARGS::RGB but got something else");
+      }
+    },
+    CallbackActions::SendHIDRaw => match ops {
+      ARGS::HID { data } => {
+        critical_section::with(|_| {
+          let hidio_intf = unsafe { HIDIO_INTF.borrow_mut().get_mut().as_mut() };
+          if hidio_intf.is_some() {
+            let hidio = hidio_intf.unwrap();
+            match hidio.h0034_terminalout(
+              h0034::Cmd {
+                output: String::from(data),
+              },
+              true,
+            ) {
+              Ok(_) => {
+                println!("Sent: {}", data)
+              }
+              Err(err) => error!("{}", err),
+            }
+          }
+        });
+      }
+      _ => {
+        error!("Expected ARGS::HID but got something else");
       }
     },
     CallbackActions::SendString => match ops {
@@ -244,7 +268,7 @@ pub fn action(action: CallbackActions, ops: ARGS) {
           let code = KeyCode::from_char(e);
           if code.len() != 0 {
             unsafe { STRING_QUEUE.push(code) };
-            unsafe { EMITTER.call(EventType::StringSent, ARGS::STR { s: s.clone() }) };
+            // unsafe { EMITTER.call(EventType::StringSent, ARGS::STR { s: s.clone() }) };
           }
         })
       }
@@ -256,7 +280,7 @@ pub fn action(action: CallbackActions, ops: ARGS) {
       ARGS::LYR { l } => {
         println!("Layer: {}", l);
         unsafe { KBD_LAYER.store(l as u8, Ordering::Relaxed) };
-        unsafe { EMITTER.call(EventType::LayerSet, ARGS::LYR { l }) };
+        // unsafe { EMITTER.call(EventType::LayerSet, ARGS::LYR { l }) };
       }
       _ => {
         error!("Expected ARGS::LYR but got something else");
@@ -282,17 +306,6 @@ pub fn action(action: CallbackActions, ops: ARGS) {
       }
       _ => {
         error!("Expected ARGS::NON but got something else");
-      }
-    },
-    CallbackActions::SendHIDRaw => match ops {
-      ARGS::HID { data } => match unsafe { HID_TERMOUT.push(data.clone()) } {
-        Ok(_) => {
-          unsafe { EMITTER.call(EventType::HidRawSent, ARGS::HID { data }) };
-        }
-        Err(err) => error!("{}", err),
-      },
-      _ => {
-        error!("Expected ARGS::HID but got something else");
       }
     },
   }
@@ -588,6 +601,7 @@ fn main() -> ! {
         key_queue: unsafe { ACTIVE_QUEUE.get_keys() },
       },
     );
+
     unsafe { POLLCOMPLETE.store(false, Ordering::Relaxed) };
   }
 }
@@ -665,22 +679,14 @@ unsafe fn USBCTRL_IRQ() {
     if let Some(usb_hid) = USB_HID.as_mut() {
       if usb_dev.poll(&mut usb_hid.interfaces()) {
         usb_hid.pull();
-        let hidio_intf = critical_section::with(|_| HIDIO_INTF.get_mut().as_mut());
-        if hidio_intf.is_some() {
-          let hidio = hidio_intf.unwrap();
-          let _ = hidio.rx_packetbuffer_decode();
-          let tout = unsafe { HID_TERMOUT.pop() };
-          if tout.is_some() {
-            hidio.h0034_terminalout(
-              h0034::Cmd {
-                output: String::from(tout.unwrap().as_str()),
-              },
-              true,
-            );
+        critical_section::with(|_| {
+          let hidio_intf = HIDIO_INTF.borrow_mut().get_mut().as_mut();
+          if hidio_intf.is_some() {
+            let hidio = hidio_intf.unwrap();
+            usb_hid.push_hidio(hidio);
+            usb_hid.pull_hidio(hidio);
           }
-          usb_hid.pull_hidio(hidio);
-          usb_hid.push_hidio(hidio);
-        }
+        });
         unsafe { POLLCOMPLETE.store(true, Ordering::Relaxed) }
       }
     }

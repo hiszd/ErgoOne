@@ -9,6 +9,7 @@ use crate::mods::mod_tap::ModTap;
 use crate::mods::mod_tapcom::TapCom;
 use crate::mods::mod_tapstr::TapStr;
 use crate::mods::rgb_key::RGBKey;
+use crate::mods::sendhid::SendHID;
 use crate::mods::sendstring::SendString;
 use crate::mods::transparent::Transparent;
 use crate::secrets::*;
@@ -33,7 +34,7 @@ pub const ERGOONE_1: [&str; 80] = [
 "transparent",          "dft,Fun_F1zz","dft,Fun_F2zz","dft,Fun_F3zz","dft,Fun_F4zz","dft,Fun_F5zz","transparent",          "transparent", "transparent", "transparent", "dft,Fun_F6zz","dft,Fun_F7zz","dft,Fun_F8zz","dft,Fun_F9zz","dft,Fun_F10z","dft,Fun_F11z",
 "transparent",          "transparent", "dft,Arw_Upzz","transparent", "transparent", "transparent", "transparent",          "transparent", "transparent", "transparent", "transparent", "dft,Num_7zzz","dft,Num_8zzz","dft,Num_9zzz","transparent", "dft,Fun_F12z",
 "transparent",          "dft,Arw_Left","dft,Arw_Down","dft,Arw_Rght","transparent", "transparent", "transparent",          WORKUSER,      "transparent", "transparent", "transparent", "dft,Num_4zzz","dft,Num_5zzz","dft,Num_6zzz","transparent", "transparent", 
-"transparent",          "transparent", "transparent", "transparent", "transparent", "transparent", PERSONAL,               "transparent", "transparent", "dft,Fun_Delz","transparent", "dft,Num_1zzz","dft,Num_2zzz","dft,Num_3zzz","transparent", "transparent", 
+"transparent",        "shr,volume:100","shr,volume:0","transparent", "transparent", "transparent", PERSONAL,               "transparent", "transparent", "dft,Fun_Delz","transparent", "dft,Num_1zzz","dft,Num_2zzz","dft,Num_3zzz","transparent", "transparent", 
 "transparent",          "transparent", "transparent", "transparent", "transparent", WORKADMIN,     "transparent",          "transparent", "transparent", "transparent", "transparent", "dft,Num_0zzz","transparent", "transparent", "transparent", "transparent", 
 ];
 
@@ -44,7 +45,7 @@ pub const ERGOONE_QWERTY: [&str; 80] = [
 "dft,Fun_Tabz",         "dft,Ltr_Qzzz","dft,Ltr_Wzzz","dft,Ltr_Ezzz","dft,Ltr_Rzzz","dft,Ltr_Tzzz","rgk,255_0_0",          "dft,EEEEEEEE","dft,EEEEEEEE","dft,EEEEEEEE","dft,Ltr_Yzzz","dft,Ltr_Uzzz","dft,Ltr_Izzz","dft,Ltr_Ozzz","dft,Ltr_Pzzz","dft,Sym_BSla",
 "mdt,Fun_Escz,Mod_LCtl","dft,Ltr_Azzz","dft,Ltr_Szzz","dft,Ltr_Dzzz","dft,Ltr_Fzzz","dft,Ltr_Gzzz","dft,Sym_Minz",         "dft,Fun_Spcz","dft,Fun_Entz","dft,Sym_Equz","dft,Ltr_Hzzz","dft,Ltr_Jzzz","dft,Ltr_Kzzz","dft,Ltr_Lzzz","dft,Sym_Scln","dft,Sym_SQut",
 "tps,Mod_LSft,(",       "dft,Ltr_Zzzz","dft,Ltr_Xzzz","dft,Ltr_Czzz","dft,Ltr_Vzzz","dft,Ltr_Bzzz","sst,_",                "dft,Fun_Home","dft,Fun_PgDn","dft,Fun_Bksp","dft,Ltr_Nzzz","dft,Ltr_Mzzz","dft,Sym_Coma","dft,Sym_Perd","dft,Sym_FSla","tps,Mod_RSft,)",
-"dft,Mod_LCtl",         "dft,Mod_LAlt","dft,Mod_LCmd","dft,EEEEEEEE","dft,Sym_LBrk","dft,Mod_LCmd","dft,EEEEEEEE",         "dft,Fun_Endz","dft,Fun_PgUp","dft,EEEEEEEE","lyh,1",     "dft,Sym_RBrk","dft,Arw_Left","dft,Arw_Down","dft,Arw_Upzz","dft,Arw_Rght",
+"dft,Mod_LCtl",         "dft,Mod_LAlt","dft,Mod_LCmd","dft,EEEEEEEE","dft,Sym_LBrk","dft,Mod_LCmd","shr,volume:100",         "dft,Fun_Endz","dft,Fun_PgUp","shr,volume:0","lyh,1",     "dft,Sym_RBrk","dft,Arw_Left","dft,Arw_Down","dft,Arw_Upzz","dft,Arw_Rght",
 ];
 
 pub fn keymap_from<const RSIZE: usize, const CSIZE: usize>(
@@ -90,6 +91,9 @@ pub fn keymap_from<const RSIZE: usize, const CSIZE: usize>(
         }
         Ok(Modules::RGBKey) => {
           m[r][c] = RGBKey::new(map.clone());
+        }
+        Ok(Modules::SendHIDRaw) => {
+          m[r][c] = SendHID::new(map.clone());
         }
         Ok(Modules::SendString) => {
           m[r][c] = SendString::new(map.clone());
