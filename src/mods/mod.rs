@@ -6,4 +6,5 @@ pub mod mod_tapstr;
 pub mod rgb_key;
 pub mod sendstring;
 pub mod sendhid;
+pub mod hidvol;
 pub mod transparent;

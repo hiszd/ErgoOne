@@ -5,7 +5,7 @@ use crate::actions::CallbackActions;
 use crate::key_codes::KeyCode;
 use crate::{action, ARGS};
 
-#[derive(Debug, Clone, PartialEq, PartialOrd)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Event {
   pub typ: EventType,
   pub args: ARGS,

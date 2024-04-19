@@ -25,7 +25,7 @@ use defmt_rtt as _;
 use heapless::spsc::{Producer, Queue};
 use heapless::{String, Vec};
 use keyscanning::{Col, Row};
-use kiibohd_hid_io::{h0034, CommandInterface, Commands, HidIoCommandId, KiibohdCommandInterface};
+use kiibohd_hid_io::{h0034, CommandInterface, Commands, HidIoCommandId, KiibohdCommandInterface, h0060};
 use kiibohd_usb::KeyState;
 use panic_probe as _;
 use rp2040_hal::gpio::bank0::Gpio7;
@@ -94,6 +94,9 @@ impl<const H: usize> KiibohdCommandInterface<H> for HidioInterface<H> {
   fn h0001_device_name(&self) -> Option<&str> { Some("ErgoOne") }
   fn h0001_firmware_name(&self) -> Option<&str> { Some("ErgoOne") }
   fn h0001_device_mcu(&self) -> Option<&str> { Some("RP2040") }
+  fn h0060_volume(&mut self, _data: h0060::Cmd) -> Result<h0060::Ack, h0060::Nak> {
+    Ok(h0060::Ack {})
+  }
   fn h0031_terminalinput(&mut self, data: kiibohd_hid_io::h0031::Cmd<H>) -> bool {
     let parts = &data
       .command
@@ -138,7 +141,7 @@ static mut KBD_LAYER: AtomicU8 = AtomicU8::new(0);
 static mut SENDINGSTRING: AtomicBool = AtomicBool::new(false);
 static mut QUEUEDSTRING: AtomicBool = AtomicBool::new(false);
 
-#[derive(Debug, Clone, PartialEq, PartialOrd)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum ARGS {
   KS { code: KeyCode },
   RGB { r: u8, g: u8, b: u8 },
@@ -146,6 +149,7 @@ pub enum ARGS {
   LYR { l: usize },
   BLN { b: bool },
   HID { data: &'static str },
+  VOL { command: h0060::Command, vol: u16},
   NON {},
 }
 
@@ -158,6 +162,7 @@ impl defmt::Format for ARGS {
       ARGS::LYR { l } => defmt::write!(f, "ARGS::LYR {{ l: {} }}", l),
       ARGS::BLN { b } => defmt::write!(f, "ARGS::BLN {{ b: {} }}", b),
       ARGS::HID { data } => defmt::write!(f, "ARGS::HID {{ data: {:?} }}", data),
+      ARGS::VOL { command, vol } => defmt::write!(f, "ARGS::VOL {{ command: {:?}, vol: {} }}", command, vol),
       ARGS::NON {} => defmt::write!(f, "ARGS::NON"),
     }
   }
@@ -258,6 +263,30 @@ pub fn action(action: CallbackActions, ops: ARGS) {
       }
       _ => {
         error!("Expected ARGS::HID but got something else");
+      }
+    },
+    CallbackActions::HIDVol => match ops {
+      ARGS::VOL { command, vol } => {
+        critical_section::with(|_| {
+          let hidio_intf = unsafe { HIDIO_INTF.borrow_mut().get_mut().as_mut() };
+          if hidio_intf.is_some() {
+            let hidio = hidio_intf.unwrap();
+            match hidio.h0060_volume(
+              h0060::Cmd {
+                  command,
+                  vol,
+              },
+            ) {
+              Ok(_) => {
+                println!("Sent: {}, {}", command, vol)
+              }
+              Err(err) => error!("{}", err),
+            }
+          }
+        });
+      }
+      _ => {
+        error!("Expected ARGS::VOL but got something else");
       }
     },
     CallbackActions::SendString => match ops {
@@ -437,6 +466,7 @@ fn main() -> ! {
           HidIoCommandId::GetInfo,
           HidIoCommandId::TestPacket,
           HidIoCommandId::TerminalCmd,
+          HidIoCommandId::Volume,
         ],
         HidioInterface::<256>::new(),
       )

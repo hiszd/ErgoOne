@@ -48,9 +48,9 @@ impl RGBKey for Key {
       return [None; 4];
     };
     action(CallbackActions::RGBSet, ARGS::RGB {
-      r: self.stor[0],
-      g: self.stor[1],
-      b: self.stor[2],
+      r: self.stor[0].try_into().unwrap(),
+      g: self.stor[1].try_into().unwrap(),
+      b: self.stor[2].try_into().unwrap(),
     });
     [Some(kc1), None, None, None]
   }

@@ -9,6 +9,7 @@ use usbd_hid::descriptor::KeyboardReport;
 use crate::actions::CallbackActions;
 use crate::key::{Default, Modules};
 use crate::key_mapping::keymap_from;
+use crate::mods::hidvol::HIDVol;
 use crate::mods::layer_hold::LayerHold;
 use crate::mods::mod_combo::ModCombo;
 use crate::mods::mod_tap::ModTap;
@@ -202,6 +203,7 @@ impl<const RSIZE: usize, const CSIZE: usize> Matrix<RSIZE, CSIZE> {
       | Modules::RGBKey
       | Modules::LayerHold
       | Modules::SendHIDRaw
+      | Modules::HIDVol
       | Modules::SendString => {
         codes.0 = key.scan(self.rows[row].is_high(), ctx);
       }
@@ -281,6 +283,9 @@ impl<const RSIZE: usize, const CSIZE: usize> Matrix<RSIZE, CSIZE> {
             // }
             Modules::SendHIDRaw => {
               <Key as SendHID>::off(&mut key);
+            }
+            Modules::HIDVol => {
+              <Key as HIDVol>::off(&mut key);
             }
             Modules::SendString => {
               <Key as SendString>::off(&mut key, ctx);

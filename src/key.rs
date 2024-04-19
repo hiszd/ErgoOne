@@ -25,6 +25,7 @@ pub enum Modules {
   RGBKey,
   SendString,
   SendHIDRaw,
+  HIDVol,
   LayerHold,
   Transparent,
 }
@@ -41,6 +42,7 @@ impl Modules {
       Modules::RGBKey => "rgk",
       Modules::SendString => "sst",
       Modules::SendHIDRaw => "shr",
+      Modules::HIDVol => "vol",
       Modules::LayerHold => "lyh",
       Modules::Transparent => "transparent",
     }
@@ -55,6 +57,7 @@ impl Modules {
       "rgk" => Ok(Modules::RGBKey),
       "sst" => Ok(Modules::SendString),
       "shr" => Ok(Modules::SendHIDRaw),
+      "vol" => Ok(Modules::HIDVol),
       "lyh" => Ok(Modules::LayerHold),
       "transparent" => Ok(Modules::Transparent),
       _ => Err(()),
@@ -81,7 +84,7 @@ pub struct Key {
   /// Array of booleans for modules to use as a way to store information from the previous poll
   pub previnfo: [bool; 6],
   /// Stores information needed by internal functions(e.g. colors for RGB keys)
-  pub stor: [u8; 6],
+  pub stor: [u16; 6],
   /// holds a &str of the type of the key
   pub typ: Modules,
   /// holds a &str for sending
@@ -138,6 +141,12 @@ impl Key {
         StateType::Hold => <Key as sendhid::SendHID>::hold(self),
         StateType::Idle => <Key as sendhid::SendHID>::idle(self),
         StateType::Off => <Key as sendhid::SendHID>::off(self),
+      },
+      Modules::HIDVol => match self.state {
+        StateType::Tap => <Key as hidvol::HIDVol>::tap(self),
+        StateType::Hold => <Key as hidvol::HIDVol>::hold(self),
+        StateType::Idle => <Key as hidvol::HIDVol>::idle(self),
+        StateType::Off => <Key as hidvol::HIDVol>::off(self),
       },
       Modules::LayerHold => match self.state {
         StateType::Tap => <Key as layer_hold::LayerHold>::tap(self, ctx),

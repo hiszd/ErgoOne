@@ -3,6 +3,7 @@ use heapless::Vec;
 
 use crate::key::{Default, Key, Modules};
 use crate::keyscanning::KeyMatrix;
+use crate::mods::hidvol::HIDVol;
 use crate::mods::layer_hold::LayerHold;
 use crate::mods::mod_combo::ModCombo;
 use crate::mods::mod_tap::ModTap;
@@ -34,7 +35,7 @@ pub const ERGOONE_1: [&str; 80] = [
 "transparent",          "dft,Fun_F1zz","dft,Fun_F2zz","dft,Fun_F3zz","dft,Fun_F4zz","dft,Fun_F5zz","transparent",          "transparent", "transparent", "transparent", "dft,Fun_F6zz","dft,Fun_F7zz","dft,Fun_F8zz","dft,Fun_F9zz","dft,Fun_F10z","dft,Fun_F11z",
 "transparent",          "transparent", "dft,Arw_Upzz","transparent", "transparent", "transparent", "transparent",          "transparent", "transparent", "transparent", "transparent", "dft,Num_7zzz","dft,Num_8zzz","dft,Num_9zzz","transparent", "dft,Fun_F12z",
 "transparent",          "dft,Arw_Left","dft,Arw_Down","dft,Arw_Rght","transparent", "transparent", "transparent",          WORKUSER,      "transparent", "transparent", "transparent", "dft,Num_4zzz","dft,Num_5zzz","dft,Num_6zzz","transparent", "transparent", 
-"transparent",        "shr,volume:100","shr,volume:0","transparent", "transparent", "transparent", PERSONAL,               "transparent", "transparent", "dft,Fun_Delz","transparent", "dft,Num_1zzz","dft,Num_2zzz","dft,Num_3zzz","transparent", "transparent", 
+"transparent",        "vol,set:100","vol,set:0","transparent", "transparent", "transparent", PERSONAL,               "transparent", "transparent", "dft,Fun_Delz","transparent", "dft,Num_1zzz","dft,Num_2zzz","dft,Num_3zzz","transparent", "transparent", 
 "transparent",          "transparent", "transparent", "transparent", "transparent", WORKADMIN,     "transparent",          "transparent", "transparent", "transparent", "transparent", "dft,Num_0zzz","transparent", "transparent", "transparent", "transparent", 
 ];
 
@@ -94,6 +95,9 @@ pub fn keymap_from<const RSIZE: usize, const CSIZE: usize>(
         }
         Ok(Modules::SendHIDRaw) => {
           m[r][c] = SendHID::new(map.clone());
+        }
+        Ok(Modules::HIDVol) => {
+          m[r][c] = HIDVol::new(map.clone());
         }
         Ok(Modules::SendString) => {
           m[r][c] = SendString::new(map.clone());

@@ -1,4 +1,3 @@
-use defmt::debug;
 use defmt::info;
 use heapless::Vec;
 
@@ -24,7 +23,7 @@ pub trait LayerHold {
 
 impl LayerHold for Key {
   fn new(Args: Vec<&str, 4>, layer: usize) -> Self {
-    let Stor0: u8 = match Args[0].parse() {
+    let Stor0: u16 = match Args[0].parse() {
       Ok(v) => v,
       Err(_) => 0,
     };
@@ -36,13 +35,13 @@ impl LayerHold for Key {
       prevstate: StateType::Off,
       keycode: [Some(KeyCode::EEEEEEEE), None, None, None],
       previnfo: [false; 6],
-      stor: [Stor0, layer as u8, 0, 0, 0, 0],
+      stor: [Stor0, layer as u16, 0, 0, 0, 0],
       typ: Modules::LayerHold,
       strng: "",
     }
   }
 
-  fn set_layer(&mut self, layer: usize) { self.stor[1] = layer as u8; }
+  fn set_layer(&mut self, layer: usize) { self.stor[1] = layer as u16; }
 
   fn tap(&mut self, _ctx: Context) -> [Option<KeyCode>; 4] {
     if self.prevstate != StateType::Tap {
