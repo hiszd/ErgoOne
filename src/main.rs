@@ -96,9 +96,6 @@ impl<const H: usize> KiibohdCommandInterface<H> for HidioInterface<H> {
   fn h0001_device_name(&self) -> Option<&str> { Some("ErgoOne") }
   fn h0001_firmware_name(&self) -> Option<&str> { Some("ErgoOne") }
   fn h0001_device_mcu(&self) -> Option<&str> { Some("RP2040") }
-  fn h0060_volume_cmd(&mut self, _data: h0060::Cmd) -> Result<h0060::Ack, h0060::Nak> {
-    Ok(h0060::Ack {})
-  }
   fn h0031_terminalinput(&mut self, data: kiibohd_hid_io::h0031::Cmd<H>) -> bool {
     let parts = &data
       .command
@@ -275,9 +272,10 @@ pub fn action(action: CallbackActions, ops: ARGS) {
           let hidio_intf = unsafe { HIDIO_INTF.borrow_mut().get_mut().as_mut() };
           if hidio_intf.is_some() {
             let hidio = hidio_intf.unwrap();
-            match hidio.h0060_volume(h0060::Cmd { command, vol }) {
+            let cmd = h0060::Cmd { command, vol };
+            match hidio.h0060_volume(cmd.clone()) {
               Ok(_) => {
-                println!("Sent: {}, {}", command, vol)
+                println!("Sent: {}", cmd);
               }
               Err(err) => error!("{}", err),
             }
