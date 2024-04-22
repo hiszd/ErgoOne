@@ -117,7 +117,7 @@ impl TapStr for Key {
       StateType::Off => {
         if self.previnfo[4] && !self.previnfo[0] {
           match self.stor[4] {
-            2 => {
+            1 => {
               if !self.exist_next(ctx, kc0, true) {
                 action(CallbackActions::SendString, ARGS::STR {
                   s: self.strng.into(),
@@ -125,7 +125,7 @@ impl TapStr for Key {
                 self.stor[4] += 1;
               }
             }
-            3 => {
+            2 => {
               self.previnfo[4] = false;
               self.stor[4] = 0;
             }
