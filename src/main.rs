@@ -48,7 +48,7 @@ use usbd_hid::hid_class::HidCountryCode;
 use ws2812_pio::Ws2812;
 
 use self::actions::CallbackActions;
-use self::events::EventType;
+// use self::events::EventType;
 use self::keyscanning::Matrix;
 use self::keyscanning::StateType;
 use self::keyscanning::{KeyQueue, KeyQueueMulti};
@@ -96,6 +96,12 @@ impl<const H: usize> KiibohdCommandInterface<H> for HidioInterface<H> {
   fn h0001_device_name(&self) -> Option<&str> { Some("ErgoOne") }
   fn h0001_firmware_name(&self) -> Option<&str> { Some("ErgoOne") }
   fn h0001_device_mcu(&self) -> Option<&str> { Some("RP2040") }
+  fn h0001_firmware_version(&self) -> Option<&str> {
+    Some(env!("CARGO_PKG_VERSION"))
+  }
+  fn h0001_device_serial_number(&self) -> Option<&str> {
+        Some("000001")
+  }
   fn h0031_terminalinput(&mut self, data: kiibohd_hid_io::h0031::Cmd<H>) -> bool {
     let parts = &data
       .command
@@ -355,7 +361,7 @@ static mut HIDIO_INTF: Mutex<
 > = Mutex::new(None);
 
 fn core1_task(
-  sys_freq: u32,
+  _sys_freq: u32,
   perif_freq: fugit::Rate<u32, 1, 1>,
   pin: Pin<Gpio7, <Gpio7 as PinId>::Reset>,
 ) -> ! {
@@ -521,7 +527,7 @@ fn main() -> ! {
     layer: usize,
     state: StateType,
     prevstate: StateType,
-    keycodes: [KeyCode; 2],
+    _keycodes: [KeyCode; 2],
   ) {
     let rowstr: String<2> = String::from(row as u32);
     let colstr: String<2> = String::from(col as u32);
@@ -633,7 +639,7 @@ fn main() -> ! {
   }
 }
 
-fn string_sender(press: bool, delay: &mut Delay) {
+fn string_sender(_press: bool, delay: &mut Delay) {
   let kbd = unsafe { KBD_PRODUCER.get_mut() };
   let codes = unsafe { STRING_QUEUE.get() };
   if codes.len() > 0 {
