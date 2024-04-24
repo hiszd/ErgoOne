@@ -600,6 +600,13 @@ fn main() -> ! {
     delay.delay_us(1000u32);
     unsafe {
       if let Some(usb_hid) = USB_HID.as_mut() {
+        let hidio_intf = HIDIO_INTF.borrow_mut().get_mut().as_mut();
+        if hidio_intf.is_some() {
+          let hidio = hidio_intf.unwrap();
+          usb_hid.push_hidio(hidio);
+        }
+      }
+      if let Some(usb_hid) = USB_HID.as_mut() {
         usb_hid.update();
         match usb_hid.push() {
           Ok(_) => {
@@ -712,14 +719,11 @@ unsafe fn USBCTRL_IRQ() {
     if let Some(usb_hid) = USB_HID.as_mut() {
       if usb_dev.poll(&mut usb_hid.interfaces()) {
         usb_hid.pull();
-        critical_section::with(|_| {
           let hidio_intf = HIDIO_INTF.borrow_mut().get_mut().as_mut();
           if hidio_intf.is_some() {
             let hidio = hidio_intf.unwrap();
-            usb_hid.push_hidio(hidio);
             usb_hid.pull_hidio(hidio);
           }
-        });
         unsafe { POLLCOMPLETE.store(true, Ordering::Relaxed) }
       }
     }
