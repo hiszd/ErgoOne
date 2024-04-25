@@ -282,6 +282,15 @@ pub fn action(action: CallbackActions, ops: ARGS) {
             match hidio.h0060_volume(cmd.clone()) {
               Ok(_) => {
                 println!("Sent: {}", cmd);
+                unsafe {
+                  if let Some(usb_hid) = USB_HID.as_mut() {
+                    let hidio_intf = HIDIO_INTF.borrow_mut().get_mut().as_mut();
+                    if hidio_intf.is_some() {
+                      let hidio = hidio_intf.unwrap();
+                      usb_hid.push_hidio(hidio);
+                    }
+                  }
+                }
               }
               Err(err) => error!("{}", err),
             }
@@ -599,13 +608,7 @@ fn main() -> ! {
     // Delay by 1ms
     delay.delay_us(1000u32);
     unsafe {
-      if let Some(usb_hid) = USB_HID.as_mut() {
-        let hidio_intf = HIDIO_INTF.borrow_mut().get_mut().as_mut();
-        if hidio_intf.is_some() {
-          let hidio = hidio_intf.unwrap();
-          usb_hid.push_hidio(hidio);
-        }
-      }
+      
       if let Some(usb_hid) = USB_HID.as_mut() {
         usb_hid.update();
         match usb_hid.push() {
