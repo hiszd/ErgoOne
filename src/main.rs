@@ -13,6 +13,7 @@ mod keyscanning;
 mod macros;
 mod mods;
 mod secrets;
+mod util;
 use core::borrow::BorrowMut;
 use core::sync::atomic::AtomicBool;
 use core::sync::atomic::{AtomicU8, Ordering};
@@ -26,7 +27,7 @@ use heapless::spsc::{Producer, Queue};
 use heapless::{String, Vec};
 use keyscanning::{Col, Row};
 use kiibohd_hid_io::{
-  h0034, h0060, CommandInterface, Commands, HidIoCommandId, KiibohdCommandInterface,
+  h0034, h0060, CommandInterface, Commands, HidIoCommandId, KiibohdCommandInterface
 };
 use kiibohd_usb::KeyState;
 use panic_probe as _;
@@ -278,22 +279,42 @@ pub fn action(action: CallbackActions, ops: ARGS) {
           let hidio_intf = unsafe { HIDIO_INTF.borrow_mut().get_mut().as_mut() };
           if hidio_intf.is_some() {
             let hidio = hidio_intf.unwrap();
-            let cmd = h0060::Cmd { command, vol };
-            match hidio.h0060_volume(cmd.clone()) {
-              Ok(_) => {
-                println!("Sent: {}", cmd);
-                unsafe {
-                  if let Some(usb_hid) = USB_HID.as_mut() {
-                    let hidio_intf = HIDIO_INTF.borrow_mut().get_mut().as_mut();
-                    if hidio_intf.is_some() {
-                      let hidio = hidio_intf.unwrap();
-                      usb_hid.push_hidio(hidio);
+            let mut string: String<256> = String::new();
+            string.push_str("volume-").unwrap();
+            string.push_str(command.try_into().unwrap()).unwrap();
+            string.push_str(":").unwrap();
+            string.push_str(util::itoa(vol as i16).as_str()).unwrap();
+            let cmd = h0034::Cmd { output: string };
+            match hidio.h0034_terminalout(cmd, false) {
+                Ok(_) => {
+                    // println!("Sent: {}", cmd);
+                    unsafe {
+                        if let Some(usb_hid) = USB_HID.as_mut() {
+                            let hidio_intf = HIDIO_INTF.borrow_mut().get_mut().as_mut();
+                            if hidio_intf.is_some() {
+                                let hidio = hidio_intf.unwrap();
+                                usb_hid.push_hidio(hidio);
+                            }
+                        }
                     }
-                  }
                 }
-              }
-              Err(err) => error!("{}", err),
+                Err(err) => error!("{}", err),
             }
+            // match hidio.h0060_volume(cmd.clone()) {
+            //   Ok(_) => {
+            //     println!("Sent: {}", cmd);
+            //     unsafe {
+            //       if let Some(usb_hid) = USB_HID.as_mut() {
+            //         let hidio_intf = HIDIO_INTF.borrow_mut().get_mut().as_mut();
+            //         if hidio_intf.is_some() {
+            //           let hidio = hidio_intf.unwrap();
+            //           usb_hid.push_hidio(hidio);
+            //         }
+            //       }
+            //     }
+            //   }
+            //   Err(err) => error!("{}", err),
+            // }
           }
         });
       }
