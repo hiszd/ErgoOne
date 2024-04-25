@@ -1,4 +1,3 @@
-use defmt::error;
 use defmt::info;
 use heapless::Vec;
 use kiibohd_hid_io::h0060;
@@ -7,7 +6,6 @@ use crate::action;
 use crate::actions::CallbackActions;
 use crate::key::Modules;
 use crate::keyscanning::StateType;
-use crate::Context;
 use crate::ARGS;
 use crate::{key::Key, key_codes::KeyCode};
 
@@ -29,6 +27,23 @@ impl HIDVol for Key {
     }
     let value = Args[0].split(':').collect::<Vec<&str, 2>>();
     let command = h0060::Command::try_from(value[0]).unwrap();
+    let volreq = match command {
+      h0060::Command::Mute | h0060::Command::UnMute | h0060::Command::ToggleMute => false,
+      _ => true,
+    };
+    let vol = 
+      if value.len() < 2 && volreq {
+        panic!("Volume value required")
+      } else if value.len() == 2 {
+        match value[1].parse::<u16>() {
+          Ok(n) => n,
+          Err(_) => {
+            panic!("Invalid volume value: {}", value[1]);
+          },
+        }
+      } else {
+          0
+      };
     Key {
       cycles: 0,
       raw_state: false,
@@ -37,7 +52,7 @@ impl HIDVol for Key {
       prevstate: StateType::Off,
       keycode: [Some(KeyCode::EEEEEEEE), None, None, None],
       previnfo: [false; 6],
-      stor: [u16::try_from(command).unwrap(),value[1].parse::<u16>().unwrap(),0,0,0,0],
+      stor: [u16::try_from(command).unwrap(),vol,0,0,0,0],
       typ: Modules::HIDVol,
       strng: "",
     }
