@@ -25,7 +25,7 @@ impl HIDVol for Key {
     if Args.len() != 1 {
       panic!("SendHID requires 1 argument");
     }
-    let value = Args[0].split(':').collect::<Vec<&str, 2>>();
+    let value = Args[0].split(':').collect::<Vec<&str, 3>>();
     let command = h0060::Command::try_from(value[0]).unwrap();
     let volreq = match command {
       h0060::Command::Mute | h0060::Command::UnMute | h0060::Command::ToggleMute => false,
@@ -54,14 +54,14 @@ impl HIDVol for Key {
       previnfo: [false; 6],
       stor: [u16::try_from(command).unwrap(),vol,0,0,0,0],
       typ: Modules::HIDVol,
-      strng: "",
+      strng: if value.len() > 2 { value[2] } else { "" },
     }
   }
 
   fn tap(&mut self) -> [Option<KeyCode>; 4] {
     if self.prevstate != StateType::Tap {
       info!("HIDVol: {}", self.strng);
-      action(CallbackActions::HIDVol, ARGS::VOL { command: h0060::Command::try_from(self.stor[0]).unwrap(), vol: self.stor[1].try_into().unwrap() });
+      action(CallbackActions::HIDVol, ARGS::VOL { command: h0060::Command::try_from(self.stor[0]).unwrap(), vol: self.stor[1].try_into().unwrap(), app: self.strng  });
     }
     [None; 4]
   }

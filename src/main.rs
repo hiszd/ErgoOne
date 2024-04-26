@@ -27,7 +27,7 @@ use heapless::spsc::{Producer, Queue};
 use heapless::{String, Vec};
 use keyscanning::{Col, Row};
 use kiibohd_hid_io::{
-  h0034, h0060, CommandInterface, Commands, HidIoCommandId, KiibohdCommandInterface
+  h0034, h0060, CommandInterface, Commands, HidIoCommandId, KiibohdCommandInterface,
 };
 use kiibohd_usb::KeyState;
 use panic_probe as _;
@@ -97,12 +97,8 @@ impl<const H: usize> KiibohdCommandInterface<H> for HidioInterface<H> {
   fn h0001_device_name(&self) -> Option<&str> { Some("ErgoOne") }
   fn h0001_firmware_name(&self) -> Option<&str> { Some("ErgoOne") }
   fn h0001_device_mcu(&self) -> Option<&str> { Some("RP2040") }
-  fn h0001_firmware_version(&self) -> Option<&str> {
-    Some(env!("CARGO_PKG_VERSION"))
-  }
-  fn h0001_device_serial_number(&self) -> Option<&str> {
-        Some("000001")
-  }
+  fn h0001_firmware_version(&self) -> Option<&str> { Some(env!("CARGO_PKG_VERSION")) }
+  fn h0001_device_serial_number(&self) -> Option<&str> { Some("000001") }
   fn h0031_terminalinput(&mut self, data: kiibohd_hid_io::h0031::Cmd<H>) -> bool {
     let parts = &data
       .command
@@ -155,7 +151,7 @@ pub enum ARGS {
   LYR { l: usize },
   BLN { b: bool },
   HID { data: &'static str },
-  VOL { command: h0060::Command, vol: u16 },
+  VOL { command: h0060::Command, vol: u16, app: &'static str },
   NON {},
 }
 
@@ -168,8 +164,8 @@ impl defmt::Format for ARGS {
       ARGS::LYR { l } => defmt::write!(f, "ARGS::LYR {{ l: {} }}", l),
       ARGS::BLN { b } => defmt::write!(f, "ARGS::BLN {{ b: {} }}", b),
       ARGS::HID { data } => defmt::write!(f, "ARGS::HID {{ data: {:?} }}", data),
-      ARGS::VOL { command, vol } => {
-        defmt::write!(f, "ARGS::VOL {{ command: {:?}, vol: {} }}", command, vol)
+      ARGS::VOL { command, vol, app } => {
+        defmt::write!(f, "ARGS::VOL {{ command: {:?}, vol: {}, app: {:?} }}", command, vol, app)
       }
       ARGS::NON {} => defmt::write!(f, "ARGS::NON"),
     }
@@ -274,7 +270,7 @@ pub fn action(action: CallbackActions, ops: ARGS) {
       }
     },
     CallbackActions::HIDVol => match ops {
-      ARGS::VOL { command, vol } => {
+      ARGS::VOL { command, vol, app } => {
         critical_section::with(|_| {
           let hidio_intf = unsafe { HIDIO_INTF.borrow_mut().get_mut().as_mut() };
           if hidio_intf.is_some() {
@@ -284,21 +280,25 @@ pub fn action(action: CallbackActions, ops: ARGS) {
             string.push_str(command.try_into().unwrap()).unwrap();
             string.push_str(":").unwrap();
             string.push_str(util::itoa(vol as i16).as_str()).unwrap();
+            if app.len() > 0 {
+              string.push_str(":").unwrap();
+              string.push_str(app).unwrap();
+            }
             let cmd = h0034::Cmd { output: string };
             match hidio.h0034_terminalout(cmd, false) {
-                Ok(_) => {
-                    // println!("Sent: {}", cmd);
-                    unsafe {
-                        if let Some(usb_hid) = USB_HID.as_mut() {
-                            let hidio_intf = HIDIO_INTF.borrow_mut().get_mut().as_mut();
-                            if hidio_intf.is_some() {
-                                let hidio = hidio_intf.unwrap();
-                                usb_hid.push_hidio(hidio);
-                            }
-                        }
+              Ok(_) => {
+                // println!("Sent: {}", cmd);
+                unsafe {
+                  if let Some(usb_hid) = USB_HID.as_mut() {
+                    let hidio_intf = HIDIO_INTF.borrow_mut().get_mut().as_mut();
+                    if hidio_intf.is_some() {
+                      let hidio = hidio_intf.unwrap();
+                      usb_hid.push_hidio(hidio);
                     }
+                  }
                 }
-                Err(err) => error!("{}", err),
+              }
+              Err(err) => error!("{}", err),
             }
             // match hidio.h0060_volume(cmd.clone()) {
             //   Ok(_) => {
@@ -629,7 +629,6 @@ fn main() -> ! {
     // Delay by 1ms
     delay.delay_us(1000u32);
     unsafe {
-      
       if let Some(usb_hid) = USB_HID.as_mut() {
         usb_hid.update();
         match usb_hid.push() {
@@ -743,11 +742,11 @@ unsafe fn USBCTRL_IRQ() {
     if let Some(usb_hid) = USB_HID.as_mut() {
       if usb_dev.poll(&mut usb_hid.interfaces()) {
         usb_hid.pull();
-          let hidio_intf = HIDIO_INTF.borrow_mut().get_mut().as_mut();
-          if hidio_intf.is_some() {
-            let hidio = hidio_intf.unwrap();
-            usb_hid.pull_hidio(hidio);
-          }
+        let hidio_intf = HIDIO_INTF.borrow_mut().get_mut().as_mut();
+        if hidio_intf.is_some() {
+          let hidio = hidio_intf.unwrap();
+          usb_hid.pull_hidio(hidio);
+        }
         unsafe { POLLCOMPLETE.store(true, Ordering::Relaxed) }
       }
     }
