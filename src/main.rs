@@ -746,6 +746,7 @@ unsafe fn USBCTRL_IRQ() {
         if hidio_intf.is_some() {
           let hidio = hidio_intf.unwrap();
           usb_hid.pull_hidio(hidio);
+          usb_hid.push_hidio(hidio);
         }
         unsafe { POLLCOMPLETE.store(true, Ordering::Relaxed) }
       }

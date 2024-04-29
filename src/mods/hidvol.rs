@@ -1,4 +1,4 @@
-use defmt::info;
+use defmt::{info, println};
 use heapless::Vec;
 use kiibohd_hid_io::h0060;
 
@@ -31,19 +31,22 @@ impl HIDVol for Key {
       h0060::Command::Mute | h0060::Command::UnMute | h0060::Command::ToggleMute => false,
       _ => true,
     };
-    let vol = 
-      if value.len() < 2 && volreq {
-        panic!("Volume value required")
-      } else if value.len() == 2 {
-        match value[1].parse::<u16>() {
-          Ok(n) => n,
-          Err(_) => {
-            panic!("Invalid volume value: {}", value[1]);
-          },
+    let mut strng = "";
+    let vol: u16 = match volreq {
+      true => match value[1].parse::<u16>() {
+        Ok(n) => {
+          if value.len() > 2 {
+            strng = value[2];
+          }
+          n
         }
-      } else {
-          0
-      };
+        Err(_) => panic!("Invalid volume number: {}", value[1]),
+      },
+      false => {
+        strng = value[1];
+        0
+      }
+    };
     Key {
       cycles: 0,
       raw_state: false,
@@ -52,16 +55,20 @@ impl HIDVol for Key {
       prevstate: StateType::Off,
       keycode: [Some(KeyCode::EEEEEEEE), None, None, None],
       previnfo: [false; 6],
-      stor: [u16::try_from(command).unwrap(),vol,0,0,0,0],
+      stor: [u16::try_from(command).unwrap(), vol, 0, 0, 0, 0],
       typ: Modules::HIDVol,
-      strng: if value.len() > 2 { value[2] } else { "" },
+      strng,
     }
   }
 
   fn tap(&mut self) -> [Option<KeyCode>; 4] {
     if self.prevstate != StateType::Tap {
-      info!("HIDVol: {}", self.strng);
-      action(CallbackActions::HIDVol, ARGS::VOL { command: h0060::Command::try_from(self.stor[0]).unwrap(), vol: self.stor[1].try_into().unwrap(), app: self.strng  });
+      info!("HIDVol: {}, {}", self.stor[1], self.strng);
+      action(CallbackActions::HIDVol, ARGS::VOL {
+        command: h0060::Command::try_from(self.stor[0]).unwrap(),
+        vol: self.stor[1].try_into().unwrap(),
+        app: self.strng,
+      });
     }
     [None; 4]
   }
