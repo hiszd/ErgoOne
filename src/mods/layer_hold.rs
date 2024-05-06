@@ -48,7 +48,7 @@ impl LayerHold for Key {
       info!("Tap: {}", self.stor[0]);
       action(CallbackActions::SetLayer, ARGS::LYR {
         l: self.stor[0].into(),
-      });
+      }).unwrap();
       self.previnfo[0] = true;
     }
     [None; 4]
@@ -64,7 +64,7 @@ impl LayerHold for Key {
       info!("Off: {}, {}", self.previnfo[0], self.prevstate);
       action(CallbackActions::SetLayer, ARGS::LYR {
         l: self.stor[1].into(),
-      });
+      }).unwrap();
       self.previnfo[0] = false;
     }
     [None; 4]

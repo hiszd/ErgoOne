@@ -66,7 +66,7 @@ impl TapStr for Key {
     if kc0.is_modifier() {
       if self.prevstate == StateType::Off {
         self.previnfo[0] = false;
-        action(CallbackActions::Press, ARGS::KS { code: kc0 });
+        action(CallbackActions::Press, ARGS::KS { code: kc0 }).unwrap();
       }
       if self.exist_next(ctx, kc0, true) {
         self.previnfo[0] = true;
@@ -95,7 +95,7 @@ impl TapStr for Key {
     };
     match self.prevstate {
       StateType::Tap => {
-        action(CallbackActions::Release, ARGS::KS { code: kc0 });
+        action(CallbackActions::Release, ARGS::KS { code: kc0 }).unwrap();
 
         if !self.exist_next(ctx, kc0, true) {
           if !self.previnfo[0] {
@@ -111,7 +111,7 @@ impl TapStr for Key {
         return [Some(kc0), None, None, None];
       }
       StateType::Hold => {
-        action(CallbackActions::Release, ARGS::KS { code: kc0 });
+        action(CallbackActions::Release, ARGS::KS { code: kc0 }).unwrap();
         return [Some(kc0), None, None, None];
       }
       StateType::Off => {
@@ -121,7 +121,7 @@ impl TapStr for Key {
               if !self.exist_next(ctx, kc0, true) {
                 action(CallbackActions::SendString, ARGS::STR {
                   s: self.strng.into(),
-                });
+                }).unwrap();
                 self.stor[4] += 1;
               }
             }

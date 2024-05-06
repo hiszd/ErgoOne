@@ -99,6 +99,14 @@ impl<const H: usize> KiibohdCommandInterface<H> for HidioInterface<H> {
   fn h0001_device_mcu(&self) -> Option<&str> { Some("RP2040") }
   fn h0001_firmware_version(&self) -> Option<&str> { Some(env!("CARGO_PKG_VERSION")) }
   fn h0001_device_serial_number(&self) -> Option<&str> { Some("000001") }
+  fn h0061_layerset_cmd(&mut self, data: h0061::Cmd) -> Result<h0061::Ack, h0061::Nak> {
+    match action(CallbackActions::SetLayer, ARGS::LYR {
+      l: data.layer as usize,
+    }) {
+      Ok(_) => Ok(h0061::Ack {}),
+      Err(_) => Err(h0061::Nak {}),
+    }
+  }
   fn h0031_terminalinput(&mut self, data: kiibohd_hid_io::h0031::Cmd<H>) -> bool {
     let parts = &data
       .command
@@ -127,7 +135,8 @@ impl<const H: usize> KiibohdCommandInterface<H> for HidioInterface<H> {
           r: rgb[0],
           g: rgb[1],
           b: rgb[2],
-        });
+        })
+        .unwrap();
       }
       Ok(ErgoOneCmds::SetLayer) => {}
       Err(_) => {
@@ -140,18 +149,37 @@ impl<const H: usize> KiibohdCommandInterface<H> for HidioInterface<H> {
 }
 
 static mut KBD_LAYER: AtomicU8 = AtomicU8::new(0);
+static mut KBD_LAYER_MAX: AtomicU8 = AtomicU8::new(0);
 static mut SENDINGSTRING: AtomicBool = AtomicBool::new(false);
 static mut QUEUEDSTRING: AtomicBool = AtomicBool::new(false);
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum ARGS {
-  KS { code: KeyCode },
-  RGB { r: u8, g: u8, b: u8 },
-  STR { s: String<30> },
-  LYR { l: usize },
-  BLN { b: bool },
-  HID { data: &'static str },
-  VOL { command: h0060::Command, vol: u16, app: &'static str },
+  KS {
+    code: KeyCode,
+  },
+  RGB {
+    r: u8,
+    g: u8,
+    b: u8,
+  },
+  STR {
+    s: String<30>,
+  },
+  LYR {
+    l: usize,
+  },
+  BLN {
+    b: bool,
+  },
+  HID {
+    data: &'static str,
+  },
+  VOL {
+    command: h0060::Command,
+    vol: u16,
+    app: &'static str,
+  },
   NON {},
 }
 
@@ -165,7 +193,13 @@ impl defmt::Format for ARGS {
       ARGS::BLN { b } => defmt::write!(f, "ARGS::BLN {{ b: {} }}", b),
       ARGS::HID { data } => defmt::write!(f, "ARGS::HID {{ data: {:?} }}", data),
       ARGS::VOL { command, vol, app } => {
-        defmt::write!(f, "ARGS::VOL {{ command: {:?}, vol: {}, app: {:?} }}", command, vol, app)
+        defmt::write!(
+          f,
+          "ARGS::VOL {{ command: {:?}, vol: {}, app: {:?} }}",
+          command,
+          vol,
+          app
+        )
       }
       ARGS::NON {} => defmt::write!(f, "ARGS::NON"),
     }
@@ -175,62 +209,76 @@ impl defmt::Format for ARGS {
 // static mut EMITTER: events::Emitter = events::Emitter::new();
 
 /// execute function for key code
-pub fn action(action: CallbackActions, ops: ARGS) {
+pub fn action(action: CallbackActions, ops: ARGS) -> Result<(), ()> {
   match action {
     CallbackActions::Press => match ops {
       ARGS::KS { code } => {
         if unsafe { !SENDINGSTRING.load(Ordering::Relaxed) } {
-          critical_section::with(|_| {
-            let kbd = unsafe { KBD_PRODUCER.get_mut() };
-            if code != KeyCode::________ {
-              if kbd.is_some() {
-                match kbd
-                  .as_mut()
-                  .unwrap()
-                  .enqueue(kiibohd_usb::KeyState::Press(code.into()))
-                {
-                  Ok(_) => {
-                    unsafe { ACTIVE_QUEUE.enqueue(code) };
-                    // unsafe { EMITTER.call(EventType::KeyDown, ARGS::KS { code }) };
-                  }
-                  Err(err) => error!("{}", err),
-                }
-              } else {
-                error!("KBD_PRODUCER is None");
-              }
-            }
-          });
-        }
-      }
-      _ => {
-        error!("Expected ARGS::KS but got something else");
-      }
-    },
-    CallbackActions::Release => match ops {
-      ARGS::KS { code } => {
-        critical_section::with(|_| {
           let kbd = unsafe { KBD_PRODUCER.get_mut() };
           if code != KeyCode::________ {
             if kbd.is_some() {
               match kbd
                 .as_mut()
                 .unwrap()
-                .enqueue(kiibohd_usb::KeyState::Release(code.into()))
+                .enqueue(kiibohd_usb::KeyState::Press(code.into()))
               {
                 Ok(_) => {
-                  unsafe { ACTIVE_QUEUE.dequeue(code) };
-                  // unsafe { EMITTER.call(EventType::KeyUp, ARGS::KS { code }) };
+                  unsafe { ACTIVE_QUEUE.enqueue(code) };
+                  // unsafe { EMITTER.call(EventType::KeyDown, ARGS::KS { code }) };
+                  Ok(())
                 }
-                Err(err) => error!("{}", err),
+                Err(err) => {
+                  error!("{}", err);
+                  Err(())
+                }
               }
             } else {
               error!("KBD_PRODUCER is None");
+              Err(())
             }
+          } else {
+            Ok(())
           }
-        });
+        } else {
+          Ok(())
+        }
       }
       _ => {
         error!("Expected ARGS::KS but got something else");
+        Err(())
+      }
+    },
+    CallbackActions::Release => match ops {
+      ARGS::KS { code } => {
+        let kbd = unsafe { KBD_PRODUCER.get_mut() };
+        if code != KeyCode::________ {
+          if kbd.is_some() {
+            match kbd
+              .as_mut()
+              .unwrap()
+              .enqueue(kiibohd_usb::KeyState::Release(code.into()))
+            {
+              Ok(_) => {
+                unsafe { ACTIVE_QUEUE.dequeue(code) };
+                // unsafe { EMITTER.call(EventType::KeyUp, ARGS::KS { code }) };
+                Ok(())
+              }
+              Err(err) => {
+                error!("{}", err);
+                Err(())
+              }
+            }
+          } else {
+            error!("KBD_PRODUCER is None");
+            Err(())
+          }
+        } else {
+          Ok(())
+        }
+      }
+      _ => {
+        error!("Expected ARGS::KS but got something else");
+        Err(())
       }
     },
     CallbackActions::RGBSet => match ops {
@@ -240,86 +288,84 @@ pub fn action(action: CallbackActions, ops: ARGS) {
         GCOL.store(g, Ordering::Relaxed);
         BCOL.store(b, Ordering::Relaxed);
         // unsafe { EMITTER.call(EventType::RgbSet, ARGS::RGB { r, g, b }) };
+        Ok(())
       }
       _ => {
         error!("Expected ARGS::RGB but got something else");
+        Err(())
       }
     },
     CallbackActions::SendHIDRaw => match ops {
       ARGS::HID { data } => {
-        critical_section::with(|_| {
-          let hidio_intf = unsafe { HIDIO_INTF.borrow_mut().get_mut().as_mut() };
-          if hidio_intf.is_some() {
-            let hidio = hidio_intf.unwrap();
-            match hidio.h0034_terminalout(
-              h0034::Cmd {
-                output: String::from(data),
-              },
-              true,
-            ) {
-              Ok(_) => {
-                println!("Sent: {}", data)
-              }
-              Err(err) => error!("{}", err),
+        let hidio_intf = unsafe { HIDIO_INTF.borrow_mut().get_mut().as_mut() };
+        if hidio_intf.is_some() {
+          let hidio = hidio_intf.unwrap();
+          match hidio.h0034_terminalout(
+            h0034::Cmd {
+              output: String::from(data),
+            },
+            true,
+          ) {
+            Ok(_) => {
+              println!("Sent: {}", data);
+              Ok(())
+            }
+            Err(err) => {
+              error!("{}", err);
+              Err(())
             }
           }
-        });
+        } else {
+          error!("HIDIO_INTF is None");
+          Err(())
+        }
       }
       _ => {
         error!("Expected ARGS::HID but got something else");
+        Err(())
       }
     },
     CallbackActions::HIDVol => match ops {
       ARGS::VOL { command, vol, app } => {
-        critical_section::with(|_| {
-          let hidio_intf = unsafe { HIDIO_INTF.borrow_mut().get_mut().as_mut() };
-          if hidio_intf.is_some() {
-            let hidio = hidio_intf.unwrap();
-            let mut string: String<256> = String::new();
-            string.push_str("volume-").unwrap();
-            string.push_str(command.try_into().unwrap()).unwrap();
-            string.push_str(":").unwrap();
-            string.push_str(util::itoa(vol as i16).as_str()).unwrap();
-            if app.len() > 0 {
-              string.push_str(":").unwrap();
-              string.push_str(app).unwrap();
-            }
-            let cmd = h0034::Cmd { output: string };
-            match hidio.h0034_terminalout(cmd, false) {
-              Ok(_) => {
-                // println!("Sent: {}", cmd);
-                unsafe {
-                  if let Some(usb_hid) = USB_HID.as_mut() {
-                    let hidio_intf = HIDIO_INTF.borrow_mut().get_mut().as_mut();
-                    if hidio_intf.is_some() {
-                      let hidio = hidio_intf.unwrap();
-                      usb_hid.push_hidio(hidio);
-                    }
+        let hidio_intf = unsafe { HIDIO_INTF.borrow_mut().get_mut().as_mut() };
+        if hidio_intf.is_some() {
+          let hidio = hidio_intf.unwrap();
+          let cmd = h0060::Cmd {
+            command,
+            vol,
+            app: String::<252>::from(app),
+          };
+          match hidio.h0060_volume(cmd.clone()) {
+            Ok(_) => {
+              println!("Sent: {}", cmd);
+              unsafe {
+                if let Some(usb_hid) = USB_HID.as_mut() {
+                  let hidio_intf = HIDIO_INTF.borrow_mut().get_mut().as_mut();
+                  if hidio_intf.is_some() {
+                    let hidio = hidio_intf.unwrap();
+                    usb_hid.push_hidio(hidio);
+                    Ok(())
+                  } else {
+                    Err(())
                   }
+                } else {
+                  Err(())
                 }
               }
-              Err(err) => error!("{}", err),
             }
-            // match hidio.h0060_volume(cmd.clone()) {
-            //   Ok(_) => {
-            //     println!("Sent: {}", cmd);
-            //     unsafe {
-            //       if let Some(usb_hid) = USB_HID.as_mut() {
-            //         let hidio_intf = HIDIO_INTF.borrow_mut().get_mut().as_mut();
-            //         if hidio_intf.is_some() {
-            //           let hidio = hidio_intf.unwrap();
-            //           usb_hid.push_hidio(hidio);
-            //         }
-            //       }
-            //     }
-            //   }
-            //   Err(err) => error!("{}", err),
-            // }
+            Err(err) => {
+              error!("{}", err);
+              Err(())
+            }
           }
-        });
+        } else {
+          error!("HIDIO_INTF is None");
+          Err(())
+        }
       }
       _ => {
         error!("Expected ARGS::VOL but got something else");
+        Err(())
       }
     },
     CallbackActions::SendString => match ops {
@@ -332,20 +378,59 @@ pub fn action(action: CallbackActions, ops: ARGS) {
             unsafe { STRING_QUEUE.push(code) };
             // unsafe { EMITTER.call(EventType::StringSent, ARGS::STR { s: s.clone() }) };
           }
-        })
+        });
+        Ok(())
       }
       _ => {
         error!("Expected ARGS::STR but got something else");
+        Err(())
       }
     },
     CallbackActions::SetLayer => match ops {
       ARGS::LYR { l } => {
-        println!("Layer: {}", l);
-        unsafe { KBD_LAYER.store(l as u8, Ordering::Relaxed) };
-        // unsafe { EMITTER.call(EventType::LayerSet, ARGS::LYR { l }) };
+        if (l as u8) > unsafe { KBD_LAYER_MAX.load(Ordering::Relaxed) } {
+          error!("Layer out of bounds: {}", l);
+          Err(())
+        } else {
+          println!("Layer: {}", l);
+          unsafe { KBD_LAYER.store(l as u8, Ordering::Relaxed) };
+          // unsafe { EMITTER.call(EventType::LayerSet, ARGS::LYR { l }) };
+          let hidio_intf = unsafe { HIDIO_INTF.borrow_mut().get_mut().as_mut() };
+          if hidio_intf.is_some() {
+            let hidio = hidio_intf.unwrap();
+            let cmd = h0062::Cmd { layer: l as u16 };
+            match hidio.h0062_layerchanged(cmd.clone()) {
+              Ok(_) => {
+                println!("Sent: {}", cmd);
+                unsafe {
+                  if let Some(usb_hid) = USB_HID.as_mut() {
+                    let hidio_intf = HIDIO_INTF.borrow_mut().get_mut().as_mut();
+                    if hidio_intf.is_some() {
+                      let hidio = hidio_intf.unwrap();
+                      usb_hid.push_hidio(hidio);
+                      return Ok(());
+                    } else {
+                      return Err(());
+                    }
+                  } else {
+                    return Err(());
+                  }
+                }
+              }
+              Err(err) => {
+                error!("{}", err);
+                return Err(());
+              }
+            }
+          } else {
+            error!("HIDIO_INTF is None");
+            return Err(());
+          }
+        }
       }
       _ => {
         error!("Expected ARGS::LYR but got something else");
+        Err(())
       }
     },
     CallbackActions::IncLayer => match ops {
@@ -354,9 +439,11 @@ pub fn action(action: CallbackActions, ops: ARGS) {
           let l = KBD_LAYER.load(Ordering::Relaxed);
           KBD_LAYER.store((l + 1) as u8, Ordering::Relaxed);
         };
+        Ok(())
       }
       _ => {
         error!("Expected ARGS::NON but got something else");
+        Err(())
       }
     },
     CallbackActions::DecLayer => match ops {
@@ -365,9 +452,11 @@ pub fn action(action: CallbackActions, ops: ARGS) {
           let l = KBD_LAYER.load(Ordering::Relaxed);
           KBD_LAYER.store((l - 1) as u8, Ordering::Relaxed);
         };
+        Ok(())
       }
       _ => {
         error!("Expected ARGS::NON but got something else");
+        Err(())
       }
     },
   }
@@ -591,6 +680,7 @@ fn main() -> ! {
     key_mapping::ERGOONE_QWERTY,
     key_mapping::ERGOONE_1,
   ]);
+  unsafe { KBD_LAYER_MAX = AtomicU8::new(1) };
 
   let poll1 = matrix.poll(Context {
     key_queue: unsafe { ACTIVE_QUEUE.get_keys() },

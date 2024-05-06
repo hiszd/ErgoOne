@@ -49,13 +49,13 @@ impl ModCombo for Key {
     };
     if kc0.is_modifier() {
       self.previnfo[1] = true;
-      action(CallbackActions::Press, ARGS::KS { code: kc0 });
+      action(CallbackActions::Press, ARGS::KS { code: kc0 }).unwrap();
     } else {
-      action(CallbackActions::Press, ARGS::KS { code: kc0 });
-      action(CallbackActions::Press, ARGS::KS { code: kc1 });
+      action(CallbackActions::Press, ARGS::KS { code: kc0 }).unwrap();
+      action(CallbackActions::Press, ARGS::KS { code: kc1 }).unwrap();
     }
     if self.previnfo[1] && self.prevstate == StateType::Tap {
-      action(CallbackActions::Press, ARGS::KS { code: kc1 });
+      action(CallbackActions::Press, ARGS::KS { code: kc1 }).unwrap();
     }
 
     self.stor[4] = 0;
@@ -72,10 +72,10 @@ impl ModCombo for Key {
     };
     if self.previnfo[1] {
       if self.stor[4] == 1 {
-        action(CallbackActions::Release, ARGS::KS { code: kc0 });
+        action(CallbackActions::Release, ARGS::KS { code: kc0 }).unwrap();
         self.stor[4] += 1;
       } else if self.stor[4] == 2 {
-        action(CallbackActions::Release, ARGS::KS { code: kc1 });
+        action(CallbackActions::Release, ARGS::KS { code: kc1 }).unwrap();
         self.previnfo[1] = false;
         self.stor[4] += 1;
       } else {
@@ -85,8 +85,8 @@ impl ModCombo for Key {
       return [Some(kc0), Some(kc1), None, None];
     } else {
       if self.prevstate == StateType::Tap {
-        action(CallbackActions::Release, ARGS::KS { code: kc0 });
-        action(CallbackActions::Release, ARGS::KS { code: kc1 });
+        action(CallbackActions::Release, ARGS::KS { code: kc0 }).unwrap();
+        action(CallbackActions::Release, ARGS::KS { code: kc1 }).unwrap();
       }
     }
     [None; 4]

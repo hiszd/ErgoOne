@@ -121,10 +121,10 @@ impl Emitter {
         KeyCode::Num_1zzz => {
           action(CallbackActions::SendHIDRaw, ARGS::HID {
             data: "volume:100",
-          });
+          }).unwrap();
         }
         KeyCode::Num_2zzz => {
-          action(CallbackActions::SendHIDRaw, ARGS::HID { data: "volume:0" });
+          action(CallbackActions::SendHIDRaw, ARGS::HID { data: "volume:0" }).unwrap();
         }
         _ => {}
       },

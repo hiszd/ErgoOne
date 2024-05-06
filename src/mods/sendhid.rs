@@ -1,4 +1,3 @@
-use defmt::error;
 use defmt::info;
 use heapless::Vec;
 
@@ -6,7 +5,6 @@ use crate::action;
 use crate::actions::CallbackActions;
 use crate::key::Modules;
 use crate::keyscanning::StateType;
-use crate::Context;
 use crate::ARGS;
 use crate::{key::Key, key_codes::KeyCode};
 
@@ -45,11 +43,13 @@ impl SendHID for Key {
       info!("SendHIDRaw: {}", self.strng);
       action(CallbackActions::Press, ARGS::KS {
         code: KeyCode::Fun_Escz,
-      });
+      })
+      .unwrap();
       action(CallbackActions::Release, ARGS::KS {
         code: KeyCode::Fun_Escz,
-      });
-      action(CallbackActions::SendHIDRaw, ARGS::HID { data: self.strng });
+      })
+      .unwrap();
+      action(CallbackActions::SendHIDRaw, ARGS::HID { data: self.strng }).unwrap();
     }
     [None; 4]
   }

@@ -1,4 +1,4 @@
-use defmt::{info, println};
+use defmt::info;
 use heapless::Vec;
 use kiibohd_hid_io::h0060;
 
@@ -68,7 +68,7 @@ impl HIDVol for Key {
         command: h0060::Command::try_from(self.stor[0]).unwrap(),
         vol: self.stor[1].try_into().unwrap(),
         app: self.strng,
-      });
+      }).unwrap();
     }
     [None; 4]
   }

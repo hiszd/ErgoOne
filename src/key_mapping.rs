@@ -35,7 +35,7 @@ pub const ERGOONE_1: [&str; 80] = [
 "transparent",          "dft,Fun_F1zz","dft,Fun_F2zz","dft,Fun_F3zz","dft,Fun_F4zz","dft,Fun_F5zz","transparent",          "transparent", "transparent", "transparent", "dft,Fun_F6zz","dft,Fun_F7zz","dft,Fun_F8zz","dft,Fun_F9zz","dft,Fun_F10z","dft,Fun_F11z",
 "transparent",          "transparent", "dft,Arw_Upzz","transparent", "transparent", "transparent", "transparent",          "transparent", "transparent", "transparent", "transparent", "dft,Num_7zzz","dft,Num_8zzz","dft,Num_9zzz","transparent", "dft,Fun_F12z",
 "transparent",          "dft,Arw_Left","dft,Arw_Down","dft,Arw_Rght","transparent", "transparent", "transparent",          WORKUSER,      "transparent", "transparent", "transparent", "dft,Num_4zzz","dft,Num_5zzz","dft,Num_6zzz","transparent", "transparent", 
-"transparent",          "vol,set:100:firefox", "vol,set:0:firefox",   "vol,inc:10",  "vol,dec:10",  "vol,togglemute::firefox",PERSONAL,   "transparent", "transparent", "dft,Fun_Delz","transparent", "dft,Num_1zzz","dft,Num_2zzz","dft,Num_3zzz","transparent", "transparent", 
+"transparent",          "vol,set:100:firefox", "vol,set:0:firefox",   "vol,inc:10",  "vol,dec:10",  "vol,togglemute:firefox",PERSONAL,   "transparent", "transparent", "dft,Fun_Delz","transparent", "dft,Num_1zzz","dft,Num_2zzz","dft,Num_3zzz","transparent", "transparent", 
 "transparent",          "transparent", "transparent", "transparent", "transparent", WORKADMIN,     "transparent",          "transparent", "transparent", "transparent", "transparent", "dft,Num_0zzz","transparent", "transparent", "transparent", "transparent", 
 ];
 

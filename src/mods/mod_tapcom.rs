@@ -75,7 +75,7 @@ impl TapCom for Key {
       }
     }
     if self.prevstate == StateType::Off {
-      action(CallbackActions::Press, ARGS::KS { code: kc0 });
+      action(CallbackActions::Press, ARGS::KS { code: kc0 }).unwrap();
       return [Some(kc0), None, None, None];
     }
     [None; 4]
@@ -88,7 +88,7 @@ impl TapCom for Key {
     self.previnfo[0] = true;
     match kc0.is_modifier() {
       true => {
-        action(CallbackActions::Press, ARGS::KS { code: kc0 });
+        action(CallbackActions::Press, ARGS::KS { code: kc0 }).unwrap();
       }
       false => error!("{} is not a modifier", kc0),
     }
@@ -109,29 +109,29 @@ impl TapCom for Key {
           println!("no combo");
           self.previnfo[1] = true;
           self.stor[4] = 0;
-          action(CallbackActions::Release, ARGS::KS { code: kc0 });
-          action(CallbackActions::Press, ARGS::KS { code: kc1 });
-          action(CallbackActions::Press, ARGS::KS { code: kc2 });
+          action(CallbackActions::Release, ARGS::KS { code: kc0 }).unwrap();
+          action(CallbackActions::Press, ARGS::KS { code: kc1 }).unwrap();
+          action(CallbackActions::Press, ARGS::KS { code: kc2 }).unwrap();
           return [Some(kc0), Some(kc1), Some(kc2), None];
           // if there was a combination of keys pressed then do nothing
         } else {
           println!("{}", ctx.key_queue);
           println!("combo");
-          action(CallbackActions::Release, ARGS::KS { code: kc1 });
+          action(CallbackActions::Release, ARGS::KS { code: kc1 }).unwrap();
           self.previnfo[0] = false;
           return [Some(kc1), None, None, None];
         }
       }
       StateType::Hold => {
         self.previnfo[1] = false;
-        action(CallbackActions::Release, ARGS::KS { code: kc0 });
+        action(CallbackActions::Release, ARGS::KS { code: kc0 }).unwrap();
         return [Some(kc0), None, None, None];
       }
       StateType::Off => {
         if self.previnfo[1] {
           if self.stor[4] == 3 {
-            action(CallbackActions::Release, ARGS::KS { code: kc1 });
-            action(CallbackActions::Release, ARGS::KS { code: kc2 });
+            action(CallbackActions::Release, ARGS::KS { code: kc1 }).unwrap();
+            action(CallbackActions::Release, ARGS::KS { code: kc2 }).unwrap();
             self.previnfo[1] = false;
             self.stor[4] += 1;
           } else if self.stor[4] < 5 {

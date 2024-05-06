@@ -51,7 +51,7 @@ impl RGBKey for Key {
       r: self.stor[0].try_into().unwrap(),
       g: self.stor[1].try_into().unwrap(),
       b: self.stor[2].try_into().unwrap(),
-    });
+    }).unwrap();
     [Some(kc1), None, None, None]
   }
 

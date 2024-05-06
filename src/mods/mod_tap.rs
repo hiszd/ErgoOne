@@ -59,7 +59,7 @@ impl ModTap for Key {
     if kc1.is_modifier() {
       if self.prevstate == StateType::Off {
         self.previnfo[0] = false;
-        action(CallbackActions::Press, ARGS::KS { code: kc1 });
+        action(CallbackActions::Press, ARGS::KS { code: kc1 }).unwrap();
       }
       if self.exist_next(ctx, kc1, true) {
         self.previnfo[0] = true;
@@ -88,7 +88,7 @@ impl ModTap for Key {
     };
     match self.prevstate {
       StateType::Tap => {
-        action(CallbackActions::Release, ARGS::KS { code: kc1 });
+        action(CallbackActions::Release, ARGS::KS { code: kc1 }).unwrap();
 
         if !self.exist_next(ctx, kc1, true) {
           if !self.previnfo[0] {
@@ -105,7 +105,7 @@ impl ModTap for Key {
         return [Some(kc1), None, None, None];
       }
       StateType::Hold => {
-        action(CallbackActions::Release, ARGS::KS { code: kc1 });
+        action(CallbackActions::Release, ARGS::KS { code: kc1 }).unwrap();
         return [Some(kc1), None, None, None];
       }
       StateType::Off => {
@@ -113,12 +113,12 @@ impl ModTap for Key {
           match self.stor[4] {
             2 => {
               if !self.exist_next(ctx, kc0, true) {
-                action(CallbackActions::Press, ARGS::KS { code: kc0 });
+                action(CallbackActions::Press, ARGS::KS { code: kc0 }).unwrap();
                 self.stor[4] += 1;
               }
             }
             3 => {
-              action(CallbackActions::Release, ARGS::KS { code: kc0 });
+              action(CallbackActions::Release, ARGS::KS { code: kc0 }).unwrap();
               self.stor[4] += 1;
             }
             4 => {

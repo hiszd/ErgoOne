@@ -249,7 +249,7 @@ impl Default for Key {
     if self.keycode[0].is_some() {
       let kc0 = self.keycode[0].unwrap();
       if self.prevstate == StateType::Off {
-        action(CallbackActions::Press, ARGS::KS { code: kc0 });
+        action(CallbackActions::Press, ARGS::KS { code: kc0 }).unwrap();
       }
     }
     self.keycode
@@ -258,7 +258,7 @@ impl Default for Key {
   fn hold(&mut self) -> [Option<KeyCode>; 4] {
     if self.keycode[0].is_some() {
       let kc0 = self.keycode[0].unwrap();
-      action(CallbackActions::Press, ARGS::KS { code: kc0 });
+      action(CallbackActions::Press, ARGS::KS { code: kc0 }).unwrap();
       self.keycode
     } else {
       [None; 4]
@@ -271,7 +271,7 @@ impl Default for Key {
     if self.keycode[0].is_some() {
       let kc0 = self.keycode[0].unwrap();
       if self.state != self.prevstate {
-        action(CallbackActions::Release, ARGS::KS { code: kc0 });
+        action(CallbackActions::Release, ARGS::KS { code: kc0 }).unwrap();
       }
       self.keycode
     } else {

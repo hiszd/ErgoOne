@@ -42,7 +42,7 @@ impl SendString for Key {
     if self.prevstate != StateType::Tap {
       action(CallbackActions::SendString, ARGS::STR {
         s: self.strng.into(),
-      });
+      }).unwrap();
     }
     [None; 4]
   }
