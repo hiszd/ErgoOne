@@ -27,7 +27,7 @@ use heapless::spsc::{Producer, Queue};
 use heapless::{String, Vec};
 use keyscanning::{Col, Row};
 use kiibohd_hid_io::{
-  h0034, h0060, CommandInterface, Commands, HidIoCommandId, KiibohdCommandInterface,
+  h0034, h0060, h0061, h0062, CommandInterface, Commands, HidIoCommandId, KiibohdCommandInterface,
 };
 use kiibohd_usb::KeyState;
 use panic_probe as _;
@@ -589,6 +589,8 @@ fn main() -> ! {
           HidIoCommandId::TestPacket,
           HidIoCommandId::TerminalCmd,
           HidIoCommandId::Volume,
+          HidIoCommandId::LayerSet,
+          HidIoCommandId::LayerChanged,
         ],
         HidioInterface::<256>::new(),
       )
